@@ -44,6 +44,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
@@ -105,6 +106,9 @@ class MainActivity : ComponentActivity() {
                 var dailyRangeDays by rememberSaveable { mutableIntStateOf(30) }
                 var statistics by remember { mutableStateOf(AdminStatistics()) }
                 var errorMessage by remember { mutableStateOf("") }
+                var hasLoadedWorkspace by remember { mutableStateOf(false) }
+                var isRefreshingWorkspace by remember { mutableStateOf(false) }
+                val workspaceRefreshMutex = remember { Mutex() }
                 var selectedStatus by remember { mutableStateOf<String?>(null) }
                 var selectedReportView by rememberSaveable { mutableStateOf("verify") }
                 var selectedOpsTab by rememberSaveable { mutableStateOf("petugas") }
@@ -116,69 +120,77 @@ class MainActivity : ComponentActivity() {
 
                 suspend fun refreshWorkspace() {
                     val account = activeAccount ?: return
+                    if (!workspaceRefreshMutex.tryLock()) return
+                    isRefreshingWorkspace = true
                     val loadErrors = mutableListOf<String>()
-                    if (account.role == UserRole.ADMIN) {
-                        val calendar = Calendar.getInstance()
-                            .apply { add(Calendar.DAY_OF_YEAR, -(dailyRangeDays - 1)) }
-                        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                        val from = formatter.format(calendar.time)
-                        val to = formatter.format(Date())
-                        summary = loadOrKeep(
-                            "Ringkasan",
-                            summary,
-                            loadErrors
-                        ) { SmartWasteApi.dashboard() }
-                        reports =
-                            loadOrKeep("Laporan", reports, loadErrors) { SmartWasteApi.reports() }
-                        archivedReports = loadOrKeep(
-                            "Arsip laporan",
-                            archivedReports,
-                            loadErrors
-                        ) { SmartWasteApi.archivedReports() }
-                        statistics = loadOrKeep(
-                            "Statistik",
-                            statistics,
-                            loadErrors
-                        ) { SmartWasteApi.statistics() }
-                        workers = loadOrKeep(
-                            "Data petugas",
-                            workers,
-                            loadErrors
-                        ) { SmartWasteApi.workers() }
-                        completionReviews = loadOrKeep(
-                            "Bukti penyelesaian",
-                            completionReviews,
-                            loadErrors
-                        ) { SmartWasteApi.completionReviews() }
-                        adminNotes = loadOrKeep(
-                            "Catatan Admin",
-                            adminNotes,
-                            loadErrors
-                        ) { SmartWasteApi.adminNotes() }
-                        archivedAdminNotes = loadOrKeep(
-                            "Arsip catatan",
-                            archivedAdminNotes,
-                            loadErrors
-                        ) { SmartWasteApi.archivedAdminNotes() }
-                        dailyReports = loadOrKeep("Aktivitas harian", dailyReports, loadErrors) {
-                            SmartWasteApi.dailyReports(from, to)
+                    try {
+                        if (account.role == UserRole.ADMIN) {
+                            val calendar = Calendar.getInstance()
+                                .apply { add(Calendar.DAY_OF_YEAR, -(dailyRangeDays - 1)) }
+                            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                            val from = formatter.format(calendar.time)
+                            val to = formatter.format(Date())
+                            summary = loadOrKeep(
+                                "Ringkasan",
+                                summary,
+                                loadErrors
+                            ) { SmartWasteApi.dashboard() }
+                            reports =
+                                loadOrKeep("Laporan", reports, loadErrors) { SmartWasteApi.reports() }
+                            archivedReports = loadOrKeep(
+                                "Arsip laporan",
+                                archivedReports,
+                                loadErrors
+                            ) { SmartWasteApi.archivedReports() }
+                            statistics = loadOrKeep(
+                                "Statistik",
+                                statistics,
+                                loadErrors
+                            ) { SmartWasteApi.statistics() }
+                            workers = loadOrKeep(
+                                "Data petugas",
+                                workers,
+                                loadErrors
+                            ) { SmartWasteApi.workers() }
+                            completionReviews = loadOrKeep(
+                                "Bukti penyelesaian",
+                                completionReviews,
+                                loadErrors
+                            ) { SmartWasteApi.completionReviews() }
+                            adminNotes = loadOrKeep(
+                                "Catatan Admin",
+                                adminNotes,
+                                loadErrors
+                            ) { SmartWasteApi.adminNotes() }
+                            archivedAdminNotes = loadOrKeep(
+                                "Arsip catatan",
+                                archivedAdminNotes,
+                                loadErrors
+                            ) { SmartWasteApi.archivedAdminNotes() }
+                            dailyReports = loadOrKeep("Aktivitas harian", dailyReports, loadErrors) {
+                                SmartWasteApi.dailyReports(from, to)
+                            }
+                        } else {
+                            tasks = loadOrKeep(
+                                "Penugasan",
+                                tasks,
+                                loadErrors
+                            ) { SmartWasteApi.workerTasks() }
+                            incomingReports = loadOrKeep(
+                                "Laporan masuk",
+                                incomingReports,
+                                loadErrors
+                            ) { SmartWasteApi.workerIncomingReports() }
+                            vehicles = loadOrKeep("Armada", vehicles, loadErrors) { SmartWasteApi.vehicles() }
+                            facilities = loadOrKeep("TPA", facilities, loadErrors) { SmartWasteApi.facilities() }
                         }
-                    } else {
-                        tasks = loadOrKeep(
-                            "Penugasan",
-                            tasks,
-                            loadErrors
-                        ) { SmartWasteApi.workerTasks() }
-                        incomingReports = loadOrKeep(
-                            "Laporan masuk",
-                            incomingReports,
-                            loadErrors
-                        ) { SmartWasteApi.workerIncomingReports() }
-                        vehicles = loadOrKeep("Armada", vehicles, loadErrors) { SmartWasteApi.vehicles() }
-                        facilities = loadOrKeep("TPA", facilities, loadErrors) { SmartWasteApi.facilities() }
+                        errorMessage = loadErrors.take(4).joinToString("\n") +
+                                if (loadErrors.size > 4) "\n+ ${loadErrors.size - 4} data lain gagal dimuat" else ""
+                        hasLoadedWorkspace = true
+                    } finally {
+                        isRefreshingWorkspace = false
+                        workspaceRefreshMutex.unlock()
                     }
-                    errorMessage = loadErrors.take(4).joinToString("\n") +
-                            if (loadErrors.size > 4) "\n+ ${loadErrors.size - 4} data lain gagal dimuat" else ""
                 }
 
                 fun signOut() {
@@ -198,6 +210,7 @@ class MainActivity : ComponentActivity() {
                     statistics = AdminStatistics()
                     summary = AdminDashboardSummary()
                     errorMessage = ""
+                    hasLoadedWorkspace = false
                     selectedStatus = null
                     selectedReportView = "verify"
                     selectedOpsTab = "petugas"
@@ -280,6 +293,8 @@ class MainActivity : ComponentActivity() {
                                             "Akun ini terdaftar sebagai ${account.role.label}. Pilih ${account.role.label} untuk masuk."
                                         )
                                     }
+                                    hasLoadedWorkspace = false
+                                    errorMessage = ""
                                     activeAccount = account
                                     selectedStatus = null
                                     selectedReportView = "verify"
@@ -501,6 +516,9 @@ class MainActivity : ComponentActivity() {
                                     SmartWasteApi.updateFacility(facility)
                                     refreshWorkspace()
                                 },
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } },
                                 onLogout = ::signOut
                             )
                         }

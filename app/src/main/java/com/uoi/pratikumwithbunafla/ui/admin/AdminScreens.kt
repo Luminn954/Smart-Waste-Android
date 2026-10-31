@@ -1,6 +1,7 @@
 package com.uoi.pratikumwithbunafla.ui.admin
 
 import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -81,6 +82,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -151,10 +153,12 @@ import com.uoi.pratikumwithbunafla.ui.theme.DarkSmartWastePalette
 import com.uoi.pratikumwithbunafla.ui.theme.LightSmartWastePalette
 import com.uoi.pratikumwithbunafla.ui.theme.LocalSmartWasteAppearance
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import java.io.File
 
 private val LoginInk: Color
     @Composable get() = MaterialTheme.colorScheme.onBackground
@@ -2778,6 +2782,9 @@ fun PetugasTasksScreen(
     onUpdateVehicle: suspend (WasteVehicle) -> Unit,
     onCreateFacility: suspend (String, String, Double) -> Unit,
     onUpdateFacility: suspend (WasteFacility) -> Unit,
+    isInitialLoading: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedSection by rememberSaveable(account.username) { mutableStateOf("ringkasan") }
@@ -2794,13 +2801,68 @@ fun PetugasTasksScreen(
     var transportingTaskId by remember { mutableStateOf<Int?>(null) }
     var selectedCompletionTask by remember { mutableStateOf<WasteRecord?>(null) }
     var selectedProofUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraEvidenceFile by remember { mutableStateOf<File?>(null) }
+    var showProofSourceDialog by remember { mutableStateOf(false) }
     var proofNote by rememberSaveable { mutableStateOf("") }
     var proofError by remember { mutableStateOf("") }
     var sendingProof by remember { mutableStateOf(false) }
+    var confirmingTransportTask by remember { mutableStateOf<WasteRecord?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         selectedProofUri = uri
         if (uri == null) selectedCompletionTask = null
+        showProofSourceDialog = false
+    }
+    val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        selectedProofUri = if (captured) selectedCameraUri else null
+        if (!captured) {
+            cameraEvidenceFile?.delete()
+            cameraEvidenceFile = null
+            selectedCameraUri = null
+            proofError = "Foto belum diambil. Kamu bisa mencoba lagi atau memilih dari galeri."
+            showProofSourceDialog = true
+        }
+    }
+    fun clearProofSelection() {
+        cameraEvidenceFile?.delete()
+        cameraEvidenceFile = null
+        selectedCameraUri = null
+        selectedProofUri = null
+        selectedCompletionTask = null
+        showProofSourceDialog = false
+    }
+    fun requestCompletionProof(task: WasteRecord) {
+        cameraEvidenceFile?.delete()
+        cameraEvidenceFile = null
+        selectedCameraUri = null
+        selectedCompletionTask = task
+        selectedProofUri = null
+        proofNote = ""
+        proofError = ""
+        showProofSourceDialog = true
+    }
+    fun launchEvidenceCamera() {
+        val task = selectedCompletionTask ?: return
+        val file = File(File(context.cacheDir, "evidence").apply { mkdirs() }, "bukti-${task.id}-${System.currentTimeMillis()}.jpg")
+        runCatching {
+            check(file.createNewFile()) { "File foto tidak dapat dibuat." }
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            cameraEvidenceFile = file
+            selectedCameraUri = uri
+            showProofSourceDialog = false
+            cameraPicker.launch(uri)
+        }.onFailure { error ->
+            file.delete()
+            cameraEvidenceFile = null
+            selectedCameraUri = null
+            proofError = error.message ?: "Kamera tidak dapat dibuka. Pilih foto dari galeri."
+        }
     }
     fun startTransport(task: WasteRecord) {
         if (transportingTaskId != null) return
@@ -2821,9 +2883,26 @@ fun PetugasTasksScreen(
     val currentSection = selectedSection.takeIf {
         it in setOf("ringkasan", "tugas", "riwayat", "profil")
     } ?: "ringkasan"
-    val activeTasks =
-        tasks.filter { it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED }
-    val completedTasks = tasks.filter { it.status == WasteFlow.DONE }
+    val activeTasks = tasks
+        .filter { it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED }
+        .sortedWith(
+            compareBy<WasteRecord> {
+                when {
+                    it.completionStatus == "perlu_perbaikan" -> 0
+                    it.status == WasteFlow.TRANSPORTED && it.completionStatus != "menunggu" -> 1
+                    it.status == WasteFlow.ASSIGNED -> 2
+                    else -> 3
+                }
+            }.thenByDescending { !it.hazardLevel.equals("RENDAH", ignoreCase = true) }
+                .thenBy { it.reportedAt }
+        )
+    val completedTasks = tasks
+        .filter { it.status == WasteFlow.DONE }
+        .sortedByDescending { it.reportedAt }
+    val newReports = incomingReports.sortedBy { it.reportedAt }
+
+    fun hasLoadError(label: String): Boolean =
+        errorMessage.lineSequence().any { it.startsWith("$label:") }
 
     AdminPage(
         current = "tasks",
@@ -2833,12 +2912,17 @@ fun PetugasTasksScreen(
         bottomBar = { PetugasNavigationBar(currentSection) { selectedSection = it } },
         backgroundContent = { PetugasThemeBackdrop(Modifier.fillMaxSize()) }
     ) {
-        if (currentSection != "profil") {
+        if (currentSection == "ringkasan") {
             PetugasJourneyHero(
                 name = account.name,
                 tasks = tasks,
-                onOpenTasks = { selectedSection = "tugas" }
+                isInitialLoading = isInitialLoading,
+                isRefreshing = isRefreshing,
+                onOpenTasks = { selectedSection = "tugas" },
+                onRefresh = onRefresh
             )
+        }
+        if (currentSection != "profil") {
             if (errorMessage.isNotBlank()) InlineError(errorMessage)
             if (reportActionError.isNotBlank()) InlineError(reportActionError)
         }
@@ -2849,65 +2933,72 @@ fun PetugasTasksScreen(
                 val sectionOrder = listOf("ringkasan", "tugas", "riwayat")
                 val direction = if (sectionOrder.indexOf(targetState) >= sectionOrder.indexOf(initialState)) 1 else -1
                 (slideInHorizontally(
-                    animationSpec = tween(460, easing = FastOutSlowInEasing)
-                ) { width -> width * direction * 34 / 100 } +
-                    fadeIn(tween(340)) + scaleIn(
-                    animationSpec = tween(420, easing = FastOutSlowInEasing),
-                    initialScale = 0.94f
-                )) togetherWith
+                    animationSpec = tween(260, easing = FastOutSlowInEasing)
+                ) { width -> width * direction * 18 / 100 } +
+                    fadeIn(tween(200))) togetherWith
                     (slideOutHorizontally(
-                        animationSpec = tween(400, easing = FastOutSlowInEasing)
-                    ) { width -> -width * direction * 22 / 100 } +
-                        fadeOut(tween(260)) + scaleOut(
-                        animationSpec = tween(380, easing = FastOutSlowInEasing),
-                        targetScale = 0.97f
-                    ))
+                        animationSpec = tween(220, easing = FastOutSlowInEasing)
+                    ) { width -> -width * direction * 12 / 100 } +
+                        fadeOut(tween(160)))
             },
             label = "petugas-section-slide"
         ) { section ->
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(13.dp)
             ) {
                 when (section) {
             "ringkasan" -> {
-                PetugasOperationalOverview(tasks) { selectedSection = "tugas" }
-                SectionTitle("Pekerjaan berikutnya", "Tinjau laporan masuk dan lanjutkan tugas lapangan")
-                val nextReport = incomingReports.firstOrNull()
                 val nextTask = activeTasks.firstOrNull()
-                if (nextReport != null) {
-                    AdminReportCard(
-                        report = nextReport,
-                        onOpenPhoto = onOpenPhoto,
-                        onReject = { rejectingReport = nextReport },
-                        onAssign = { assigningReport = nextReport },
-                        compact = true,
-                        assignmentLabel = "Terima & tugaskan"
-                    )
-                } else if (nextTask == null) {
-                    PetugasEmptyState("Belum ada pekerjaan", "Laporan baru dan tugas lapangan akan muncul di sini.")
+                val nextReport = newReports.firstOrNull()
+                if (isInitialLoading) {
+                    PetugasLoadingState("Menyiapkan ruang kerja", "Memuat laporan, tugas, dan armada.")
                 } else {
-                    PetugasTaskCard(
-                        report = nextTask,
-                        onOpenPhoto = onOpenPhoto,
-                        onMarkTransported = ::startTransport,
-                        isTransporting = transportingTaskId == nextTask.id,
-                        onComplete = {
-                            selectedCompletionTask = nextTask
-                            proofNote = ""
-                            proofError = ""
-                            proofPicker.launch("image/*")
+                    PetugasOperationalOverview(tasks) { selectedSection = "tugas" }
+                    when {
+                        nextTask != null -> {
+                            SectionTitle(
+                                "Lanjutkan pekerjaan",
+                                if (nextTask.completionStatus == "perlu_perbaikan") {
+                                    "Admin meminta perbaikan bukti. Tugas ini perlu ditangani lebih dulu."
+                                } else if (nextTask.status == WasteFlow.TRANSPORTED) {
+                                    "Muatan sedang diangkut. Kirim bukti saat sudah diterima di TPA."
+                                } else {
+                                    "Tugas aktif didahulukan sebelum laporan baru."
+                                }
+                            )
+                            PetugasTaskCard(
+                                report = nextTask,
+                                onOpenPhoto = onOpenPhoto,
+                                onMarkTransported = { confirmingTransportTask = it },
+                                isTransporting = transportingTaskId == nextTask.id,
+                                isActionEnabled = transportingTaskId == null,
+                                onComplete = ::requestCompletionProof
+                            )
+                            TextButton(
+                                onClick = { selectedSection = "tugas" },
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            ) {
+                                Text("Lihat semua tugas aktif", color = LoginAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            }
                         }
-                    )
-                    TextButton(
-                        onClick = { selectedSection = "tugas" },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text(
-                            "Lihat semua tugas aktif",
-                            color = LoginAccent,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
+                        nextReport != null -> {
+                            SectionTitle("Laporan baru", "Tinjau laporan warga dan siapkan penanganannya.")
+                            AdminReportCard(
+                                report = nextReport,
+                                onOpenPhoto = onOpenPhoto,
+                                onReject = {
+                                    rejectionNote = ""
+                                    rejectingReport = nextReport
+                                },
+                                onAssign = { assigningReport = nextReport },
+                                compact = true,
+                                assignmentLabel = "Terima & tugaskan"
+                            )
+                        }
+                        else -> PetugasEmptyState(
+                            "Semua pekerjaan tertangani",
+                            "Belum ada tugas aktif atau laporan baru. Perbarui data untuk cek antrean terbaru."
                         )
                     }
                 }
@@ -2915,27 +3006,44 @@ fun PetugasTasksScreen(
 
             "tugas" -> {
                 Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf("laporan" to "Laporan", "armada" to "Armada", "tpa" to "TPA").forEach { (key, label) ->
-                        TextButton(
-                            onClick = { selectedWorkArea = key },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (selectedWorkArea == key) LoginAccent else LoginMuted,
-                                containerColor = if (selectedWorkArea == key) WasteBlue else AppSurface
-                            ),
-                            shape = RoundedCornerShape(13.dp)
-                        ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                    Row(
+                        modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        listOf(
+                            Triple("laporan", "Masuk", newReports.size),
+                            Triple("aktif", "Aktif", activeTasks.size),
+                            Triple("armada", "Armada", vehicles.size),
+                            Triple("tpa", "TPA", facilities.size)
+                        ).forEach { (key, label, count) ->
+                            val selected = selectedWorkArea == key
+                            TextButton(
+                                onClick = { selectedWorkArea = key },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = if (selected) LoginAccent else LoginMuted,
+                                    containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(14.dp)
+                            ) { Text("$label · $count", fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
+                        }
                     }
+                    PetugasRefreshButton(isRefreshing, onRefresh)
                 }
                 when (selectedWorkArea) {
                     "laporan" -> {
-                        SectionTitle("Laporan masuk", "Tinjau laporan, lalu pilih armada dan TPA tujuan")
-                        if (incomingReports.isEmpty()) {
+                        SectionTitle("Laporan masuk", "Tinjau laporan, lalu pilih armada dan TPA tujuan.")
+                        if (isInitialLoading && newReports.isEmpty()) {
+                            PetugasLoadingState("Memuat laporan", "Mengambil antrean terbaru dari server.")
+                        } else if (newReports.isEmpty() && hasLoadError("Laporan masuk")) {
+                            PetugasLoadFailure("Laporan belum dapat dimuat.", onRefresh)
+                        } else if (newReports.isEmpty()) {
                             PetugasEmptyState("Tidak ada laporan baru", "Laporan warga yang menunggu penanganan akan tampil di sini.")
                         } else {
-                            incomingReports.forEach { report ->
+                            newReports.forEach { report ->
                                 AdminReportCard(
                                     report = report,
                                     onOpenPhoto = onOpenPhoto,
@@ -2949,31 +3057,38 @@ fun PetugasTasksScreen(
                                 )
                             }
                         }
-                        SectionTitle(
-                            "Tugas aktif",
-                            "Angkut sampah ke TPA, lalu kirim foto bukti penerimaan"
-                        )
-                        if (activeTasks.isEmpty()) PetugasEmptyState("Belum ada tugas aktif", "Tugas yang kamu terima akan muncul di bagian ini.")
-                        activeTasks.forEach { task ->
-                            PetugasTaskCard(
-                                report = task,
-                                onOpenPhoto = onOpenPhoto,
-                                onMarkTransported = ::startTransport,
-                                isTransporting = transportingTaskId == task.id,
-                                onComplete = {
-                                    selectedCompletionTask = task
-                                    proofNote = ""
-                                    proofError = ""
-                                    proofPicker.launch("image/*")
-                                }
-                            )
+                    }
+
+                    "aktif" -> {
+                        SectionTitle("Tugas aktif", "Prioritaskan bukti yang perlu diperbaiki, lalu lanjutkan pengangkutan.")
+                        if (isInitialLoading && activeTasks.isEmpty()) {
+                            PetugasLoadingState("Memuat tugas", "Mengambil penugasan akun ini dari server.")
+                        } else if (activeTasks.isEmpty() && hasLoadError("Penugasan")) {
+                            PetugasLoadFailure("Tugas belum dapat dimuat.", onRefresh)
+                        } else if (activeTasks.isEmpty()) {
+                            PetugasEmptyState("Belum ada tugas aktif", "Tugas yang sudah diterima akan muncul di sini.")
+                        } else {
+                            activeTasks.forEach { task ->
+                                PetugasTaskCard(
+                                    report = task,
+                                    onOpenPhoto = onOpenPhoto,
+                                    onMarkTransported = { confirmingTransportTask = it },
+                                    isTransporting = transportingTaskId == task.id,
+                                    isActionEnabled = transportingTaskId == null,
+                                    onComplete = ::requestCompletionProof
+                                )
+                            }
                         }
                     }
 
                     "armada" -> {
-                        SectionTitle("Armada", "Kelola kendaraan yang tersedia untuk penugasan")
+                        SectionTitle("Armada", "Periksa kapasitas dan kondisi sebelum menerima laporan.")
                         AppButton("＋ Tambah kendaraan", { showVehicleForm = true }, containerColor = LoginAccent)
-                        if (vehicles.isEmpty()) PetugasEmptyState("Belum ada armada", "Tambahkan kendaraan agar laporan bisa ditugaskan.")
+                        if (isInitialLoading && vehicles.isEmpty()) {
+                            PetugasLoadingState("Memuat armada", "Mengambil data kendaraan dari server.")
+                        } else if (vehicles.isEmpty() && hasLoadError("Armada")) {
+                            PetugasLoadFailure("Data armada belum dapat dimuat.", onRefresh)
+                        } else if (vehicles.isEmpty()) PetugasEmptyState("Belum ada armada", "Tambahkan kendaraan agar laporan bisa ditugaskan.")
                         vehicles.forEach { vehicle ->
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Row(
@@ -2998,9 +3113,13 @@ fun PetugasTasksScreen(
                     }
 
                     "tpa" -> {
-                        SectionTitle("TPA", "Kelola tujuan penerimaan dan kapasitas sampah")
+                        SectionTitle("TPA", "Pantau kapasitas tujuan sebelum mengatur pengangkutan.")
                         AppButton("＋ Tambah TPA", { showFacilityForm = true }, containerColor = LoginAccent)
-                        if (facilities.isEmpty()) PetugasEmptyState("Belum ada TPA", "Tambahkan TPA agar laporan bisa ditugaskan.")
+                        if (isInitialLoading && facilities.isEmpty()) {
+                            PetugasLoadingState("Memuat data TPA", "Mengambil kapasitas tujuan dari server.")
+                        } else if (facilities.isEmpty() && hasLoadError("TPA")) {
+                            PetugasLoadFailure("Data TPA belum dapat dimuat.", onRefresh)
+                        } else if (facilities.isEmpty()) PetugasEmptyState("Belum ada TPA", "Tambahkan TPA agar laporan bisa ditugaskan.")
                         facilities.forEach { facility ->
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Column(
@@ -3034,8 +3153,20 @@ fun PetugasTasksScreen(
             }
 
             "riwayat" -> {
-                SectionTitle("Riwayat selesai", "Penugasan yang sudah diterima di TPA")
-                if (completedTasks.isEmpty()) PetugasEmptyState("Belum ada riwayat", "Tugas yang sudah diterima di TPA akan tersimpan di sini.")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Riwayat selesai", color = AppText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Penugasan yang sudah disetujui admin di TPA.", color = AppTextMuted, fontSize = 12.sp)
+                    }
+                    PetugasRefreshButton(isRefreshing, onRefresh)
+                }
+                if (isInitialLoading && completedTasks.isEmpty()) {
+                    PetugasLoadingState("Memuat riwayat", "Mengambil pekerjaan yang sudah selesai.")
+                } else if (completedTasks.isEmpty() && hasLoadError("Penugasan")) {
+                    PetugasLoadFailure("Riwayat belum dapat dimuat.", onRefresh)
+                } else if (completedTasks.isEmpty()) {
+                    PetugasEmptyState("Belum ada riwayat", "Tugas yang disetujui admin akan tersimpan di sini.")
+                }
                 completedTasks.forEach { task -> PetugasTaskCard(task, onOpenPhoto) }
             }
 
@@ -3074,11 +3205,16 @@ fun PetugasTasksScreen(
                         maxLines = 3,
                         enabled = !processingReportAction
                     )
+                    Text(
+                        "Alasan wajib diisi agar keputusan bisa ditinjau admin.",
+                        color = AppTextMuted,
+                        fontSize = 10.sp
+                    )
                 }
             },
             confirmButton = {
                 TextButton(
-                    enabled = !processingReportAction,
+                    enabled = !processingReportAction && rejectionNote.isNotBlank(),
                     onClick = {
                         scope.launch {
                             processingReportAction = true
@@ -3105,11 +3241,78 @@ fun PetugasTasksScreen(
             containerColor = AppSurface
         )
     }
+    confirmingTransportTask?.let { task ->
+        AlertDialog(
+            onDismissRequest = { if (transportingTaskId == null) confirmingTransportTask = null },
+            title = { Text("Mulai pengangkutan?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("${task.code} · ${task.weightKg.pretty()} kg", color = AppText, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Kendaraan ${task.vehiclePlate.ifBlank { "belum ditentukan" }} akan memuat sampah dari ${task.location}. Tujuan: ${task.tpaName.ifBlank { "TPA belum ditentukan" }}.",
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                    Text("Pastikan sampah sudah dimuat sebelum mengubah status.", color = AppTextMuted, fontSize = 11.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = transportingTaskId == null,
+                    onClick = {
+                        confirmingTransportTask = null
+                        startTransport(task)
+                    }
+                ) { Text("Ya, mulai angkut", color = LoginAccent) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingTransportTask = null }, enabled = transportingTaskId == null) {
+                    Text("Kembali", color = LoginMuted)
+                }
+            },
+            containerColor = AppSurface
+        )
+    }
+    if (showProofSourceDialog && selectedCompletionTask != null && selectedProofUri == null) {
+        val task = selectedCompletionTask!!
+        AlertDialog(
+            onDismissRequest = { clearProofSelection() },
+            title = { Text("Lampirkan bukti TPA", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("${task.code} · ${task.tpaName.ifBlank { "TPA tujuan" }}", color = AppText, fontWeight = FontWeight.SemiBold)
+                    Text("Ambil foto saat muatan sudah diterima di TPA, atau pilih foto yang tersimpan di perangkat.", color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                    if (proofError.isNotBlank()) InlineError(proofError)
+                }
+            },
+            confirmButton = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = {
+                            cameraEvidenceFile?.delete()
+                            cameraEvidenceFile = null
+                            selectedCameraUri = null
+                            showProofSourceDialog = false
+                            proofPicker.launch("image/*")
+                        }
+                    ) { Text("Pilih galeri", color = LoginMuted) }
+                    TextButton(onClick = ::launchEvidenceCamera) {
+                        Text("Ambil foto", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { clearProofSelection() }) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
     val taskForProof = selectedCompletionTask
     val proofUri = selectedProofUri
     if (taskForProof != null && proofUri != null) {
         AlertDialog(
-            onDismissRequest = { if (!sendingProof) { selectedCompletionTask = null; selectedProofUri = null } },
+            onDismissRequest = { if (!sendingProof) clearProofSelection() },
             title = { Text("Kirim bukti penyelesaian", color = LoginInk, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -3140,8 +3343,7 @@ fun PetugasTasksScreen(
                             proofError = ""
                             try {
                                 onSubmitProof(taskForProof, proofUri, proofNote.trim())
-                                selectedCompletionTask = null
-                                selectedProofUri = null
+                                clearProofSelection()
                                 proofNote = ""
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
@@ -3155,7 +3357,7 @@ fun PetugasTasksScreen(
                 ) { Text(if (sendingProof) "Mengirim…" else "Kirim bukti TPA", color = LoginAccent) }
             },
             dismissButton = {
-                TextButton(onClick = { selectedCompletionTask = null; selectedProofUri = null }, enabled = !sendingProof) {
+                TextButton(onClick = { clearProofSelection() }, enabled = !sendingProof) {
                     Text("Batal", color = LoginMuted)
                 }
             },
@@ -3273,16 +3475,8 @@ private fun PetugasAssignmentDialog(
 @Composable
 private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
     val darkMode = LocalSmartWasteAppearance.current.darkMode
-    val motion = rememberInfiniteTransition(label = "petugas-backdrop-motion")
-    val ambientPhase by motion.animateFloat(
-        initialValue = 0f,
-        targetValue = 2f * PI.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 18000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "petugas-ambient-phase"
-    )
+    // Keep the full-screen canvas still between theme changes to avoid continuous GPU work.
+    val ambientPhase = 0f
     val nightProgress by animateFloatAsState(
         targetValue = if (darkMode) 1f else 0f,
         animationSpec = tween(durationMillis = 760, easing = FastOutSlowInEasing),
@@ -3591,7 +3785,10 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
 private fun PetugasJourneyHero(
     name: String,
     tasks: List<WasteRecord>,
-    onOpenTasks: () -> Unit
+    isInitialLoading: Boolean,
+    isRefreshing: Boolean,
+    onOpenTasks: () -> Unit,
+    onRefresh: () -> Unit
 ) {
     val isDark = LocalSmartWasteAppearance.current.darkMode
     val assigned = tasks.count { it.status == WasteFlow.ASSIGNED }
@@ -3611,7 +3808,6 @@ private fun PetugasJourneyHero(
             .fillMaxWidth()
             .clip(shape)
             .background(Brush.linearGradient(listOf(heroStart, heroEnd)))
-            .clickable(onClick = onOpenTasks)
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Canvas(Modifier.fillMaxWidth().height(116.dp)) {
@@ -3656,7 +3852,7 @@ private fun PetugasJourneyHero(
                     )
                 }
                 Text(
-                    "$active aktif",
+                    if (isInitialLoading) "Memuat" else "$active aktif",
                     color = heroText,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -3665,12 +3861,28 @@ private fun PetugasJourneyHero(
                         .background(Color.White.copy(alpha = 0.15f))
                         .padding(horizontal = 11.dp, vertical = 7.dp)
                 )
+                IconButton(
+                    onClick = onRefresh,
+                    enabled = !isRefreshing,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = heroText,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Filled.Sync, contentDescription = "Perbarui data", tint = heroText, modifier = Modifier.size(18.dp))
+                    }
+                }
             }
             Text(
                 when {
-                    active == 0 -> "Jadwal lapanganmu sedang kosong."
+                    isInitialLoading -> "Memuat tugas dan laporan terbaru."
+                    active == 0 -> "Tidak ada penugasan aktif saat ini."
                     transported > 0 -> "$transported muatan sedang dibawa menuju TPA."
-                    else -> "$assigned penugasan menunggu untuk mulai diangkut."
+                    else -> "$assigned penugasan siap untuk mulai diangkut."
                 },
                 color = heroMuted,
                 fontSize = 11.sp,
@@ -3695,9 +3907,23 @@ private fun PetugasJourneyHero(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("$assigned ditugaskan  ·  $transported dalam rute", color = heroMuted, fontSize = 9.sp)
+                Text(
+                    if (isInitialLoading) "Sedang menyinkronkan data…" else "$assigned ditugaskan  ·  $transported dalam rute",
+                    color = heroMuted,
+                    fontSize = 9.sp
+                )
                 Spacer(Modifier.weight(1f))
-                Text("$completed/$total selesai", color = heroText, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                TextButton(
+                    onClick = onOpenTasks,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        if (isInitialLoading) "Memuat…" else "$completed/$total selesai  ·  Tugas →",
+                        color = heroText,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }
@@ -3732,8 +3958,8 @@ private fun PetugasOperationalOverview(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text("HARI INI", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                Text("Ringkasan muatan", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("PEKERJAAN AKTIF", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                Text("Operasional saat ini", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
             Text("Lihat tugas  ›", color = accent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
         }
@@ -3921,6 +4147,7 @@ private fun PetugasTaskCard(
     onOpenPhoto: (String) -> Unit,
     onMarkTransported: ((WasteRecord) -> Unit)? = null,
     isTransporting: Boolean = false,
+    isActionEnabled: Boolean = true,
     onComplete: ((WasteRecord) -> Unit)? = null
 ) {
     val isComplete = report.status == WasteFlow.DONE
@@ -4069,7 +4296,7 @@ private fun PetugasTaskCard(
                             if (isTransporting) "Memperbarui status…" else "Muat ke armada",
                             { onMarkTransported(report) },
                             modifier = Modifier.widthIn(min = 132.dp, max = 172.dp).height(42.dp),
-                            enabled = !isTransporting,
+                            enabled = isActionEnabled && !isTransporting,
                             containerColor = LoginAccent
                         )
 
@@ -4081,10 +4308,73 @@ private fun PetugasTaskCard(
                             if (report.completionStatus == "perlu_perbaikan") "Kirim ulang bukti TPA" else "Konfirmasi tiba di TPA",
                             { onComplete(report) },
                             modifier = Modifier.widthIn(min = 148.dp, max = 196.dp).height(42.dp),
+                            enabled = isActionEnabled,
                             containerColor = WasteGreenDark
                         )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PetugasRefreshButton(isRefreshing: Boolean, onRefresh: () -> Unit) {
+    IconButton(
+        onClick = onRefresh,
+        enabled = !isRefreshing,
+        modifier = Modifier.size(40.dp)
+    ) {
+        if (isRefreshing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                color = LoginAccent,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Icon(
+                Icons.Filled.Sync,
+                contentDescription = "Perbarui data",
+                tint = LoginAccent,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PetugasLoadingState(title: String, message: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(21.dp),
+            color = LoginAccent,
+            strokeWidth = 2.dp
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(message, color = AppTextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun PetugasLoadFailure(message: String, onRefresh: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(WasteRed.copy(alpha = 0.08f))
+            .padding(start = 12.dp, end = 7.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Belum tersinkron", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(message, color = AppTextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+        }
+        TextButton(onClick = onRefresh) {
+            Text("Coba lagi", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
