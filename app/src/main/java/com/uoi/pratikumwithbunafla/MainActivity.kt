@@ -328,7 +328,10 @@ class MainActivity : ComponentActivity() {
                                 errorMessage = errorMessage,
                                 account = account,
                                 onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut
+                                onLogout = ::signOut,
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } }
                             )
                         }
                         composable("reports") {
@@ -368,7 +371,10 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onFilterChange = { selectedStatus = it },
                                 onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut
+                                onLogout = ::signOut,
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } }
                             )
                         }
                         composable("ops") {
@@ -425,7 +431,10 @@ class MainActivity : ComponentActivity() {
                                 onNavigate = ::navigateAdminRoute,
                                 initialTab = selectedOpsTab,
                                 onTabSelected = { selectedOpsTab = it },
-                                onLogout = ::signOut
+                                onLogout = ::signOut,
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } }
                             )
                         }
                         composable("stats") {
@@ -447,7 +456,10 @@ class MainActivity : ComponentActivity() {
                                     scope.launch { refreshWorkspace() }
                                 },
                                 onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut
+                                onLogout = ::signOut,
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } }
                             )
                         }
                         composable("profile") {
@@ -459,7 +471,10 @@ class MainActivity : ComponentActivity() {
                             else AdminProfileScreen(
                                 account = account,
                                 onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut
+                                onLogout = ::signOut,
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } }
                             )
                         }
                         composable("tasks") {

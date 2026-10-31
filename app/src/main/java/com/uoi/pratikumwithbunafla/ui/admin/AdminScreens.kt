@@ -251,6 +251,9 @@ private fun AdminPage(
     account: UserAccount,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
+    isInitialLoading: Boolean = false,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     bottomBar: (@Composable () -> Unit)? = null,
     backgroundContent: @Composable BoxScope.() -> Unit = {},
     fullBleedContent: (@Composable ColumnScope.() -> Unit)? = null,
@@ -301,17 +304,23 @@ private fun AdminPage(
                                 AdminTopBar(
                                     account = account,
                                     onLogout = onLogout,
-                                    onOpenProfile = { onNavigate("profile") }
+                                    onOpenProfile = { onNavigate("profile") },
+                                    isRefreshing = isRefreshing,
+                                    onRefresh = onRefresh
                                 )
                             }
-                            fullBleedContent?.invoke(this)
-                            Column(
-                                modifier = Modifier.fillMaxWidth()
-                                    .padding(horizontal = horizontalPadding)
-                                    .padding(top = 11.dp, bottom = 11.dp)
-                            ) {
-                                content()
-                                Spacer(modifier = Modifier.height(12.dp))
+                            if (isInitialLoading) {
+                                AdminLoadingState()
+                            } else {
+                                fullBleedContent?.invoke(this)
+                                Column(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(horizontal = horizontalPadding)
+                                        .padding(top = 11.dp, bottom = 11.dp)
+                                ) {
+                                    content()
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
                             }
                         }
                     }
@@ -358,6 +367,23 @@ private fun AdminSectionHeading(eyebrow: String, title: String, subtitle: String
 }
 
 @Composable
+private fun AdminLoadingState() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 44.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(24.dp),
+            color = LoginAccent,
+            strokeWidth = 2.dp
+        )
+        Text("Memuat ruang kerja…", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text("Mengambil data terbaru dari server", color = AppTextMuted, fontSize = 11.sp)
+    }
+}
+
+@Composable
 private fun OperationalMetric(
     label: String,
     value: String,
@@ -384,7 +410,9 @@ private fun OperationalMetric(
 private fun AdminTopBar(
     account: UserAccount,
     onLogout: () -> Unit,
-    onOpenProfile: () -> Unit
+    onOpenProfile: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit
 ) {
     var profileMenuExpanded by remember(account.username) { mutableStateOf(false) }
     val appearance = LocalSmartWasteAppearance.current
@@ -430,6 +458,7 @@ private fun AdminTopBar(
             )
         }
         Spacer(modifier = Modifier.weight(1f))
+        PetugasRefreshButton(isRefreshing, onRefresh)
         Box {
             IconButton(onClick = { profileMenuExpanded = true }, modifier = Modifier.size(if (compact) 38.dp else 42.dp)) {
                 UserAvatar(account.name, modifier = Modifier.size(if (compact) 30.dp else 34.dp))
@@ -963,13 +992,19 @@ private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
 fun AdminProfileScreen(
     account: UserAccount,
     onNavigate: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isInitialLoading: Boolean = false,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     AdminPage(
         current = "profile",
         account = account,
         onNavigate = onNavigate,
         onLogout = onLogout,
+        isInitialLoading = isInitialLoading,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         backgroundContent = { AdminDashboardBackdrop(Modifier.fillMaxSize()) }
     ) {
         AccountProfileSettings(account, onLogout)
@@ -983,13 +1018,19 @@ fun AdminDashboardScreen(
     errorMessage: String,
     account: UserAccount,
     onNavigate: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isInitialLoading: Boolean = false,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     AdminPage(
         current = "dashboard",
         account = account,
         onNavigate = onNavigate,
         onLogout = onLogout,
+        isInitialLoading = isInitialLoading,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         backgroundContent = { AdminDashboardBackdrop(Modifier.fillMaxSize()) },
         fullBleedContent = {
             DashboardHeroBanner(summary) {
@@ -1183,12 +1224,16 @@ fun AdminVerificationScreen(
     onReportViewChange: (Boolean) -> Unit,
     onFilterChange: (String?) -> Unit,
     onNavigate: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isInitialLoading: Boolean = false,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     var archivingReport by remember { mutableStateOf<WasteRecord?>(null) }
     var restoringReport by remember { mutableStateOf<WasteRecord?>(null) }
     var archiveActionError by remember { mutableStateOf("") }
     var archiveActionRunning by remember { mutableStateOf(false) }
+    var reportSearch by rememberSaveable(showingArchive) { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val waitingReports = reports.filter { it.status == WasteFlow.WAITING }
     val activeFilter = if (showingArchive) "arsip" else when {
@@ -1205,6 +1250,18 @@ fun AdminVerificationScreen(
             reports.filter { WasteFlow.isInProgress(it.status) }
         else -> reports.filter { it.status == selectedStatus }
     }
+    val searchQuery = reportSearch.trim().lowercase()
+    fun matchesSearch(report: WasteRecord): Boolean = searchQuery.isBlank() || listOf(
+        report.code,
+        report.type,
+        report.location,
+        report.description,
+        report.reportedBy,
+        report.workerName,
+        WasteFlow.label(report.status)
+    ).any { it.lowercase().contains(searchQuery) }
+    val filteredReports = visibleReports.filter(::matchesSearch)
+    val filteredArchivedReports = archivedReports.filter { matchesSearch(it.report) }
     val reportFilters = listOf(
         "baru" to "Baru",
         "proses" to "Proses",
@@ -1212,7 +1269,12 @@ fun AdminVerificationScreen(
         "ditolak" to "Ditolak",
         "semua" to "Semua"
     )
-    AdminPage("reports", account, onNavigate, onLogout) {
+    AdminPage(
+        "reports", account, onNavigate, onLogout,
+        isInitialLoading = isInitialLoading,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh
+    ) {
         AdminSectionHeading(
             "INBOX • ADMIN",
             "Laporan warga",
@@ -1285,9 +1347,24 @@ fun AdminVerificationScreen(
             }
         }
 
+        OutlinedTextField(
+            value = reportSearch,
+            onValueChange = { reportSearch = it.take(100) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Cari kode, jenis, lokasi, atau petugas") },
+            singleLine = true,
+            textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = LoginAccent,
+                unfocusedBorderColor = AppBorder,
+                focusedContainerColor = AppSurface,
+                unfocusedContainerColor = AppSurface
+            )
+        )
+
         SectionTitle(
-            if (showingArchive) "${archivedReports.size} laporan tersimpan"
-            else "${visibleReports.size} ${when (activeFilter) {
+            if (showingArchive) "${filteredArchivedReports.size} laporan tersimpan"
+            else "${filteredReports.size} ${when (activeFilter) {
                     "baru" -> "laporan baru"
                     "proses" -> "laporan diproses"
                     "selesai" -> "laporan selesai"
@@ -1304,11 +1381,14 @@ fun AdminVerificationScreen(
                 }
         )
         when {
-            showingArchive && archivedReports.isEmpty() -> {
+            showingArchive && filteredArchivedReports.isEmpty() && reportSearch.isBlank() -> {
                 EmptyAdminState("Arsip masih kosong.")
             }
+            showingArchive && filteredArchivedReports.isEmpty() -> {
+                EmptyAdminState("Tidak ada arsip yang cocok dengan pencarian.")
+            }
             showingArchive -> {
-                archivedReports.forEach { archived ->
+                filteredArchivedReports.forEach { archived ->
                     AdminReportCard(
                         archived.report,
                         onOpenPhoto,
@@ -1323,14 +1403,17 @@ fun AdminVerificationScreen(
                     )
                 }
             }
-            visibleReports.isEmpty() -> {
+            filteredReports.isEmpty() -> {
                 EmptyAdminState(
-                    if (showAllReports) "Belum ada laporan pada status ini."
-                    else "Semua laporan baru sudah ditinjau."
+                    when {
+                        reportSearch.isNotBlank() -> "Tidak ada laporan yang cocok dengan pencarian."
+                        showAllReports -> "Belum ada laporan pada status ini."
+                        else -> "Semua laporan baru sudah ditinjau."
+                    }
                 )
             }
             else -> {
-                visibleReports.forEach { report ->
+                filteredReports.forEach { report ->
                     AdminReportCard(
                         report,
                         onOpenPhoto,
@@ -1885,7 +1968,10 @@ fun AdminStatsScreen(
     account: UserAccount,
     onDailyRange: (Int) -> Unit,
     onNavigate: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isInitialLoading: Boolean = false,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     val periodCount = dailyReports.sumOf { it.totalWaste }
     val periodWeight = dailyReports.sumOf { it.weightKg }
@@ -1896,7 +1982,12 @@ fun AdminStatsScreen(
     val chartColors =
         listOf(LoginAccent, WasteTeal, WastePurple, WasteOrange, WasteGreenDark, WasteNavy)
 
-    AdminPage("stats", account, onNavigate, onLogout) {
+    AdminPage(
+        "stats", account, onNavigate, onLogout,
+        isInitialLoading = isInitialLoading,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh
+    ) {
         AdminSectionHeading(
             "ADMIN • STATISTIK",
             "Ringkasan dampak",
@@ -2137,7 +2228,10 @@ fun AdminOperationsScreen(
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
     initialTab: String = "petugas",
-    onTabSelected: (String) -> Unit
+    onTabSelected: (String) -> Unit,
+    isInitialLoading: Boolean = false,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     var tab by rememberSaveable(account.role, initialTab) {
         mutableStateOf(initialTab.takeIf { it == "catatan" } ?: "petugas")
@@ -2162,8 +2256,43 @@ fun AdminOperationsScreen(
     var adminNoteSending by remember { mutableStateOf(false) }
     var noteArchiveInProgress by remember { mutableStateOf(false) }
     var actionError by rememberSaveable { mutableStateOf("") }
+    var workerSearch by rememberSaveable { mutableStateOf("") }
+    var workerFilter by rememberSaveable { mutableStateOf("semua") }
+    var updatingWorkerId by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
-    AdminPage("ops", account, onNavigate, onLogout) {
+    val workerSearchQuery = workerSearch.trim().lowercase()
+    val workersNeedingAttention = workers.count { it.pendingConfirmations > 0 || it.activeTasks > 0 }
+    val workerFilters = listOf(
+        "semua" to "Semua · ${workers.size}",
+        "aktif" to "Aktif · ${workers.count { it.active && it.hasAccount }}",
+        "perhatian" to "Perhatian · $workersNeedingAttention",
+        "tanpa-akun" to "Tanpa akun · ${workers.count { !it.hasAccount }}"
+    )
+    val visibleWorkers = workers.asSequence()
+        .filter { worker ->
+            workerSearchQuery.isBlank() || listOf(worker.name, worker.username, worker.zone)
+                .any { it.lowercase().contains(workerSearchQuery) }
+        }
+        .filter { worker ->
+            when (workerFilter) {
+                "aktif" -> worker.active && worker.hasAccount
+                "perhatian" -> worker.pendingConfirmations > 0 || worker.activeTasks > 0
+                "tanpa-akun" -> !worker.hasAccount
+                else -> true
+            }
+        }
+        .sortedWith(
+            compareByDescending<AdminWorker> { it.pendingConfirmations }
+                .thenByDescending { it.activeTasks }
+                .thenBy { it.name.lowercase() }
+        )
+        .toList()
+    AdminPage(
+        "ops", account, onNavigate, onLogout,
+        isInitialLoading = isInitialLoading,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh
+    ) {
         val operationsTabs = listOf("petugas" to "Petugas", "catatan" to "Catatan Admin")
         AdminSectionHeading(
             if (tab == "catatan") "ADMIN • PEMANTAUAN" else "ADMIN • OPERASIONAL",
@@ -2210,8 +2339,48 @@ fun AdminOperationsScreen(
                     { adding = true },
                     containerColor = LoginAccent
                 )
+                OutlinedTextField(
+                    value = workerSearch,
+                    onValueChange = { workerSearch = it.take(80) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Cari nama, username, atau zona") },
+                    singleLine = true,
+                    textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = LoginAccent,
+                        unfocusedBorderColor = AppBorder,
+                        focusedContainerColor = AppSurface,
+                        unfocusedContainerColor = AppSurface
+                    )
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    workerFilters.forEach { (filter, label) ->
+                        val selected = workerFilter == filter
+                        TextButton(
+                            onClick = { workerFilter = filter },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = 10.dp,
+                                vertical = 5.dp
+                            ),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (selected) LoginAccent else AppTextMuted,
+                                containerColor = if (selected) WasteBlue else AppSurfaceMuted
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                    }
+                }
                 if (workers.isEmpty()) EmptyAdminState("Belum ada data petugas.")
-                workers.forEach { item ->
+                else if (visibleWorkers.isEmpty()) {
+                    EmptyAdminState(
+                        if (workerSearchQuery.isNotBlank()) "Petugas tidak ditemukan."
+                        else "Tidak ada petugas pada filter ini."
+                    )
+                }
+                visibleWorkers.forEach { item ->
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = Color.White,
@@ -2259,6 +2428,8 @@ fun AdminOperationsScreen(
                                 if (item.hasAccount) {
                                     TextButton(onClick = {
                                         scope.launch {
+                                            if (updatingWorkerId != null) return@launch
+                                            updatingWorkerId = item.id
                                             actionError = ""
                                             try {
                                                 onUpdateWorker(item, !item.active)
@@ -2267,11 +2438,17 @@ fun AdminOperationsScreen(
                                             } catch (error: Exception) {
                                                 actionError = error.message
                                                     ?: "Status petugas gagal diperbarui."
+                                            } finally {
+                                                updatingWorkerId = null
                                             }
                                         }
-                                    }) {
+                                    }, enabled = updatingWorkerId == null) {
                                         Text(
-                                            if (item.active) "Nonaktifkan" else "Aktifkan",
+                                            when {
+                                                updatingWorkerId == item.id -> "Menyimpan…"
+                                                item.active -> "Nonaktifkan"
+                                                else -> "Aktifkan"
+                                            },
                                             color = if (item.active) WasteRed else LoginAccent,
                                             fontSize = 11.sp
                                         )
