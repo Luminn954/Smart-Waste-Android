@@ -177,6 +177,13 @@ private val TaskCoral = Color(0xFFC25556)
 private val TaskIndigo = Color(0xFF535DAA)
 private val TaskRose = Color(0xFFA64F75)
 
+private data class PetugasAssistantChatMessage(
+    val fromAssistant: Boolean,
+    val text: String,
+    val taskLinks: List<PetugasAssistantLink> = emptyList(),
+    val nextSteps: List<String> = emptyList()
+)
+
 @Composable
 private fun ScrollableDialogContent(
     spacing: Dp = 6.dp,
@@ -3077,6 +3084,7 @@ fun PetugasTasksScreen(
     facilities: List<WasteFacility>,
     errorMessage: String,
     account: UserAccount,
+    onAskAssistant: suspend (String, List<PetugasAssistantTurn>) -> PetugasAssistantReply,
     onOpenPhoto: (String) -> Unit,
     onAssignReport: suspend (WasteRecord, Int, Int) -> Unit,
     onRejectReport: suspend (WasteRecord, String) -> Unit,
@@ -3117,6 +3125,13 @@ fun PetugasTasksScreen(
     var proofError by remember { mutableStateOf("") }
     var sendingProof by remember { mutableStateOf(false) }
     var confirmingTransportTask by remember { mutableStateOf<WasteRecord?>(null) }
+    var showAssistantDialog by remember { mutableStateOf(false) }
+    var assistantDraft by rememberSaveable(account.username) { mutableStateOf("") }
+    var assistantSending by remember { mutableStateOf(false) }
+    var assistantError by remember { mutableStateOf("") }
+    var assistantMessages by remember(account.username) {
+        mutableStateOf(emptyList<PetugasAssistantChatMessage>())
+    }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -3186,6 +3201,48 @@ fun PetugasTasksScreen(
                 reportActionError = error.message ?: "Status angkut gagal diperbarui. Coba lagi."
             } finally {
                 transportingTaskId = null
+            }
+        }
+    }
+    fun sendAssistantQuestion(rawQuestion: String) {
+        val question = rawQuestion.trim()
+        if (question.isEmpty() || assistantSending) return
+        val conversation = assistantMessages.takeLast(8).map { message ->
+            val content = if (message.fromAssistant) buildString {
+                append(message.text)
+                message.taskLinks.takeIf { it.isNotEmpty() }?.let { links ->
+                    append("\nTugas: ")
+                    append(links.joinToString { "${it.code} (${it.statusLabel})" })
+                }
+                message.nextSteps.takeIf { it.isNotEmpty() }?.let { steps ->
+                    append("\nSaran: ")
+                    append(steps.joinToString("; "))
+                }
+            } else message.text
+            PetugasAssistantTurn(if (message.fromAssistant) "assistant" else "user", content)
+        }
+        assistantDraft = ""
+        assistantError = ""
+        assistantMessages = (assistantMessages + PetugasAssistantChatMessage(
+            fromAssistant = false,
+            text = question
+        )).takeLast(18)
+        scope.launch {
+            assistantSending = true
+            try {
+                val reply = onAskAssistant(question, conversation)
+                assistantMessages = (assistantMessages + PetugasAssistantChatMessage(
+                    fromAssistant = true,
+                    text = reply.message,
+                    taskLinks = reply.taskLinks,
+                    nextSteps = reply.nextSteps
+                )).takeLast(18)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                assistantError = error.message ?: "Asisten belum bisa menjawab. Coba lagi sebentar."
+            } finally {
+                assistantSending = false
             }
         }
     }
@@ -3278,6 +3335,9 @@ fun PetugasTasksScreen(
                 onOpenTasks = { selectedSection = "tugas" },
                 onRefresh = onRefresh
             )
+        }
+        if (currentSection != "profil") {
+            PetugasAssistantEntry(onClick = { showAssistantDialog = true })
         }
         if (currentSection != "profil") {
             if (errorMessage.isNotBlank()) InlineError(errorMessage)
@@ -3787,6 +3847,38 @@ fun PetugasTasksScreen(
             containerColor = AppSurface
         )
     }
+    if (showAssistantDialog) {
+        PetugasAssistantDialog(
+            messages = assistantMessages,
+            draft = assistantDraft,
+            isSending = assistantSending,
+            errorMessage = assistantError,
+            onDraftChange = { assistantDraft = it.take(600) },
+            onSend = ::sendAssistantQuestion,
+            onDismiss = { showAssistantDialog = false },
+            onOpenTask = { link ->
+                showAssistantDialog = false
+                when (link.pageKey) {
+                    "laporan" -> {
+                        selectedSection = "tugas"
+                        selectedWorkArea = "laporan"
+                        incomingSearch = link.code
+                    }
+                    "aktif" -> {
+                        selectedSection = "tugas"
+                        selectedWorkArea = "aktif"
+                        activeTaskFilter = "semua"
+                        activeTaskSearch = link.code
+                    }
+                    "riwayat" -> {
+                        selectedSection = "riwayat"
+                        historyFilter = "semua"
+                        historySearch = link.code
+                    }
+                }
+            }
+        )
+    }
     val taskForProof = selectedCompletionTask
     val proofUri = selectedProofUri
     if (taskForProof != null && proofUri != null) {
@@ -3869,6 +3961,156 @@ fun PetugasTasksScreen(
             }
         )
     }
+}
+
+@Composable
+private fun PetugasAssistantEntry(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(AppSurfaceMuted.copy(alpha = 0.78f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(34.dp).clip(CircleShape)
+                .background(LoginAccent.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Search, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(18.dp))
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Asisten Petugas", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Cek tugas dan langkah kerja", color = AppTextMuted, fontSize = 10.sp)
+        }
+        Text("Buka", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun PetugasAssistantDialog(
+    messages: List<PetugasAssistantChatMessage>,
+    draft: String,
+    isSending: Boolean,
+    errorMessage: String,
+    onDraftChange: (String) -> Unit,
+    onSend: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onOpenTask: (PetugasAssistantLink) -> Unit
+) {
+    val chatMaxHeight = (LocalConfiguration.current.screenHeightDp.dp - 360.dp)
+        .coerceIn(120.dp, 320.dp)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Asisten Petugas", color = LoginInk, fontWeight = FontWeight.Bold)
+                Text("Data tugas terkini · hanya baca", color = AppTextMuted, fontSize = 11.sp)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = chatMaxHeight)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    if (messages.isEmpty()) {
+                        Text(
+                            "Tanyakan prioritas kerja, laporan masuk, atau status tugas. Tombol pada jawaban akan membuka tab laporan yang sesuai.",
+                            color = AppTextMuted,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp
+                        )
+                        TextButton(
+                            enabled = !isSending,
+                            onClick = { onSend("Tampilkan daftar tugas saya dan urutkan berdasarkan prioritas.") }
+                        ) { Text("Tampilkan daftar tugas saya", color = LoginAccent) }
+                        TextButton(
+                            enabled = !isSending,
+                            onClick = { onSend("Apa yang harus saya kerjakan lebih dulu?") }
+                        ) { Text("Apa prioritas saya sekarang?", color = LoginAccent) }
+                        TextButton(
+                            enabled = !isSending,
+                            onClick = { onSend("Cek laporan masuk yang perlu saya tinjau.") }
+                        ) { Text("Cek laporan masuk", color = LoginAccent) }
+                    }
+                    messages.forEach { message ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (message.fromAssistant) Arrangement.Start else Arrangement.End
+                        ) {
+                            Column(
+                                modifier = Modifier.widthIn(max = 310.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        if (message.fromAssistant) AppSurfaceMuted.copy(alpha = 0.85f)
+                                        else LoginAccent.copy(alpha = 0.11f)
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    message.text,
+                                    color = AppText,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp
+                                )
+                                if (message.nextSteps.isNotEmpty()) {
+                                    Text("Langkah berikutnya", color = LoginAccent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                    message.nextSteps.forEachIndexed { index, step ->
+                                        Text("${index + 1}. $step", color = AppTextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+                                    }
+                                }
+                                message.taskLinks.forEach { link ->
+                                    TextButton(
+                                        onClick = { onOpenTask(link) },
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            "${link.actionLabel}: ${link.code}  ·  ${link.pageLabel}",
+                                            color = LoginAccent,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (isSending) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = LoginAccent)
+                            Text("Mengecek tugas terbaru…", color = AppTextMuted, fontSize = 11.sp)
+                        }
+                    }
+                    if (errorMessage.isNotBlank()) InlineError(errorMessage)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = onDraftChange,
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Tulis pertanyaan…", fontSize = 12.sp) },
+                        enabled = !isSending,
+                        maxLines = 3,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    TextButton(
+                        enabled = draft.isNotBlank() && !isSending,
+                        onClick = { onSend(draft) }
+                    ) { Text(if (isSending) "…" else "Kirim", color = LoginAccent, fontWeight = FontWeight.SemiBold) }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Tutup", color = LoginMuted) }
+        },
+        containerColor = AppSurface
+    )
 }
 
 @Composable

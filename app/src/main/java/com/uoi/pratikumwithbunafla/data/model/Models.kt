@@ -81,6 +81,25 @@ data class AdminWorker(
     val completedWeightKg: Double = 0.0
 )
 
+data class PetugasAssistantLink(
+    val code: String,
+    val statusLabel: String,
+    val pageKey: String,
+    val pageLabel: String,
+    val actionLabel: String
+)
+
+data class PetugasAssistantReply(
+    val message: String,
+    val taskLinks: List<PetugasAssistantLink> = emptyList(),
+    val nextSteps: List<String> = emptyList()
+)
+
+data class PetugasAssistantTurn(
+    val role: String,
+    val content: String
+)
+
 data class TaskCompletionReview(
     val id: Int,
     val report: WasteRecord,

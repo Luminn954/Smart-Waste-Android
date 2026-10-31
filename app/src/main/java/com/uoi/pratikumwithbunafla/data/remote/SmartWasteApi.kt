@@ -25,13 +25,15 @@ object SmartWasteApi {
         method: String,
         path: String,
         payload: JSONObject? = null,
-        authToken: String? = token
+        authToken: String? = token,
+        connectTimeoutMs: Int = 8_000,
+        readTimeoutMs: Int = 12_000
     ): JSONObject =
         withContext(Dispatchers.IO) {
             val connection = (URL(BASE_URL + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
-                connectTimeout = 8_000
-                readTimeout = 12_000
+                connectTimeout = connectTimeoutMs
+                readTimeout = readTimeoutMs
                 doInput = true
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -444,6 +446,43 @@ object SmartWasteApi {
     suspend fun workerTasks(): List<WasteRecord> {
         val data = request("GET", "/petugas/tugas").optJSONArray("tasks") ?: JSONArray()
         return (0 until data.length()).map { index -> mapReport(data.getJSONObject(index)) }
+    }
+
+    suspend fun askPetugasAssistant(
+        question: String,
+        history: List<PetugasAssistantTurn> = emptyList()
+    ): PetugasAssistantReply {
+        val historyJson = JSONArray().apply {
+            history.takeLast(8).forEach { turn ->
+                put(JSONObject().put("role", turn.role).put("content", turn.content))
+            }
+        }
+        val response = request(
+            method = "POST",
+            path = "/petugas/asisten",
+            payload = JSONObject().put("question", question.trim()).put("history", historyJson),
+            connectTimeoutMs = 8_000,
+            readTimeoutMs = 35_000
+        )
+        val links = response.optJSONArray("task_links") ?: JSONArray()
+        val nextSteps = response.optJSONArray("next_steps") ?: JSONArray()
+        return PetugasAssistantReply(
+            message = response.optString("message", "Asisten belum mengirim jawaban."),
+            taskLinks = (0 until links.length()).mapNotNull { index ->
+                links.optJSONObject(index)?.let { item ->
+                    PetugasAssistantLink(
+                        code = item.optString("code"),
+                        statusLabel = item.optString("status_label"),
+                        pageKey = item.optString("page_key"),
+                        pageLabel = item.optString("page_label"),
+                        actionLabel = item.optString("action_label")
+                    )
+                }
+            },
+            nextSteps = (0 until nextSteps.length()).mapNotNull { index ->
+                nextSteps.optString(index).takeIf(String::isNotBlank)
+            }
+        )
     }
 
     suspend fun markTaskTransported(reportId: Int) {

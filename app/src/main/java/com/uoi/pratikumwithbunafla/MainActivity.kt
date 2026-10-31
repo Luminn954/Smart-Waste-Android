@@ -493,6 +493,9 @@ class MainActivity : ComponentActivity() {
                                 facilities = facilities,
                                 errorMessage = errorMessage,
                                 account = account,
+                                onAskAssistant = { question, history ->
+                                    SmartWasteApi.askPetugasAssistant(question, history)
+                                },
                                 onOpenPhoto = { openPhoto(it) },
                                 onAssignReport = { report, vehicleId, tpaId ->
                                     SmartWasteApi.assignReport(report.id, vehicleId, tpaId)
