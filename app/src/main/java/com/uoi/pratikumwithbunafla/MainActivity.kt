@@ -26,6 +26,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -233,23 +235,27 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(Unit) {
-                    delay(5_000)
-                    while (true) {
-                        if (availableUpdate == null) {
-                            runCatching { LanAppUpdater.check(this@MainActivity) }
-                                .getOrNull()
-                                ?.takeIf { it.versionCode > dismissedUpdateCode }
-                                ?.let { availableUpdate = it }
+                    lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        delay(5_000)
+                        while (true) {
+                            if (availableUpdate == null) {
+                                runCatching { LanAppUpdater.check(this@MainActivity) }
+                                    .getOrNull()
+                                    ?.takeIf { it.versionCode > dismissedUpdateCode }
+                                    ?.let { availableUpdate = it }
+                            }
+                            delay(60_000L)
                         }
-                        delay(60_000L)
                     }
                 }
 
                 LaunchedEffect(activeAccount?.username) {
                     if (activeAccount != null) {
-                        while (true) {
-                            refreshWorkspace()
-                            delay(15_000)
+                        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                            while (true) {
+                                refreshWorkspace()
+                                delay(15_000)
+                            }
                         }
                     }
                 }
