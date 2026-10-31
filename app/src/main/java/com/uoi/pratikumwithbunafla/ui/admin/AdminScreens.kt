@@ -2371,8 +2371,8 @@ fun AdminOperationsScreen(
                     shape = RoundedCornerShape(13.dp)
                 ) {
                     Text(
-                        if (key == "catatan" && adminNotes.any { it.report.completionStatus == "menunggu" }) {
-                            "$label · ${adminNotes.count { it.report.completionStatus == "menunggu" }}"
+                        if (key == "catatan" && completionReviews.isNotEmpty()) {
+                            "$label · ${completionReviews.size}"
                         } else label,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
@@ -2615,15 +2615,17 @@ fun AdminOperationsScreen(
                         placeholder = { Text("Kode, jenis, lokasi, petugas, atau isi catatan") },
                         singleLine = true
                     )
+                    val query = activeNoteSearch.trim().lowercase()
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         listOf(
                             "semua" to "Semua",
-                            "tinjau" to "Perlu tinjau",
-                            "selesai" to "Selesai",
-                            "ditolak" to "Ditolak"
+                            "tinjau" to "Bukti · ${completionReviews.size}",
+                            "perbaikan" to "Perbaikan · ${adminNotes.count { it.report.completionStatus.equals("perlu_perbaikan", true) }}",
+                            "selesai" to "Selesai · ${adminNotes.count { it.report.status == WasteFlow.DONE }}",
+                            "ditolak" to "Ditolak · ${adminNotes.count { it.report.status == WasteFlow.REJECTED }}"
                         ).forEach { (key, label) ->
                             TextButton(
                                 onClick = { activeNoteFilter = key },
@@ -2635,11 +2637,119 @@ fun AdminOperationsScreen(
                             ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
                         }
                     }
-                    SectionTitle(
-                        "Aktivitas laporan",
-                        "Cari laporan, tinjau bukti, tulis catatan, atau arsipkan."
-                    )
-                    val query = activeNoteSearch.trim().lowercase()
+                    val visibleReviews = if (activeNoteFilter == "semua" || activeNoteFilter == "tinjau") {
+                        completionReviews.filter { review ->
+                            query.isBlank() || listOf(
+                                review.report.code,
+                                review.report.type,
+                                review.report.location,
+                                review.report.description,
+                                review.workerName,
+                                review.workerNote
+                            ).any { it.lowercase().contains(query) }
+                        }
+                    } else emptyList()
+                    if ((activeNoteFilter == "semua" && visibleReviews.isNotEmpty()) || activeNoteFilter == "tinjau") {
+                        SectionTitle(
+                            "Bukti penyelesaian",
+                            when {
+                                visibleReviews.isNotEmpty() -> "Periksa foto dan catatan Petugas sebelum menyetujui tugas."
+                                query.isNotBlank() -> "Tidak ada bukti yang cocok dengan pencarian."
+                                else -> "Tidak ada bukti yang menunggu persetujuan."
+                            }
+                        )
+                        visibleReviews.forEach { review ->
+                            val report = review.report
+                            AppCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                containerColor = AppSurface,
+                                accentColor = WasteOrange
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(13.dp),
+                                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(report.code, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                "${report.type} · ${report.weightKg.pretty()} kg",
+                                                color = AppTextMuted,
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                        StatusPill("Menunggu tinjauan", WasteOrange)
+                                    }
+                                    Text(
+                                        "${report.location} · ${review.workerName.displayPersonName()}",
+                                        color = AppTextMuted,
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (review.submittedAt.isNotBlank()) {
+                                        Text("Dikirim ${review.submittedAt}", color = AppTextMuted, fontSize = 9.sp)
+                                    }
+                                    if (review.workerNote.isNotBlank()) {
+                                        Text(
+                                            review.workerNote,
+                                            color = AppText,
+                                            fontSize = 11.sp,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    TextButton(
+                                        enabled = review.proofPhotoUrl.isNotBlank(),
+                                        onClick = { onOpenPhoto(review.proofPhotoUrl) }
+                                    ) { Text("Lihat foto bukti", color = LoginAccent, fontSize = 10.sp) }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        TextButton(
+                                            modifier = Modifier.weight(1f),
+                                            enabled = processingCompletionId == null,
+                                            onClick = {
+                                                revisionNote = ""
+                                                revisionError = ""
+                                                revisionReview = review
+                                            }
+                                        ) { Text("Minta perbaikan", color = WasteOrange, fontSize = 10.sp) }
+                                        TextButton(
+                                            modifier = Modifier.weight(1f),
+                                            enabled = processingCompletionId == null && review.proofPhotoUrl.isNotBlank(),
+                                            onClick = {
+                                                scope.launch {
+                                                    if (processingCompletionId != null) return@launch
+                                                    processingCompletionId = review.id
+                                                    actionError = ""
+                                                    try {
+                                                        onReviewCompletion(review, "approve", "")
+                                                    } catch (cancelled: CancellationException) {
+                                                        throw cancelled
+                                                    } catch (error: Exception) {
+                                                        actionError = error.message ?: "Pemeriksaan bukti gagal disimpan."
+                                                    } finally {
+                                                        processingCompletionId = null
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Text(
+                                                if (processingCompletionId == review.id) "Menyetujui…" else "Setujui",
+                                                color = WasteGreen,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    val pendingReviewIds = visibleReviews.mapTo(mutableSetOf()) { it.report.id }
                     val filteredActiveNotes = adminNotes.filter { note ->
                         val report = note.report
                         val matchesQuery = query.isBlank() || listOf(
@@ -2648,27 +2758,31 @@ fun AdminOperationsScreen(
                             note.workerNote, note.adminNote, WasteFlow.label(report.status)
                         ).any { it.lowercase().contains(query) }
                         val matchesFilter = when (activeNoteFilter) {
-                            "tinjau" -> report.completionStatus.equals("menunggu", true)
-                            "selesai" -> report.status.equals("selesai", true)
-                            "ditolak" -> report.status.equals("ditolak", true)
-                            else -> true
+                            "tinjau" -> false
+                            "perbaikan" -> report.completionStatus.equals("perlu_perbaikan", true)
+                            "selesai" -> report.status == WasteFlow.DONE
+                            "ditolak" -> report.status == WasteFlow.REJECTED
+                            else -> report.id !in pendingReviewIds
                         }
                         matchesQuery && matchesFilter
                     }
-                    val reviewsByReport = completionReviews.associateBy { it.report.id }
-                    if (filteredActiveNotes.isEmpty()) {
-                        EmptyAdminState(
-                            when {
-                                adminNotes.isEmpty() -> "Belum ada laporan di Catatan Admin."
-                                query.isNotBlank() -> "Tidak ada catatan yang cocok dengan pencarian."
-                                activeNoteFilter == "tinjau" -> "Tidak ada bukti penyelesaian yang menunggu tinjauan."
-                                else -> "Belum ada laporan pada filter ini."
-                            }
+                    if (activeNoteFilter != "tinjau") {
+                        SectionTitle(
+                            "Aktivitas laporan",
+                            "Riwayat status, catatan Admin, dan catatan Petugas."
                         )
+                        if (filteredActiveNotes.isEmpty()) {
+                            EmptyAdminState(
+                                when {
+                                    adminNotes.isEmpty() -> "Belum ada aktivitas laporan."
+                                    query.isNotBlank() -> "Tidak ada aktivitas yang cocok dengan pencarian."
+                                    else -> "Belum ada aktivitas pada filter ini."
+                                }
+                            )
+                        }
                     }
-                    filteredActiveNotes.forEach { note ->
+                    if (activeNoteFilter != "tinjau") filteredActiveNotes.forEach { note ->
                         val report = note.report
-                        val review = reviewsByReport[report.id]
                         val detail = note.statusNote.takeIf { it.startsWith("Catatan Admin:", true) }
                             ?: note.adminNote.takeIf { it.isNotBlank() }
                             ?: note.workerNote.takeIf { it.isNotBlank() }
@@ -2697,47 +2811,6 @@ fun AdminOperationsScreen(
                                 }
                                 if (detail.isNotBlank()) {
                                     Text(detail, color = AppText, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                }
-                                if (review != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        TextButton(onClick = { onOpenPhoto(review.proofPhotoUrl) }) {
-                                            Text("Lihat bukti foto", color = LoginAccent, fontSize = 10.sp)
-                                        }
-                                        Spacer(Modifier.weight(1f))
-                                        TextButton(
-                                            enabled = processingCompletionId == null,
-                                            onClick = {
-                                                revisionNote = ""
-                                                revisionError = ""
-                                                revisionReview = review
-                                            }
-                                        ) { Text("Minta perbaikan", color = WasteOrange, fontSize = 10.sp) }
-                                        TextButton(
-                                            enabled = processingCompletionId == null,
-                                            onClick = {
-                                                scope.launch {
-                                                    processingCompletionId = review.id
-                                                    actionError = ""
-                                                    try {
-                                                        onReviewCompletion(review, "approve", "")
-                                                    } catch (cancelled: CancellationException) {
-                                                        throw cancelled
-                                                    } catch (error: Exception) {
-                                                        actionError = error.message ?: "Pemeriksaan bukti gagal disimpan."
-                                                    } finally {
-                                                        processingCompletionId = null
-                                                    }
-                                                }
-                                            }
-                                        ) {
-                                            Text(
-                                                if (processingCompletionId == review.id) "Memeriksa…" else "Setujui",
-                                                color = WasteGreen,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     TextButton(
