@@ -67,6 +67,7 @@ import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.WbSunny
@@ -75,6 +76,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.filled.ReportProblem
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SwitchAccount
 import androidx.compose.material.icons.rounded.History
@@ -3091,6 +3093,10 @@ fun PetugasTasksScreen(
 ) {
     var selectedSection by rememberSaveable(account.username) { mutableStateOf("ringkasan") }
     var selectedWorkArea by rememberSaveable(account.username) { mutableStateOf("laporan") }
+    var incomingSearch by rememberSaveable(account.username) { mutableStateOf("") }
+    var activeTaskSearch by rememberSaveable(account.username) { mutableStateOf("") }
+    var historySearch by rememberSaveable(account.username) { mutableStateOf("") }
+    var activeTaskFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
     var showVehicleForm by remember { mutableStateOf(false) }
     var editingVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
     var showFacilityForm by remember { mutableStateOf(false) }
@@ -3202,6 +3208,42 @@ fun PetugasTasksScreen(
         .filter { it.status == WasteFlow.DONE }
         .sortedByDescending { it.reportedAt }
     val newReports = incomingReports.sortedBy { it.reportedAt }
+    val tasksNeedingRevision = activeTasks.filter {
+        it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
+    }
+    val tasksReadyForTransport = activeTasks.filter { it.status == WasteFlow.ASSIGNED }
+    val tasksWaitingForAdmin = activeTasks.filter {
+        it.status == WasteFlow.TRANSPORTED && it.completionStatus.equals("menunggu", ignoreCase = true)
+    }
+    val tasksInRoute = activeTasks.filter {
+        it.status == WasteFlow.TRANSPORTED &&
+                !it.completionStatus.equals("menunggu", ignoreCase = true) &&
+                !it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
+    }
+
+    fun matchesTaskSearch(report: WasteRecord, query: String): Boolean {
+        val normalizedQuery = query.trim().lowercase()
+        return normalizedQuery.isBlank() || listOf(
+            report.code,
+            report.type,
+            report.location,
+            report.description,
+            report.vehiclePlate,
+            report.tpaName
+        ).any { it.lowercase().contains(normalizedQuery) }
+    }
+
+    val filteredIncomingReports = newReports.filter { matchesTaskSearch(it, incomingSearch) }
+    val filteredActiveTasks = activeTasks.filter { task ->
+        matchesTaskSearch(task, activeTaskSearch) && when (activeTaskFilter) {
+            "perbaikan" -> task in tasksNeedingRevision
+            "siap" -> task in tasksReadyForTransport
+            "rute" -> task in tasksInRoute
+            "admin" -> task in tasksWaitingForAdmin
+            else -> true
+        }
+    }
+    val filteredCompletedTasks = completedTasks.filter { matchesTaskSearch(it, historySearch) }
 
     fun hasLoadError(label: String): Boolean =
         errorMessage.lineSequence().any { it.startsWith("$label:") }
@@ -3251,7 +3293,7 @@ fun PetugasTasksScreen(
             ) {
                 when (section) {
             "ringkasan" -> {
-                val nextTask = activeTasks.firstOrNull()
+                val nextTask = activeTasks.firstOrNull { it !in tasksWaitingForAdmin }
                 val nextReport = newReports.firstOrNull()
                 if (isInitialLoading) {
                     PetugasLoadingState("Menyiapkan ruang kerja", "Memuat laporan, tugas, dan armada.")
@@ -3298,6 +3340,26 @@ fun PetugasTasksScreen(
                                 assignmentLabel = "Terima & tugaskan"
                             )
                         }
+                        tasksWaitingForAdmin.isNotEmpty() -> {
+                            SectionTitle(
+                                "Bukti menunggu Admin",
+                                "${tasksWaitingForAdmin.size} tugas sudah dikirim untuk diperiksa. Petugas tidak perlu mengirim ulang."
+                            )
+                            PetugasTaskCard(
+                                report = tasksWaitingForAdmin.first(),
+                                onOpenPhoto = onOpenPhoto
+                            )
+                            TextButton(
+                                onClick = {
+                                    selectedSection = "tugas"
+                                    selectedWorkArea = "aktif"
+                                    activeTaskFilter = "admin"
+                                },
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            ) {
+                                Text("Lihat bukti terkirim", color = LoginAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            }
+                        }
                         else -> PetugasEmptyState(
                             "Semua pekerjaan tertangani",
                             "Belum ada tugas aktif atau laporan baru. Perbarui data untuk cek antrean terbaru."
@@ -3337,15 +3399,25 @@ fun PetugasTasksScreen(
                 }
                 when (selectedWorkArea) {
                     "laporan" -> {
-                        SectionTitle("Laporan masuk", "Tinjau laporan, lalu pilih armada dan TPA tujuan.")
+                        SectionTitle("Laporan masuk", "Pilih laporan untuk menentukan armada dan TPA tujuan.")
+                        PetugasQueueSearch(
+                            query = incomingSearch,
+                            onQueryChange = { incomingSearch = it.take(100) },
+                            placeholder = "Cari kode, jenis, atau lokasi"
+                        )
                         if (isInitialLoading && newReports.isEmpty()) {
                             PetugasLoadingState("Memuat laporan", "Mengambil antrean terbaru dari server.")
                         } else if (newReports.isEmpty() && hasLoadError("Laporan masuk")) {
                             PetugasLoadFailure("Laporan belum dapat dimuat.", onRefresh)
                         } else if (newReports.isEmpty()) {
                             PetugasEmptyState("Tidak ada laporan baru", "Laporan warga yang menunggu penanganan akan tampil di sini.")
+                        } else if (filteredIncomingReports.isEmpty()) {
+                            PetugasEmptyState("Laporan tidak ditemukan", "Coba kata kunci lain atau hapus pencarian.")
+                            TextButton(onClick = { incomingSearch = "" }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                                Text("Hapus pencarian", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                            }
                         } else {
-                            newReports.forEach { report ->
+                            filteredIncomingReports.forEach { report ->
                                 AdminReportCard(
                                     report = report,
                                     onOpenPhoto = onOpenPhoto,
@@ -3362,15 +3434,60 @@ fun PetugasTasksScreen(
                     }
 
                     "aktif" -> {
-                        SectionTitle("Tugas aktif", "Prioritaskan bukti yang perlu diperbaiki, lalu lanjutkan pengangkutan.")
+                        SectionTitle("Tugas aktif", "Antrean diprioritaskan berdasarkan langkah kerja berikutnya.")
+                        PetugasQueueSearch(
+                            query = activeTaskSearch,
+                            onQueryChange = { activeTaskSearch = it.take(100) },
+                            placeholder = "Cari kode, lokasi, armada, atau TPA"
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            listOf(
+                                Triple("semua", "Semua", activeTasks.size),
+                                Triple("perbaikan", "Perbaikan", tasksNeedingRevision.size),
+                                Triple("siap", "Siap angkut", tasksReadyForTransport.size),
+                                Triple("rute", "Dalam rute", tasksInRoute.size),
+                                Triple("admin", "Menunggu Admin", tasksWaitingForAdmin.size)
+                            ).forEach { (key, label, count) ->
+                                val selected = activeTaskFilter == key
+                                TextButton(
+                                    onClick = { activeTaskFilter = key },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                    colors = ButtonDefaults.textButtonColors(
+                                        contentColor = if (selected) LoginAccent else LoginMuted,
+                                        containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
+                                    ),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Text(
+                                        "$label · $count",
+                                        fontSize = 10.sp,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
                         if (isInitialLoading && activeTasks.isEmpty()) {
                             PetugasLoadingState("Memuat tugas", "Mengambil penugasan akun ini dari server.")
                         } else if (activeTasks.isEmpty() && hasLoadError("Penugasan")) {
                             PetugasLoadFailure("Tugas belum dapat dimuat.", onRefresh)
                         } else if (activeTasks.isEmpty()) {
                             PetugasEmptyState("Belum ada tugas aktif", "Tugas yang sudah diterima akan muncul di sini.")
+                        } else if (filteredActiveTasks.isEmpty()) {
+                            PetugasEmptyState(
+                                if (activeTaskSearch.isNotBlank()) "Tugas tidak ditemukan" else "Tidak ada tugas pada filter ini",
+                                "Ubah filter atau kata kunci untuk melihat penugasan lain."
+                            )
+                            TextButton(
+                                onClick = { activeTaskFilter = "semua"; activeTaskSearch = "" },
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            ) {
+                                Text("Tampilkan semua tugas", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                            }
                         } else {
-                            activeTasks.forEach { task ->
+                            filteredActiveTasks.forEach { task ->
                                 PetugasTaskCard(
                                     report = task,
                                     onOpenPhoto = onOpenPhoto,
@@ -3462,14 +3579,24 @@ fun PetugasTasksScreen(
                     }
                     PetugasRefreshButton(isRefreshing, onRefresh)
                 }
+                PetugasQueueSearch(
+                    query = historySearch,
+                    onQueryChange = { historySearch = it.take(100) },
+                    placeholder = "Cari kode, lokasi, atau TPA"
+                )
                 if (isInitialLoading && completedTasks.isEmpty()) {
                     PetugasLoadingState("Memuat riwayat", "Mengambil pekerjaan yang sudah selesai.")
                 } else if (completedTasks.isEmpty() && hasLoadError("Penugasan")) {
                     PetugasLoadFailure("Riwayat belum dapat dimuat.", onRefresh)
                 } else if (completedTasks.isEmpty()) {
                     PetugasEmptyState("Belum ada riwayat", "Tugas yang disetujui admin akan tersimpan di sini.")
+                } else if (filteredCompletedTasks.isEmpty()) {
+                    PetugasEmptyState("Riwayat tidak ditemukan", "Coba kata kunci lain atau hapus pencarian.")
+                    TextButton(onClick = { historySearch = "" }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                        Text("Hapus pencarian", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                    }
                 }
-                completedTasks.forEach { task -> PetugasTaskCard(task, onOpenPhoto) }
+                filteredCompletedTasks.forEach { task -> PetugasTaskCard(task, onOpenPhoto) }
             }
 
             "profil" -> AccountProfileSettings(account, onLogout)
@@ -4095,6 +4222,11 @@ private fun PetugasJourneyHero(
     val isDark = LocalSmartWasteAppearance.current.darkMode
     val assigned = tasks.count { it.status == WasteFlow.ASSIGNED }
     val transported = tasks.count { it.status == WasteFlow.TRANSPORTED }
+    val waitingAdmin = tasks.count {
+        it.status == WasteFlow.TRANSPORTED && it.completionStatus.equals("menunggu", ignoreCase = true)
+    }
+    val needsRevision = tasks.count { it.completionStatus.equals("perlu_perbaikan", ignoreCase = true) }
+    val inRoute = (transported - waitingAdmin - needsRevision).coerceAtLeast(0)
     val completed = tasks.count { it.status == WasteFlow.DONE }
     val total = tasks.size
     val active = assigned + transported
@@ -4183,7 +4315,11 @@ private fun PetugasJourneyHero(
                 when {
                     isInitialLoading -> "Memuat tugas dan laporan terbaru."
                     active == 0 -> "Tidak ada penugasan aktif saat ini."
-                    transported > 0 -> "$transported muatan sedang dibawa menuju TPA."
+                    needsRevision > 0 -> "$needsRevision bukti perlu diperbaiki sebelum tugas ditutup."
+                    inRoute > 0 && waitingAdmin > 0 -> "$inRoute muatan dalam rute · $waitingAdmin bukti menunggu Admin."
+                    waitingAdmin > 0 && inRoute == 0 && assigned == 0 -> "$waitingAdmin bukti menunggu pemeriksaan Admin."
+                    inRoute > 0 -> "$inRoute muatan sedang menuju TPA."
+                    waitingAdmin > 0 -> "$waitingAdmin bukti menunggu pemeriksaan Admin."
                     else -> "$assigned penugasan siap untuk mulai diangkut."
                 },
                 color = heroMuted,
@@ -4210,9 +4346,12 @@ private fun PetugasJourneyHero(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    if (isInitialLoading) "Sedang menyinkronkan data…" else "$assigned ditugaskan  ·  $transported dalam rute",
+                    if (isInitialLoading) "Sedang menyinkronkan data…"
+                    else "Siap angkut $assigned  ·  Dalam rute $inRoute  ·  Menunggu Admin $waitingAdmin",
                     color = heroMuted,
-                    fontSize = 9.sp
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.weight(1f))
                 TextButton(
@@ -4595,7 +4734,7 @@ private fun PetugasTaskCard(
                 when {
                     report.status == WasteFlow.ASSIGNED && onMarkTransported != null ->
                         AppButton(
-                            if (isTransporting) "Memperbarui status…" else "Muat ke armada",
+                            if (isTransporting) "Memperbarui status…" else "Mulai pengangkutan",
                             { onMarkTransported(report) },
                             modifier = Modifier.widthIn(min = 132.dp, max = 172.dp).height(42.dp),
                             enabled = isActionEnabled && !isTransporting,
@@ -4641,6 +4780,39 @@ private fun PetugasRefreshButton(isRefreshing: Boolean, onRefresh: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+private fun PetugasQueueSearch(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    placeholder: String
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text(placeholder, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        leadingIcon = {
+            Icon(Icons.Filled.Search, contentDescription = null, tint = AppTextMuted, modifier = Modifier.size(19.dp))
+        },
+        trailingIcon = if (query.isNotBlank()) {
+            {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Filled.Close, contentDescription = "Hapus pencarian", tint = AppTextMuted)
+                }
+            }
+        } else null,
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = LoginAccent.copy(alpha = 0.55f),
+            unfocusedBorderColor = AppBorder.copy(alpha = 0.55f),
+            focusedContainerColor = AppSurface.copy(alpha = 0.92f),
+            unfocusedContainerColor = AppSurface.copy(alpha = 0.82f)
+        )
+    )
 }
 
 @Composable
