@@ -329,6 +329,7 @@ class MainActivity : ComponentActivity() {
                                 account = account,
                                 onNavigate = ::navigateAdminRoute,
                                 onLogout = ::signOut,
+                                pendingProofCount = completionReviews.size,
                                 isInitialLoading = !hasLoadedWorkspace,
                                 isRefreshing = isRefreshingWorkspace,
                                 onRefresh = { scope.launch { refreshWorkspace() } }

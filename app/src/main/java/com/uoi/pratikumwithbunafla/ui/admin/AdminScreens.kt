@@ -664,7 +664,8 @@ private fun FloatingRoleNavigationBar(
 @Composable
 private fun DashboardHeroBanner(
     summary: AdminDashboardSummary,
-    onClick: () -> Unit
+    pendingProofCount: Int,
+    onClick: (String) -> Unit
 ) {
     val darkMode = LocalSmartWasteAppearance.current.darkMode
     val bannerSky = if (darkMode) {
@@ -679,13 +680,31 @@ private fun DashboardHeroBanner(
     val focusAction: String
     val focusIcon: ImageVector
     val focusColor: Color
+    val focusRoute: String
     when {
+        summary.hazardAlerts > 0 -> {
+            focusHeading = "Laporan berisiko"
+            focusDetail = "${summary.hazardAlerts} laporan B3 perlu perhatian"
+            focusAction = "Tinjau laporan"
+            focusIcon = Icons.Filled.ReportProblem
+            focusColor = Color(0xFFFFD28A)
+            focusRoute = "status:semua"
+        }
+        pendingProofCount > 0 -> {
+            focusHeading = "Bukti petugas menunggu"
+            focusDetail = "$pendingProofCount hasil kerja perlu diperiksa"
+            focusAction = "Tinjau kinerja"
+            focusIcon = Icons.Filled.CheckCircle
+            focusColor = Color(0xFFB9DED0)
+            focusRoute = "ops:catatan"
+        }
         summary.waiting > 0 -> {
             focusHeading = "Menunggu verifikasi"
             focusDetail = "${summary.waiting} laporan perlu diperiksa"
             focusAction = "Buka antrean"
             focusIcon = Icons.Filled.Inbox
             focusColor = Color(0xFFFFD28A)
+            focusRoute = "reports"
         }
         summary.assigned > 0 -> {
             focusHeading = "Sedang di lapangan"
@@ -693,6 +712,7 @@ private fun DashboardHeroBanner(
             focusAction = "Pantau penugasan"
             focusIcon = Icons.Filled.LocalShipping
             focusColor = Color(0xFFB9DED0)
+            focusRoute = "ops:petugas"
         }
         summary.processing > 0 -> {
             focusHeading = "Dalam penanganan"
@@ -700,6 +720,7 @@ private fun DashboardHeroBanner(
             focusAction = "Lihat progres"
             focusIcon = Icons.Filled.Sync
             focusColor = Color(0xFFB9DED0)
+            focusRoute = "reports"
         }
         summary.totalReports == 0 -> {
             focusHeading = "Belum ada laporan"
@@ -707,6 +728,7 @@ private fun DashboardHeroBanner(
             focusAction = "Buka laporan"
             focusIcon = Icons.Filled.Inbox
             focusColor = Color(0xFFE2E9D9)
+            focusRoute = "reports"
         }
         summary.completed > 0 -> {
             focusHeading = "Pekerjaan tuntas"
@@ -714,6 +736,7 @@ private fun DashboardHeroBanner(
             focusAction = "Lihat laporan selesai"
             focusIcon = Icons.Filled.CheckCircle
             focusColor = Color(0xFFB9DED0)
+            focusRoute = "status:selesai"
         }
         else -> {
             focusHeading = "Semua laporan terpantau"
@@ -721,6 +744,7 @@ private fun DashboardHeroBanner(
             focusAction = "Buka seluruh laporan"
             focusIcon = Icons.Filled.Inbox
             focusColor = Color(0xFFE2E9D9)
+            focusRoute = "status:semua"
         }
     }
 
@@ -729,7 +753,7 @@ private fun DashboardHeroBanner(
             .height(340.dp)
             .clip(HeroBottomCurveShape)
             .background(Brush.horizontalGradient(bannerSky))
-            .clickable(onClick = onClick)
+            .clickable { onClick(focusRoute) }
     ) {
         Box(
             modifier = Modifier.fillMaxSize()
@@ -818,7 +842,7 @@ private fun DashboardHeroBanner(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(17.dp))
                     .background(Color(0xFF103F30).copy(alpha = 0.72f))
-                    .clickable(onClick = onClick)
+                    .clickable { onClick(focusRoute) }
                     .padding(horizontal = 10.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1019,6 +1043,7 @@ fun AdminDashboardScreen(
     account: UserAccount,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
+    pendingProofCount: Int = 0,
     isInitialLoading: Boolean = false,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {}
@@ -1033,8 +1058,8 @@ fun AdminDashboardScreen(
         onRefresh = onRefresh,
         backgroundContent = { AdminDashboardBackdrop(Modifier.fillMaxSize()) },
         fullBleedContent = {
-            DashboardHeroBanner(summary) {
-                onNavigate("reports")
+            DashboardHeroBanner(summary, pendingProofCount) { route ->
+                onNavigate(route)
             }
         }
     ) {
@@ -1102,30 +1127,32 @@ fun AdminDashboardScreen(
                         Modifier.weight(1f)
                     ) { onNavigate("ops:petugas") }
                 }
-                if (summary.hazardAlerts > 0) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(7.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.ReportProblem,
-                            contentDescription = null,
-                            tint = WasteRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            "${summary.hazardAlerts} laporan berisiko perlu perhatian",
-                            color = WasteRed,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp
-                        )
+                when {
+                    summary.hazardAlerts == 0 && pendingProofCount == 0 -> Text(
+                        "Pantau progres tugas petugas dari bukti penyelesaian dan statistik.",
+                        color = AppTextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp
+                    )
+                    else -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (summary.hazardAlerts > 0) {
+                            DashboardPriorityAction(
+                                title = "${summary.hazardAlerts} laporan berisiko",
+                                detail = "Periksa sebelum ditangani petugas",
+                                icon = Icons.Filled.ReportProblem,
+                                tint = WasteRed
+                            ) { onNavigate("status:semua") }
+                        }
+                        if (pendingProofCount > 0) {
+                            DashboardPriorityAction(
+                                title = "$pendingProofCount bukti petugas menunggu",
+                                detail = "Tinjau hasil kerja sebelum disetujui",
+                                icon = Icons.Filled.CheckCircle,
+                                tint = WasteGreenDark
+                            ) { onNavigate("ops:catatan") }
+                        }
                     }
-                } else Text(
-                    "Pantau progres tugas petugas dari bukti penyelesaian dan statistik.",
-                    color = AppTextMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp
-                )
+                }
             }
         }
         SectionTitle("Laporan terbaru", "Ringkasan laporan warga")
@@ -1167,6 +1194,31 @@ fun AdminDashboardScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DashboardPriorityAction(
+    title: String,
+    detail: String,
+    icon: ImageVector,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(17.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title, color = AppText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(detail, color = AppTextMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text("Buka", color = LoginAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 

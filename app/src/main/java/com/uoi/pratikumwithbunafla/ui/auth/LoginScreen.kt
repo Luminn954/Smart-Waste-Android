@@ -120,6 +120,11 @@ import com.uoi.pratikumwithbunafla.ui.theme.InterFont
 
 private val LoginFont = InterFont
 
+private fun roleUsernamePreferenceKey(role: UserRole): String = when (role) {
+    UserRole.ADMIN -> "admin_username"
+    UserRole.PETUGAS -> "petugas_username"
+}
+
 private data class LoginPalette(
     val background: Color,
     val backgroundTop: Color,
@@ -513,7 +518,9 @@ fun LoginScreen(
     }
 
     var rememberMe by rememberSaveable {
-        mutableStateOf(preferences.getBoolean("remember_admin", true))
+        mutableStateOf(
+            preferences.getBoolean("remember_username", preferences.getBoolean("remember_admin", true))
+        )
     }
     var username by rememberSaveable {
         mutableStateOf(if (rememberMe) savedUsername else "")
@@ -554,10 +561,16 @@ fun LoginScreen(
                         if (rememberMe) {
                             preferences.edit {
                                 putBoolean("remember_admin", true)
-                                putString("admin_username", enteredUsername)
+                                putBoolean("remember_username", true)
+                                putString(roleUsernamePreferenceKey(enteredRole), enteredUsername)
                             }
                         } else {
-                            preferences.edit { clear() }
+                            preferences.edit {
+                                putBoolean("remember_admin", false)
+                                putBoolean("remember_username", false)
+                                remove("admin_username")
+                                remove("petugas_username")
+                            }
                         }
                         onLoginSuccess()
                     }
@@ -738,6 +751,12 @@ fun LoginScreen(
             LoginRoleSelector(
                 selectedRole = selectedRole,
                 onSelectRole = {
+                    if (selectedRole != it) {
+                        username = if (rememberMe) {
+                            preferences.getString(roleUsernamePreferenceKey(it), "").orEmpty()
+                                .ifBlank { if (it == UserRole.ADMIN) savedUsername else "" }
+                        } else ""
+                    }
                     selectedRole = it
                     errorMessage = ""
                 },
