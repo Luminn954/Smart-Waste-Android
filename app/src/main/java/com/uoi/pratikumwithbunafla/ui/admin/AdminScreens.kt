@@ -3097,6 +3097,7 @@ fun PetugasTasksScreen(
     var activeTaskSearch by rememberSaveable(account.username) { mutableStateOf("") }
     var historySearch by rememberSaveable(account.username) { mutableStateOf("") }
     var activeTaskFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
+    var historyFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
     var showVehicleForm by remember { mutableStateOf(false) }
     var editingVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
     var showFacilityForm by remember { mutableStateOf(false) }
@@ -3196,8 +3197,8 @@ fun PetugasTasksScreen(
         .sortedWith(
             compareBy<WasteRecord> {
                 when {
-                    it.completionStatus == "perlu_perbaikan" -> 0
-                    it.status == WasteFlow.TRANSPORTED && it.completionStatus != "menunggu" -> 1
+                    it.completionStatus.equals("perlu_perbaikan", ignoreCase = true) -> 0
+                    it.status == WasteFlow.TRANSPORTED && !it.completionStatus.equals("menunggu", ignoreCase = true) -> 1
                     it.status == WasteFlow.ASSIGNED -> 2
                     else -> 3
                 }
@@ -3206,6 +3207,12 @@ fun PetugasTasksScreen(
         )
     val completedTasks = tasks
         .filter { it.status == WasteFlow.DONE }
+        .sortedByDescending { it.reportedAt }
+    val rejectedTasks = tasks
+        .filter { it.status == WasteFlow.REJECTED }
+        .sortedByDescending { it.reportedAt }
+    val historyTasks = tasks
+        .filter { it.status == WasteFlow.DONE || it.status == WasteFlow.REJECTED }
         .sortedByDescending { it.reportedAt }
     val newReports = incomingReports.sortedBy { it.reportedAt }
     val tasksNeedingRevision = activeTasks.filter {
@@ -3243,7 +3250,13 @@ fun PetugasTasksScreen(
             else -> true
         }
     }
-    val filteredCompletedTasks = completedTasks.filter { matchesTaskSearch(it, historySearch) }
+    val filteredHistoryTasks = historyTasks.filter { task ->
+        matchesTaskSearch(task, historySearch) && when (historyFilter) {
+            "selesai" -> task.status == WasteFlow.DONE
+            "ditolak" -> task.status == WasteFlow.REJECTED
+            else -> true
+        }
+    }
 
     fun hasLoadError(label: String): Boolean =
         errorMessage.lineSequence().any { it.startsWith("$label:") }
@@ -3574,29 +3587,66 @@ fun PetugasTasksScreen(
             "riwayat" -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Riwayat selesai", color = AppText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Penugasan yang sudah disetujui admin di TPA.", color = AppTextMuted, fontSize = 12.sp)
+                        Text("Riwayat pekerjaan", color = AppText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
+                            color = AppTextMuted,
+                            fontSize = 12.sp
+                        )
                     }
                     PetugasRefreshButton(isRefreshing, onRefresh)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    listOf(
+                        Triple("semua", "Semua", historyTasks.size),
+                        Triple("selesai", "Selesai", completedTasks.size),
+                        Triple("ditolak", "Ditolak", rejectedTasks.size)
+                    ).forEach { (key, label, count) ->
+                        val selected = historyFilter == key
+                        TextButton(
+                            onClick = { historyFilter = key },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (selected) LoginAccent else LoginMuted,
+                                containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text(
+                                "$label · $count",
+                                fontSize = 10.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
                 }
                 PetugasQueueSearch(
                     query = historySearch,
                     onQueryChange = { historySearch = it.take(100) },
                     placeholder = "Cari kode, lokasi, atau TPA"
                 )
-                if (isInitialLoading && completedTasks.isEmpty()) {
+                if (isInitialLoading && historyTasks.isEmpty()) {
                     PetugasLoadingState("Memuat riwayat", "Mengambil pekerjaan yang sudah selesai.")
-                } else if (completedTasks.isEmpty() && hasLoadError("Penugasan")) {
+                } else if (historyTasks.isEmpty() && hasLoadError("Penugasan")) {
                     PetugasLoadFailure("Riwayat belum dapat dimuat.", onRefresh)
-                } else if (completedTasks.isEmpty()) {
-                    PetugasEmptyState("Belum ada riwayat", "Tugas yang disetujui admin akan tersimpan di sini.")
-                } else if (filteredCompletedTasks.isEmpty()) {
-                    PetugasEmptyState("Riwayat tidak ditemukan", "Coba kata kunci lain atau hapus pencarian.")
-                    TextButton(onClick = { historySearch = "" }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                        Text("Hapus pencarian", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                } else if (historyTasks.isEmpty()) {
+                    PetugasEmptyState("Belum ada riwayat", "Tugas selesai dan laporan yang ditolak akan tersimpan di sini.")
+                } else if (filteredHistoryTasks.isEmpty()) {
+                    PetugasEmptyState(
+                        if (historySearch.isNotBlank()) "Riwayat tidak ditemukan" else "Belum ada hasil pada filter ini",
+                        "Ubah filter atau kata kunci untuk melihat catatan lain."
+                    )
+                    TextButton(
+                        onClick = { historyFilter = "semua"; historySearch = "" },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("Tampilkan semua riwayat", color = LoginAccent, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                filteredCompletedTasks.forEach { task -> PetugasTaskCard(task, onOpenPhoto) }
+                filteredHistoryTasks.forEach { task -> PetugasTaskCard(task, onOpenPhoto) }
             }
 
             "profil" -> AccountProfileSettings(account, onLogout)
@@ -4228,7 +4278,9 @@ private fun PetugasJourneyHero(
     val needsRevision = tasks.count { it.completionStatus.equals("perlu_perbaikan", ignoreCase = true) }
     val inRoute = (transported - waitingAdmin - needsRevision).coerceAtLeast(0)
     val completed = tasks.count { it.status == WasteFlow.DONE }
-    val total = tasks.size
+    val total = tasks.count {
+        it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED || it.status == WasteFlow.DONE
+    }
     val active = assigned + transported
     val heroStart = if (isDark) Color(0xFF142D36) else Color(0xFF2F704F)
     val heroEnd = if (isDark) Color(0xFF205E45) else Color(0xFF3D8961)
@@ -4592,9 +4644,13 @@ private fun PetugasTaskCard(
     onComplete: ((WasteRecord) -> Unit)? = null
 ) {
     val isComplete = report.status == WasteFlow.DONE
+    val isRejected = report.status == WasteFlow.REJECTED
     val isDark = LocalSmartWasteAppearance.current.darkMode
+    val needsRevision = report.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
+    val waitingForAdmin = report.completionStatus.equals("menunggu", ignoreCase = true)
     val statusAccent = when (report.status) {
         WasteFlow.DONE -> if (isDark) Color(0xFF91C59B) else WasteGreen
+        WasteFlow.REJECTED -> if (isDark) Color(0xFFE3A19A) else WasteRed
         WasteFlow.TRANSPORTED -> if (isDark) Color(0xFF82C7B9) else WasteTeal
         else -> if (isDark) Color(0xFFC2CF91) else LoginAccent
     }
@@ -4603,8 +4659,38 @@ private fun PetugasTaskCard(
     val cardEnd = if (isDark) Color(0xFF244638) else statusAccent.copy(alpha = 0.08f)
     val markerIcon = when (report.status) {
         WasteFlow.DONE -> Icons.Rounded.TaskAlt
+        WasteFlow.REJECTED -> Icons.Filled.ReportProblem
         WasteFlow.TRANSPORTED -> Icons.Filled.LocalShipping
         else -> Icons.AutoMirrored.Filled.Assignment
+    }
+    val guidanceAccent = when {
+        needsRevision -> WasteRed
+        waitingForAdmin -> WasteOrange
+        isComplete || isRejected -> statusAccent
+        else -> statusAccent
+    }
+    val guidanceIcon = when {
+        needsRevision -> Icons.Filled.ReportProblem
+        waitingForAdmin -> Icons.Filled.Sync
+        isComplete -> Icons.Filled.CheckCircle
+        isRejected -> Icons.Filled.ReportProblem
+        report.status == WasteFlow.TRANSPORTED -> Icons.Filled.Place
+        else -> Icons.Filled.LocalShipping
+    }
+    val guidanceTitle = when {
+        needsRevision -> "Perlu perbaikan"
+        waitingForAdmin -> "Menunggu pemeriksaan Admin"
+        isComplete -> "Pekerjaan selesai"
+        isRejected -> "Laporan ditolak"
+        else -> "Langkah berikutnya"
+    }
+    val guidanceMessage = when {
+        needsRevision -> "${report.completionReviewNote.ifBlank { "Admin meminta foto bukti diperbaiki." }} Kirim ulang bukti setelah diperbaiki."
+        waitingForAdmin -> "Bukti sudah terkirim. Tunggu Admin memeriksa foto sebelum tugas ditutup."
+        isComplete -> "Bukti telah disetujui Admin dan pekerjaan tercatat selesai."
+        isRejected -> report.workerDecisionNote.ifBlank { "Laporan tidak diteruskan ke proses pengangkutan." }
+        report.status == WasteFlow.TRANSPORTED -> "Antar muatan ke ${report.tpaName.ifBlank { "TPA tujuan" }}, lalu kirim foto bukti penerimaan."
+        else -> "Ambil muatan dengan ${report.vehiclePlate.ifBlank { "armada yang ditetapkan" }}, lalu mulai pengangkutan."
     }
 
     Box(
@@ -4662,7 +4748,7 @@ private fun PetugasTaskCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Row(
+            if (!isRejected) Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(9.dp)
@@ -4697,25 +4783,32 @@ private fun PetugasTaskCard(
                     }
                 }
             }
-            if (!isComplete) {
+            if (!isComplete && !isRejected) {
                 if (!report.hazardLevel.equals("RENDAH", true)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Icon(Icons.Filled.ReportProblem, contentDescription = null, tint = WasteRed, modifier = Modifier.size(14.dp))
                         Text("Perlu penanganan khusus · ${report.hazardLevel}", color = WasteRed, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                when (report.completionStatus) {
-                    "menunggu" -> Text(
-                        "Bukti penerimaan TPA terkirim · menunggu pemeriksaan admin",
-                        color = WasteOrange,
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(guidanceAccent.copy(alpha = if (isDark) 0.16f else 0.10f))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(guidanceIcon, contentDescription = null, tint = guidanceAccent, modifier = Modifier.size(17.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(guidanceTitle, color = guidanceAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        guidanceMessage,
+                        color = AppText,
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    "perlu_perbaikan" -> Text(
-                        "Perbaikan bukti TPA: ${report.completionReviewNote.ifBlank { "kirim ulang foto" }}",
-                        color = WasteRed,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
+                        lineHeight = 14.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -4741,12 +4834,12 @@ private fun PetugasTaskCard(
                             containerColor = LoginAccent
                         )
 
-                    report.status == WasteFlow.TRANSPORTED && onComplete != null && report.completionStatus == "menunggu" ->
+                    report.status == WasteFlow.TRANSPORTED && onComplete != null && waitingForAdmin ->
                         StatusPill("Menunggu admin", WasteOrange)
 
                     report.status == WasteFlow.TRANSPORTED && onComplete != null ->
                         AppButton(
-                            if (report.completionStatus == "perlu_perbaikan") "Kirim ulang bukti TPA" else "Konfirmasi tiba di TPA",
+                            if (needsRevision) "Kirim ulang bukti TPA" else "Konfirmasi tiba di TPA",
                             { onComplete(report) },
                             modifier = Modifier.widthIn(min = 148.dp, max = 196.dp).height(42.dp),
                             enabled = isActionEnabled,

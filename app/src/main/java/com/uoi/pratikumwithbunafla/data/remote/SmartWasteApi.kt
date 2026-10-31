@@ -89,6 +89,12 @@ object SmartWasteApi {
 
     private fun mapReport(json: JSONObject): WasteRecord {
         val status = value(json, "status").ifBlank { WasteFlow.WAITING }
+        val timeline = json.optJSONArray("timeline") ?: json.optJSONArray("riwayat") ?: JSONArray()
+        val workerDecisionNote = (0 until timeline.length()).mapNotNull { index ->
+            timeline.optJSONObject(index)
+                ?.takeIf { value(it, "status").equals(WasteFlow.REJECTED, ignoreCase = true) }
+                ?.let { value(it, "note", "catatan") }
+        }.lastOrNull().orEmpty()
         return WasteRecord(
             id = json.optInt("id", json.optInt("id_laporan", 0)),
             code = value(json, "code", "kode_laporan"),
@@ -110,7 +116,8 @@ object SmartWasteApi {
             completionStatus = value(json, "completion_status"),
             completionProofPhotoUrl = value(json, "completion_proof_photo").ifBlank { null },
             completionSubmittedAt = value(json, "completion_submitted_at"),
-            completionReviewNote = value(json, "completion_review_note")
+            completionReviewNote = value(json, "completion_review_note"),
+            workerDecisionNote = workerDecisionNote
         )
     }
 
