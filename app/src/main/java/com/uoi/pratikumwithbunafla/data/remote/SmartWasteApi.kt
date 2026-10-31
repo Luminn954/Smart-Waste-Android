@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.DataOutputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -105,8 +106,60 @@ object SmartWasteApi {
             vehicleId = json.optInt("vehicle_id").takeIf { it > 0 },
             vehiclePlate = value(json, "vehicle_plate"),
             tpaId = json.optInt("tpa_id").takeIf { it > 0 },
-            tpaName = value(json, "tpa_name")
+            tpaName = value(json, "tpa_name"),
+            completionStatus = value(json, "completion_status"),
+            completionProofPhotoUrl = value(json, "completion_proof_photo").ifBlank { null },
+            completionSubmittedAt = value(json, "completion_submitted_at"),
+            completionReviewNote = value(json, "completion_review_note")
         )
+    }
+
+    private suspend fun uploadCompletionProof(
+        reportId: Int,
+        imageBytes: ByteArray,
+        fileName: String,
+        note: String
+    ): JSONObject = withContext(Dispatchers.IO) {
+        val boundary = "SmartWaste-${System.nanoTime()}"
+        val connection = (URL("$BASE_URL/petugas/tugas/$reportId/konfirmasi-selesai").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 30_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            token?.let { setRequestProperty("Authorization", "Bearer $it") }
+        }
+        try {
+            DataOutputStream(connection.outputStream).use { output ->
+                fun field(name: String, value: String) {
+                    output.writeBytes("--$boundary\r\n")
+                    output.writeBytes("Content-Disposition: form-data; name=\"$name\"\r\n\r\n")
+                    output.write(value.toByteArray(Charsets.UTF_8))
+                    output.writeBytes("\r\n")
+                }
+                field("catatan", note)
+                output.writeBytes("--$boundary\r\n")
+                output.writeBytes("Content-Disposition: form-data; name=\"foto\"; filename=\"$fileName\"\r\n")
+                output.writeBytes("Content-Type: image/jpeg\r\n\r\n")
+                output.write(imageBytes)
+                output.writeBytes("\r\n--$boundary--\r\n")
+                output.flush()
+            }
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.let { input ->
+                BufferedReader(InputStreamReader(input)).use { it.readText() }
+            }.orEmpty()
+            if (code !in 200..299) {
+                val message = runCatching { JSONObject(response).optString("message") }.getOrNull()
+                throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "Foto bukti gagal dikirim ($code).")
+            }
+            JSONObject(response)
+        } finally {
+            connection.disconnect()
+        }
     }
 
     suspend fun login(username: String, password: String): UserAccount {
@@ -166,10 +219,36 @@ object SmartWasteApi {
         return (0 until data.length()).map { index -> mapReport(data.getJSONObject(index)) }
     }
 
+    suspend fun archivedReports(): List<ArchivedWasteRecord> {
+        val data = request("GET", "/admin/arsip-laporan")
+            .optJSONArray("archived_reports") ?: JSONArray()
+        return (0 until data.length()).map { index ->
+            val item = data.getJSONObject(index)
+            ArchivedWasteRecord(
+                report = mapReport(item.optJSONObject("report") ?: JSONObject()),
+                archivedAt = value(item, "archived_at"),
+                archivedBy = value(item, "archived_by").ifBlank { "Admin" }
+            )
+        }
+    }
+
+    suspend fun archiveReport(reportId: Int) {
+        request("POST", "/admin/laporan/$reportId/arsip", JSONObject())
+    }
+
+    suspend fun restoreArchivedReport(reportId: Int) {
+        request("PATCH", "/admin/arsip-laporan/$reportId/pulihkan", JSONObject())
+    }
+
+    suspend fun workerIncomingReports(): List<WasteRecord> {
+        val data = request("GET", "/petugas/laporan").optJSONArray("reports") ?: JSONArray()
+        return (0 until data.length()).map { index -> mapReport(data.getJSONObject(index)) }
+    }
+
     suspend fun updateReportStatus(id: Int, status: String, note: String = ""): WasteRecord {
         val result = request(
             "PATCH",
-            "/admin/laporan/$id/status",
+            "/petugas/laporan/$id/tolak",
             JSONObject().put("status", status).put("catatan", note)
         )
         return mapReport(result.getJSONObject("report"))
@@ -199,6 +278,10 @@ object SmartWasteApi {
         return result.optBoolean("active", active)
     }
 
+    suspend fun deleteUserAccount(id: Int) {
+        request("DELETE", "/admin/users/$id")
+    }
+
     suspend fun workers(): List<AdminWorker> {
         val data = request("GET", "/admin/petugas").optJSONArray("workers") ?: JSONArray()
         return (0 until data.length()).map { index ->
@@ -210,9 +293,76 @@ object SmartWasteApi {
                 zone = value(item, "zone", "zona_tugas"),
                 totalPickups = item.optInt("total_pickups", item.optInt("total_ambil", 0)),
                 active = item.optBoolean("active", true),
-                hasAccount = item.optBoolean("has_account", value(item, "username").isNotBlank())
+                hasAccount = item.optBoolean("has_account", value(item, "username").isNotBlank()),
+                completedTasks = item.optInt("completed_tasks", item.optInt("total_pickups", 0)),
+                activeTasks = item.optInt("active_tasks", 0),
+                pendingConfirmations = item.optInt("pending_confirmations", 0),
+                completedWeightKg = item.optDouble("completed_weight_kg", 0.0)
             )
         }
+    }
+
+    suspend fun adminNotes(): List<AdminNoteRecord> {
+        val data = request("GET", "/admin/catatan-admin").optJSONArray("notes") ?: JSONArray()
+        return (0 until data.length()).map { index -> mapAdminNote(data.getJSONObject(index)) }
+    }
+
+    suspend fun archivedAdminNotes(): List<ArchivedAdminNote> {
+        val data = request("GET", "/admin/arsip-catatan-admin")
+            .optJSONArray("archived_notes") ?: JSONArray()
+        return (0 until data.length()).map { index ->
+            val item = data.getJSONObject(index)
+            ArchivedAdminNote(
+                note = mapAdminNote(item.optJSONObject("note") ?: JSONObject()),
+                archivedAt = value(item, "archived_at"),
+                archivedBy = value(item, "archived_by").ifBlank { "Admin" }
+            )
+        }
+    }
+
+    suspend fun archiveAdminNote(reportId: Int) {
+        request("POST", "/admin/catatan-admin/$reportId/arsip", JSONObject())
+    }
+
+    suspend fun addAdminNote(reportId: Int, note: String) {
+        request(
+            "POST", "/admin/catatan-admin/$reportId/catatan",
+            JSONObject().put("catatan", note.trim())
+        )
+    }
+
+    suspend fun restoreAdminNote(reportId: Int) {
+        request("PATCH", "/admin/arsip-catatan-admin/$reportId/pulihkan", JSONObject())
+    }
+
+    private fun mapAdminNote(item: JSONObject): AdminNoteRecord = AdminNoteRecord(
+        report = mapReport(item.optJSONObject("report") ?: JSONObject()),
+        statusNote = value(item, "status_note"),
+        workerNote = value(item, "worker_note"),
+        adminNote = value(item, "admin_note"),
+        updatedAt = value(item, "updated_at")
+    )
+
+    suspend fun completionReviews(): List<TaskCompletionReview> {
+        val data = request("GET", "/admin/konfirmasi-penyelesaian").optJSONArray("reviews") ?: JSONArray()
+        return (0 until data.length()).map { index ->
+            val item = data.getJSONObject(index)
+            TaskCompletionReview(
+                id = item.optInt("id"),
+                report = mapReport(item.optJSONObject("report") ?: JSONObject()),
+                workerName = value(item, "worker_name"),
+                proofPhotoUrl = value(item, "proof_photo"),
+                workerNote = value(item, "worker_note"),
+                submittedAt = value(item, "submitted_at")
+            )
+        }
+    }
+
+    suspend fun reviewCompletion(reviewId: Int, action: String, note: String = "") {
+        request(
+            "PATCH", "/admin/konfirmasi-penyelesaian/$reviewId",
+            JSONObject().put("action", action).put("catatan", note)
+        )
     }
 
     suspend fun createStaffAccount(
@@ -223,10 +373,11 @@ object SmartWasteApi {
         zone: String,
         role: String
     ) {
+        require(role == "petugas") { "Admin hanya dapat menambahkan akun Petugas." }
         request(
-            "POST", "/admin/akun", JSONObject()
+            "POST", "/admin/petugas", JSONObject()
                 .put("nama", name).put("username", username).put("email", email)
-                .put("password", password).put("zona_tugas", zone).put("role", role)
+                .put("password", password).put("zona_tugas", zone)
         )
     }
 
@@ -237,8 +388,13 @@ object SmartWasteApi {
         )
     }
 
+    suspend fun deleteWorkerAccount(workerId: Int, replacementWorkerId: Int? = null) {
+        val replacementQuery = replacementWorkerId?.let { "?replacement_worker_id=$it" }.orEmpty()
+        request("DELETE", "/admin/petugas/$workerId$replacementQuery")
+    }
+
     suspend fun vehicles(): List<WasteVehicle> {
-        val data = request("GET", "/admin/kendaraan").optJSONArray("vehicles") ?: JSONArray()
+        val data = request("GET", "/petugas/kendaraan").optJSONArray("vehicles") ?: JSONArray()
         return (0 until data.length()).map { index ->
             val item = data.getJSONObject(index)
             WasteVehicle(
@@ -255,7 +411,7 @@ object SmartWasteApi {
 
     suspend fun createVehicle(plate: String, capacityKg: Double, condition: String, route: String) {
         request(
-            "POST", "/admin/kendaraan", JSONObject()
+            "POST", "/petugas/kendaraan", JSONObject()
                 .put("plate", plate).put("capacity_kg", capacityKg)
                 .put("condition", condition).put("route", route)
         )
@@ -263,14 +419,14 @@ object SmartWasteApi {
 
     suspend fun updateVehicle(vehicle: WasteVehicle) {
         request(
-            "PATCH", "/admin/kendaraan/${vehicle.id}", JSONObject()
+            "PATCH", "/petugas/kendaraan/${vehicle.id}", JSONObject()
                 .put("plate", vehicle.plate).put("capacity_kg", vehicle.capacityKg)
                 .put("condition", vehicle.condition).put("route", vehicle.route)
         )
     }
 
     suspend fun facilities(): List<WasteFacility> {
-        val data = request("GET", "/admin/tpa").optJSONArray("tpa") ?: JSONArray()
+        val data = request("GET", "/petugas/tpa").optJSONArray("tpa") ?: JSONArray()
         return (0 until data.length()).map { index ->
             val item = data.getJSONObject(index)
             WasteFacility(
@@ -286,23 +442,23 @@ object SmartWasteApi {
 
     suspend fun createFacility(name: String, address: String, capacityTon: Double) {
         request(
-            "POST", "/admin/tpa", JSONObject()
+            "POST", "/petugas/tpa", JSONObject()
                 .put("name", name).put("address", address).put("capacity_ton", capacityTon)
         )
     }
 
     suspend fun updateFacility(facility: WasteFacility) {
         request(
-            "PATCH", "/admin/tpa/${facility.id}", JSONObject()
+            "PATCH", "/petugas/tpa/${facility.id}", JSONObject()
                 .put("name", facility.name).put("address", facility.address)
                 .put("capacity_ton", facility.capacityTon)
         )
     }
 
-    suspend fun assignReport(reportId: Int, workerId: Int, vehicleId: Int, tpaId: Int) {
+    suspend fun assignReport(reportId: Int, vehicleId: Int, tpaId: Int) {
         request(
-            "PATCH", "/admin/laporan/$reportId/tugaskan", JSONObject()
-                .put("worker_id", workerId).put("vehicle_id", vehicleId).put("tpa_id", tpaId)
+            "PATCH", "/petugas/laporan/$reportId/tugaskan", JSONObject()
+                .put("vehicle_id", vehicleId).put("tpa_id", tpaId)
         )
     }
 
@@ -315,8 +471,8 @@ object SmartWasteApi {
         request("PATCH", "/petugas/tugas/$reportId/diangkut", JSONObject())
     }
 
-    suspend fun completeTask(reportId: Int) {
-        request("PATCH", "/petugas/tugas/$reportId/selesai", JSONObject())
+    suspend fun submitCompletionProof(reportId: Int, imageBytes: ByteArray, fileName: String, note: String) {
+        uploadCompletionProof(reportId, imageBytes, fileName, note)
     }
 
     suspend fun dailyReports(from: String, to: String): List<DailyReport> {

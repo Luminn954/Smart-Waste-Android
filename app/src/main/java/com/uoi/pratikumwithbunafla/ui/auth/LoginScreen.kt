@@ -1180,6 +1180,11 @@ private fun LoginRoleSelector(
                     .heightIn(min = 80.dp)
                     .clip(roleShape)
                     .background(roleFill, roleShape)
+                    .border(
+                        width = if (isSelected) 1.5.dp else 1.dp,
+                        color = if (isSelected) roleColor else roleStyle.border.copy(alpha = 0.78f),
+                        shape = roleShape
+                    )
                     .selectable(
                         selected = isSelected,
                         role = Role.RadioButton,

@@ -4,8 +4,8 @@ enum class UserRole(
     val label: String,
     val description: String
 ) {
-    ADMIN("Admin", "Mengelola laporan dan operasional Smart Waste"),
-    PETUGAS("Petugas", "Menjalankan penugasan pengangkutan sampah")
+    ADMIN("Admin", "Menerima laporan dan memantau statistik serta kinerja petugas"),
+    PETUGAS("Petugas", "Menangani laporan dan operasional pengangkutan sampah")
 }
 
 data class UserAccount(
@@ -33,7 +33,17 @@ data class WasteRecord(
     val vehicleId: Int? = null,
     val vehiclePlate: String = "",
     val tpaId: Int? = null,
-    val tpaName: String = ""
+    val tpaName: String = "",
+    val completionStatus: String = "",
+    val completionProofPhotoUrl: String? = null,
+    val completionSubmittedAt: String = "",
+    val completionReviewNote: String = ""
+)
+
+data class ArchivedWasteRecord(
+    val report: WasteRecord,
+    val archivedAt: String,
+    val archivedBy: String = "Admin"
 )
 
 data class AdminDashboardSummary(
@@ -63,7 +73,34 @@ data class AdminWorker(
     val zone: String,
     val totalPickups: Int,
     val active: Boolean,
-    val hasAccount: Boolean = true
+    val hasAccount: Boolean = true,
+    val completedTasks: Int = totalPickups,
+    val activeTasks: Int = 0,
+    val pendingConfirmations: Int = 0,
+    val completedWeightKg: Double = 0.0
+)
+
+data class TaskCompletionReview(
+    val id: Int,
+    val report: WasteRecord,
+    val workerName: String,
+    val proofPhotoUrl: String,
+    val workerNote: String,
+    val submittedAt: String
+)
+
+data class AdminNoteRecord(
+    val report: WasteRecord,
+    val statusNote: String,
+    val workerNote: String,
+    val adminNote: String,
+    val updatedAt: String
+)
+
+data class ArchivedAdminNote(
+    val note: AdminNoteRecord,
+    val archivedAt: String,
+    val archivedBy: String = "Admin"
 )
 
 data class WasteVehicle(

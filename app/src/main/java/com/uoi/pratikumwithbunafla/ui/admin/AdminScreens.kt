@@ -1,11 +1,16 @@
 package com.uoi.pratikumwithbunafla.ui.admin
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
@@ -24,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -60,6 +66,7 @@ import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.filled.LocalShipping
@@ -94,15 +101,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -112,6 +125,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.text.TextStyle
 import com.uoi.pratikumwithbunafla.ui.theme.AppBorder
+import com.uoi.pratikumwithbunafla.ui.theme.AppBackground
+import com.uoi.pratikumwithbunafla.R
 import com.uoi.pratikumwithbunafla.ui.theme.AppSurface
 import com.uoi.pratikumwithbunafla.ui.theme.AppSurfaceMuted
 import com.uoi.pratikumwithbunafla.ui.theme.AppText
@@ -234,6 +249,7 @@ private fun AdminPage(
     onLogout: () -> Unit,
     bottomBar: (@Composable () -> Unit)? = null,
     backgroundContent: @Composable BoxScope.() -> Unit = {},
+    fullBleedContent: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
@@ -273,16 +289,26 @@ private fun AdminPage(
                             modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight().fillMaxWidth()
                                 .windowInsetsPadding(WindowInsets.statusBars)
                                 .verticalScroll(rememberScrollState())
-                                .padding(horizontal = horizontalPadding, vertical = 11.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            AdminTopBar(
-                                account = account,
-                                onLogout = onLogout,
-                                onOpenProfile = { onNavigate("profile") }
-                            )
-                            content()
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = horizontalPadding, vertical = 11.dp)
+                            ) {
+                                AdminTopBar(
+                                    account = account,
+                                    onLogout = onLogout,
+                                    onOpenProfile = { onNavigate("profile") }
+                                )
+                            }
+                            fullBleedContent?.invoke(this)
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = horizontalPadding)
+                                    .padding(top = 11.dp, bottom = 11.dp)
+                            ) {
+                                content()
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
                         }
                     }
                     when {
@@ -478,7 +504,7 @@ private fun AdminNavigationBar(
     val destinations = listOf(
         Triple("dashboard", "Beranda", Icons.Filled.Home),
         Triple("reports", "Laporan", Icons.AutoMirrored.Filled.Assignment),
-        Triple("ops", "Operasional", Icons.Filled.Build),
+        Triple("ops", "Petugas", Icons.Filled.Build),
         Triple("stats", "Statistik", Icons.Filled.BarChart)
     )
     FloatingRoleNavigationBar(current, destinations, onNavigate)
@@ -503,13 +529,14 @@ private fun FloatingRoleNavigationBar(
         label = "role-navbar-active"
     )
     val inactiveColor = if (darkMode) Color(0xFFB4C1B8) else Color(0xFFD5E0D8)
+    val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(top = 5.dp)
-            .height(82.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth()
+                .padding(top = 5.dp)
+                .height(82.dp)
+        ) {
         val horizontalInset = 24.dp
         val itemWidth = (maxWidth - horizontalInset - horizontalInset) / destinations.size
         val targetCenter = horizontalInset + itemWidth * (selectedIndex + 0.5f)
@@ -592,61 +619,240 @@ private fun FloatingRoleNavigationBar(
                 modifier = Modifier.size(22.dp)
             )
         }
+        }
+        Spacer(
+            modifier = Modifier.fillMaxWidth()
+                .height(navigationBarInset)
+                .background(barColor)
+        )
     }
 }
 
 @Composable
-private fun DashboardHeroCard(
+private fun DashboardHeroBanner(
     summary: AdminDashboardSummary,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(WasteGreenDark)
+    val darkMode = LocalSmartWasteAppearance.current.darkMode
+    val bannerSky = if (darkMode) {
+        listOf(Color(0xFF173B31), Color(0xFF1D513C), Color(0xFF315F45))
+    } else {
+        listOf(Color(0xFF175A42), Color(0xFF21674A), Color(0xFF477E5B))
+    }
+    val bannerText = Color(0xFFF5F4E8)
+    val bannerMuted = Color(0xFFE2E9D9)
+    val focusHeading: String
+    val focusDetail: String
+    val focusAction: String
+    val focusIcon: ImageVector
+    val focusColor: Color
+    when {
+        summary.waiting > 0 -> {
+            focusHeading = "Menunggu verifikasi"
+            focusDetail = "${summary.waiting} laporan perlu diperiksa"
+            focusAction = "Buka antrean"
+            focusIcon = Icons.Filled.Inbox
+            focusColor = Color(0xFFFFD28A)
+        }
+        summary.assigned > 0 -> {
+            focusHeading = "Sedang di lapangan"
+            focusDetail = "${summary.assigned} laporan ditangani petugas"
+            focusAction = "Pantau penugasan"
+            focusIcon = Icons.Filled.LocalShipping
+            focusColor = Color(0xFFB9DED0)
+        }
+        summary.processing > 0 -> {
+            focusHeading = "Dalam penanganan"
+            focusDetail = "${summary.processing} laporan sedang diproses"
+            focusAction = "Lihat progres"
+            focusIcon = Icons.Filled.Sync
+            focusColor = Color(0xFFB9DED0)
+        }
+        summary.totalReports == 0 -> {
+            focusHeading = "Belum ada laporan"
+            focusDetail = "Laporan warga akan tampil di sini"
+            focusAction = "Buka laporan"
+            focusIcon = Icons.Filled.Inbox
+            focusColor = Color(0xFFE2E9D9)
+        }
+        summary.completed > 0 -> {
+            focusHeading = "Pekerjaan tuntas"
+            focusDetail = "${summary.completed} laporan telah selesai"
+            focusAction = "Lihat laporan selesai"
+            focusIcon = Icons.Filled.CheckCircle
+            focusColor = Color(0xFFB9DED0)
+        }
+        else -> {
+            focusHeading = "Semua laporan terpantau"
+            focusDetail = "${summary.totalReports} laporan tercatat"
+            focusAction = "Buka seluruh laporan"
+            focusIcon = Icons.Filled.Inbox
+            focusColor = Color(0xFFE2E9D9)
+        }
+    }
+
+    Box(
+        modifier = Modifier.fillMaxWidth()
+            .height(340.dp)
+            .clip(HeroBottomCurveShape)
+            .background(Brush.horizontalGradient(bannerSky))
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(
-                "Ringkasan laporan",
-                color = Color.White.copy(alpha = 0.82f),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(
-                    summary.totalReports.toString(),
-                    color = Color.White,
-                    fontSize = 36.sp,
-                    lineHeight = 42.sp,
-                    fontWeight = FontWeight.SemiBold
+        Box(
+            modifier = Modifier.fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        *heroSectionBlendStops(AppBackground, fadeEnd = 0.42f)
+                    )
                 )
+        )
+
+        val illustration = Modifier.align(Alignment.BottomEnd)
+            .height(340.dp)
+            .aspectRatio(260f / 280f)
+        Image(
+            painter = painterResource(R.drawable.hero_recycling_crew),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = illustration
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.horizontalGradient(*heroFadeStops(0f, 0.23f)),
+                        blendMode = BlendMode.DstIn
+                    )
+                }
+        )
+
+        Column(
+            modifier = Modifier.fillMaxWidth(0.60f)
+                .align(Alignment.CenterStart)
+                .padding(start = 20.dp, top = 34.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                modifier = Modifier.clip(RoundedCornerShape(50.dp))
+                    .background(Color.White.copy(alpha = 0.14f))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(Icons.Filled.Inbox, contentDescription = null, tint = bannerText, modifier = Modifier.size(14.dp))
                 Text(
-                    "laporan",
-                    modifier = Modifier.padding(bottom = 5.dp),
-                    color = Color.White.copy(alpha = 0.86f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
+                    "RINGKASAN LAPORAN",
+                    color = bannerText,
+                    fontSize = 9.sp,
+                    letterSpacing = 0.8.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            Text(
-                "${summary.totalWeightKg.pretty()} kg sampah tercatat",
-                color = Color.White.copy(alpha = 0.88f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text(
+                    summary.totalReports.toString(),
+                    color = bannerText,
+                    fontSize = 48.sp,
+                    lineHeight = 52.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text("laporan", color = bannerText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("terpantau", color = bannerMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                modifier = Modifier.clip(RoundedCornerShape(50.dp))
+                    .background(Color.White.copy(alpha = 0.13f))
+                    .padding(horizontal = 10.dp, vertical = 7.dp)
+            ) {
+                Icon(
+                    Icons.Filled.LocalShipping,
+                    contentDescription = null,
+                    tint = Color(0xFFD8E7C8),
+                    modifier = Modifier.size(15.dp)
+                )
+                Text(
+                    "${summary.totalWeightKg.pretty()} kg",
+                    color = bannerText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text("total tercatat", color = bannerMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(Color(0xFF103F30).copy(alpha = 0.72f))
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(32.dp).clip(CircleShape)
+                        .background(focusColor.copy(alpha = 0.19f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(focusIcon, contentDescription = null, tint = focusColor, modifier = Modifier.size(17.dp))
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        focusHeading,
+                        color = bannerText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        focusDetail,
+                        color = bannerMuted,
+                        fontSize = 9.sp,
+                        lineHeight = 12.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "$focusAction  ›",
+                        color = focusColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
-        Icon(
-            Icons.AutoMirrored.Filled.Assignment,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.9f),
-            modifier = Modifier.size(26.dp)
-        )
     }
+}
+
+private fun heroFadeStops(start: Float, end: Float): Array<Pair<Float, Color>> =
+    (0..32).map { step ->
+        val position = step / 32f
+        val progress = ((position - start) / (end - start)).coerceIn(0f, 1f)
+        val smoothAlpha = progress * progress * (3f - 2f * progress)
+        position to Color.White.copy(alpha = smoothAlpha)
+    }.toTypedArray()
+
+private fun heroSectionBlendStops(
+    pageBackground: Color,
+    fadeEnd: Float
+): Array<Pair<Float, Color>> =
+    (0..32).map { step ->
+        val position = step / 32f
+        val progress = (position / fadeEnd).coerceIn(0f, 1f)
+        val easedProgress = progress * progress * (3f - 2f * progress)
+        position to pageBackground.copy(alpha = 1f - easedProgress)
+    }.toTypedArray()
+
+private val HeroBottomCurveShape = androidx.compose.foundation.shape.GenericShape { size, _ ->
+    moveTo(0f, 0f)
+    lineTo(size.width, 0f)
+    lineTo(size.width, size.height)
+    quadraticTo(size.width * 0.5f, size.height * 0.68f, 0f, size.height)
+    close()
 }
 
 @Composable
@@ -780,19 +986,18 @@ fun AdminDashboardScreen(
         account = account,
         onNavigate = onNavigate,
         onLogout = onLogout,
-        backgroundContent = { AdminDashboardBackdrop(Modifier.fillMaxSize()) }
+        backgroundContent = { AdminDashboardBackdrop(Modifier.fillMaxSize()) },
+        fullBleedContent = {
+            DashboardHeroBanner(summary) {
+                onNavigate("reports")
+            }
+        }
     ) {
-        AdminSectionHeading(
-            "ADMIN • RUANG KENDALI",
-            "Ringkasan Smart Waste",
-            "Laporan warga, tim lapangan, dan kapasitas dalam satu alur."
-        )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
-        DashboardHeroCard(summary) { onNavigate("status:semua") }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("Tugas Admin", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Text("Pintasan pekerjaan harian", color = AppTextMuted, fontSize = 11.sp)
+                Text("Ruang kerja Admin", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Laporan, petugas, dan pemantauan kinerja", color = AppTextMuted, fontSize = 11.sp)
             }
             Text(
                 "Semua laporan →",
@@ -808,34 +1013,17 @@ fun AdminDashboardScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                AdminTaskTile("Verifikasi", Icons.Filled.History, TaskAmber, Modifier.weight(1f)) {
+                AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.weight(1f)) {
                     onNavigate("reports")
-                }
-                AdminTaskTile("Pantau tugas", Icons.Filled.LocalShipping, TaskBlue, Modifier.weight(1f)) {
-                    onNavigate("status:${WasteFlow.ASSIGNED}")
                 }
                 AdminTaskTile("Petugas", Icons.Filled.AdminPanelSettings, TaskPurple, Modifier.weight(1f)) {
                     onNavigate("ops:petugas")
                 }
-                AdminTaskTile("Armada", Icons.Filled.LocalShipping, TaskTeal, Modifier.weight(1f)) {
-                    onNavigate("ops:kendaraan")
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
-            ) {
-                AdminTaskTile("TPA", Icons.Filled.Place, TaskGreen, Modifier.weight(1f)) {
-                    onNavigate("ops:tpa")
-                }
-                AdminTaskTile("Data warga", Icons.Rounded.Person, TaskCoral, Modifier.weight(1f)) {
-                    onNavigate("ops:warga")
-                }
                 AdminTaskTile("Statistik", Icons.Filled.BarChart, TaskIndigo, Modifier.weight(1f)) {
                     onNavigate("stats")
                 }
-                AdminTaskTile("Riwayat", Icons.AutoMirrored.Filled.Assignment, TaskRose, Modifier.weight(1f)) {
-                    onNavigate("status:${WasteFlow.DONE}")
+                AdminTaskTile("Catatan", Icons.Filled.History, TaskTeal, Modifier.weight(1f)) {
+                    onNavigate("ops:catatan")
                 }
             }
         }
@@ -854,22 +1042,21 @@ fun AdminDashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     OperationalMetric(
-                        "Petugas",
+                        "Total laporan",
+                        summary.totalReports.toString(),
+                        Modifier.weight(1f)
+                    ) { onNavigate("reports") }
+                    OperationalMetric(
+                        "Menunggu",
+                        summary.waiting.toString(),
+                        Modifier.weight(1f)
+                    ) { onNavigate("reports") }
+                    OperationalMetric(
+                        "Petugas aktif",
                         summary.activeWorkers.toString(),
                         Modifier.weight(1f)
                     ) { onNavigate("ops:petugas") }
-                    OperationalMetric(
-                        "Armada",
-                        "${summary.availableVehicles}/${summary.vehicleCount}",
-                        Modifier.weight(1f)
-                    ) { onNavigate("ops:kendaraan") }
-                    OperationalMetric(
-                        "TPA",
-                        "${summary.tpaUtilizationPercent.pretty()}%",
-                        Modifier.weight(1f)
-                    ) { onNavigate("ops:tpa") }
                 }
-                SoftProgress(summary.tpaUtilizationPercent.toFloat() / 100f)
                 if (summary.hazardAlerts > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -889,15 +1076,7 @@ fun AdminDashboardScreen(
                         )
                     }
                 } else Text(
-                    buildString {
-                        append("Kapasitas TPA: ")
-                        append(summary.tpaUsedTon.pretty())
-                        append(" terisi · ")
-                        append(summary.tpaReservedTon.pretty())
-                        append(" dicadangkan dari ")
-                        append(summary.tpaCapacityTon.pretty())
-                        append(" ton")
-                    },
+                    "Pantau progres tugas petugas dari bukti penyelesaian dan statistik.",
                     color = AppTextMuted,
                     fontSize = 11.sp,
                     lineHeight = 16.sp
@@ -987,132 +1166,266 @@ private fun AdminTaskTile(
 @Composable
 fun AdminVerificationScreen(
     reports: List<WasteRecord>,
-    workers: List<AdminWorker>,
-    vehicles: List<WasteVehicle>,
-    facilities: List<WasteFacility>,
+    archivedReports: List<ArchivedWasteRecord>,
     selectedStatus: String?,
     showAllReports: Boolean,
+    showingArchive: Boolean,
     errorMessage: String,
     account: UserAccount,
-    onReject: (WasteRecord) -> Unit,
-    onAssign: suspend (WasteRecord, Int, Int, Int) -> Unit,
     onOpenPhoto: (String) -> Unit,
+    onArchiveViewChange: (Boolean) -> Unit,
+    onArchiveReport: suspend (WasteRecord) -> Unit,
+    onRestoreArchivedReport: suspend (WasteRecord) -> Unit,
     onReportViewChange: (Boolean) -> Unit,
     onFilterChange: (String?) -> Unit,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit
 ) {
-    var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
-    val statusFilters = listOf(
-        null,
-        WasteFlow.WAITING,
-        WasteFlow.PROCESSING,
-        WasteFlow.ASSIGNED,
-        WasteFlow.TRANSPORTED,
-        WasteFlow.DONE,
-        WasteFlow.REJECTED
-    )
+    var archivingReport by remember { mutableStateOf<WasteRecord?>(null) }
+    var restoringReport by remember { mutableStateOf<WasteRecord?>(null) }
+    var archiveActionError by remember { mutableStateOf("") }
+    var archiveActionRunning by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val waitingReports = reports.filter { it.status == WasteFlow.WAITING }
-    val visibleReports = when {
+    val activeFilter = if (showingArchive) "arsip" else when {
+        !showAllReports || selectedStatus == WasteFlow.WAITING -> "baru"
+        selectedStatus == null -> "semua"
+        selectedStatus in setOf(WasteFlow.PROCESSING, WasteFlow.ASSIGNED, WasteFlow.TRANSPORTED) -> "proses"
+        selectedStatus == WasteFlow.DONE -> "selesai"
+        else -> "ditolak"
+    }
+    val visibleReports = if (showingArchive) emptyList() else when {
         !showAllReports -> waitingReports
         selectedStatus == null -> reports
-        selectedStatus == WasteFlow.PROCESSING -> reports.filter { WasteFlow.isInProgress(it.status) }
+        selectedStatus in setOf(WasteFlow.PROCESSING, WasteFlow.ASSIGNED, WasteFlow.TRANSPORTED) ->
+            reports.filter { WasteFlow.isInProgress(it.status) }
         else -> reports.filter { it.status == selectedStatus }
     }
+    val reportFilters = listOf(
+        "baru" to "Baru",
+        "proses" to "Proses",
+        "selesai" to "Selesai",
+        "ditolak" to "Ditolak",
+        "semua" to "Semua"
+    )
     AdminPage("reports", account, onNavigate, onLogout) {
         AdminSectionHeading(
-            "ADMIN • LAPORAN",
+            "INBOX • ADMIN",
             "Laporan warga",
-            "Verifikasi laporan baru dan pantau status penanganannya."
+            "Lihat laporan yang masuk dan pantau perkembangannya."
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.End
         ) {
-            listOf(
-                false to "Perlu verifikasi · ${waitingReports.size}",
-                true to "Semua laporan · ${reports.size}"
-            ).forEach { (showAll, label) ->
-                val active = showAllReports == showAll
-                TextButton(
-                    onClick = { onReportViewChange(showAll) },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = if (active) LoginAccent else LoginMuted,
-                        containerColor = if (active) WasteBlue else AppSurface
-                    ),
-                    shape = RoundedCornerShape(13.dp)
-                ) {
-                    Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
+            TextButton(
+                onClick = {
+                    archiveActionError = ""
+                    onArchiveViewChange(!showingArchive)
+                },
+                colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
+            ) {
+                Text(
+                    if (showingArchive) "← Kembali ke laporan" else "Arsip tersimpan · ${archivedReports.size}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
-
-        if (showAllReports) {
+        if (!showingArchive) {
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                statusFilters.forEach { status ->
-                    val active = selectedStatus == status
+                reportFilters.forEach { (filter, label) ->
+                    val active = activeFilter == filter
                     TextButton(
-                        onClick = { onFilterChange(status) },
+                        onClick = {
+                            when (filter) {
+                                "baru" -> {
+                                    onReportViewChange(false)
+                                    onFilterChange(null)
+                                }
+                                "proses" -> {
+                                    onReportViewChange(true)
+                                    onFilterChange(WasteFlow.PROCESSING)
+                                }
+                                "selesai" -> {
+                                    onReportViewChange(true)
+                                    onFilterChange(WasteFlow.DONE)
+                                }
+                                "ditolak" -> {
+                                    onReportViewChange(true)
+                                    onFilterChange(WasteFlow.REJECTED)
+                                }
+                                else -> {
+                                    onReportViewChange(true)
+                                    onFilterChange(null)
+                                }
+                            }
+                        },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 11.dp,
+                            vertical = 6.dp
+                        ),
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = if (active) LoginAccent else AppTextMuted,
                             containerColor = if (active) WasteBlue else AppSurfaceMuted
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            if (status == null) "Semua" else WasteFlow.label(status),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
         SectionTitle(
-            if (showAllReports) "${visibleReports.size} laporan" else "Antrean verifikasi",
-            if (showAllReports) "Pantau laporan berdasarkan status" else "${waitingReports.size} laporan menunggu keputusan"
+            if (showingArchive) "${archivedReports.size} laporan tersimpan"
+            else "${visibleReports.size} ${when (activeFilter) {
+                    "baru" -> "laporan baru"
+                    "proses" -> "laporan diproses"
+                    "selesai" -> "laporan selesai"
+                    "ditolak" -> "laporan ditolak"
+                    else -> "laporan"
+                }}",
+            if (showingArchive) "Laporan tetap tersimpan di sini dan bisa dipulihkan kapan saja."
+            else when (activeFilter) {
+                    "baru" -> "Laporan baru menunggu ditangani petugas."
+                    "proses" -> "Mencakup laporan ditugaskan dan sedang diangkut."
+                    "selesai" -> "Laporan yang sudah selesai diterima di TPA."
+                    "ditolak" -> "Laporan yang ditolak setelah ditinjau."
+                    else -> "Pantau seluruh laporan warga."
+                }
         )
-        if (visibleReports.isEmpty()) {
-            EmptyAdminState(
-                if (showAllReports) "Belum ada laporan pada status ini."
-                else "Semua laporan baru sudah ditinjau."
-            )
-        } else {
-            visibleReports.forEach { report ->
-                if (showAllReports) {
-                    AdminReportCard(report, onOpenPhoto, compact = true)
-                } else {
+        when {
+            showingArchive && archivedReports.isEmpty() -> {
+                EmptyAdminState("Arsip masih kosong.")
+            }
+            showingArchive -> {
+                archivedReports.forEach { archived ->
+                    AdminReportCard(
+                        archived.report,
+                        onOpenPhoto,
+                        compact = true,
+                        onRestore = { restoringReport = archived.report }
+                    )
+                    Text(
+                        "Disimpan ${archived.archivedAt} · ${archived.archivedBy}",
+                        color = AppTextMuted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(start = 12.dp, bottom = 5.dp)
+                    )
+                }
+            }
+            visibleReports.isEmpty() -> {
+                EmptyAdminState(
+                    if (showAllReports) "Belum ada laporan pada status ini."
+                    else "Semua laporan baru sudah ditinjau."
+                )
+            }
+            else -> {
+                visibleReports.forEach { report ->
                     AdminReportCard(
                         report,
                         onOpenPhoto,
-                        onReject = { onReject(report) },
-                        onAssign = { assigningReport = report }
+                        compact = true,
+                        onArchive = { archivingReport = report }
                     )
                 }
             }
         }
     }
-    assigningReport?.let { report ->
-        AssignmentDialog(
-            report = report,
-            workers = workers.filter { it.active && it.username.isNotBlank() },
-            vehicles = vehicles.filter {
-                it.condition.equals(
-                    "baik",
-                    true
-                ) && it.availableKg >= report.weightKg
+
+    archivingReport?.let { report ->
+        AlertDialog(
+            onDismissRequest = { if (!archiveActionRunning) archivingReport = null },
+            title = { Text("Simpan laporan ke Arsip?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "${report.code} akan disembunyikan dari daftar utama. Data laporan, foto, riwayat, dan statistik tetap tersimpan; kamu bisa memulihkannya dari Arsip.",
+                        color = AppTextMuted
+                    )
+                    if (archiveActionError.isNotBlank()) InlineError(archiveActionError)
+                }
             },
-            facilities = facilities.filter { it.remainingTon * 1000 >= report.weightKg },
-            onDismiss = { assigningReport = null },
-            onAssign = { workerId, vehicleId, tpaId ->
-                onAssign(report, workerId, vehicleId, tpaId)
-                assigningReport = null
-            }
+            confirmButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = {
+                        scope.launch {
+                            archiveActionRunning = true
+                            archiveActionError = ""
+                            try {
+                                onArchiveReport(report)
+                                archivingReport = null
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                archiveActionError = error.message ?: "Laporan gagal diarsipkan."
+                            } finally {
+                                archiveActionRunning = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (archiveActionRunning) "Menyimpan…" else "Simpan ke Arsip", color = LoginAccent)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = { archivingReport = null }
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
+    restoringReport?.let { report ->
+        AlertDialog(
+            onDismissRequest = { if (!archiveActionRunning) restoringReport = null },
+            title = { Text("Pulihkan laporan?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "${report.code} (${WasteFlow.label(report.status)}) akan kembali ke daftar laporan Admin.",
+                        color = AppTextMuted
+                    )
+                    if (archiveActionError.isNotBlank()) InlineError(archiveActionError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = {
+                        scope.launch {
+                            archiveActionRunning = true
+                            archiveActionError = ""
+                            try {
+                                onRestoreArchivedReport(report)
+                                restoringReport = null
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                archiveActionError = error.message ?: "Laporan gagal dipulihkan."
+                            } finally {
+                                archiveActionRunning = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (archiveActionRunning) "Memulihkan…" else "Pulihkan", color = LoginAccent)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = { restoringReport = null }
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
         )
     }
 }
@@ -1123,10 +1436,21 @@ private fun AdminReportCard(
     onOpenPhoto: (String) -> Unit,
     onReject: (() -> Unit)? = null,
     onAssign: (() -> Unit)? = null,
-    compact: Boolean = false
+    compact: Boolean = false,
+    assignmentLabel: String = "Tugaskan",
+    onArchive: (() -> Unit)? = null,
+    onRestore: (() -> Unit)? = null
 ) {
     var showDetails by rememberSaveable(report.id) { mutableStateOf(!compact) }
     val accent = reportAccent(report.status)
+    val reportMeta = buildList {
+        report.reportedBy.takeIf { it.isNotBlank() }?.let {
+            add("Pelapor: ${it.reporterDisplayName()}")
+        }
+        report.reportedAt.takeIf { it.isNotBlank() }?.let {
+            add(it.toDisplayDateTime())
+        }
+    }.joinToString("  ·  ")
     AppCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = Color.White,
@@ -1148,7 +1472,15 @@ private fun AdminReportCard(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Dari ${report.reportedBy}", color = AppTextMuted, fontSize = 11.sp)
+                    if (reportMeta.isNotBlank()) {
+                        Text(
+                            reportMeta,
+                            color = AppTextMuted,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
                 StatusPill(report.status, accent)
             }
@@ -1156,17 +1488,25 @@ private fun AdminReportCard(
                 "${report.type}${if (report.weightKg > 0) "  •  ${report.weightKg.pretty()} kg" else ""}",
                 color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    Icons.Filled.Place,
-                    contentDescription = null,
-                    tint = LoginAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(report.location, color = AppTextMuted, fontSize = 12.sp)
+            if (report.location.isNotBlank() && report.location != "-") {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Place,
+                        contentDescription = null,
+                        tint = LoginAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        report.location.trim(),
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             if (showDetails) {
                 if (report.hazardLevel.isNotBlank() && !report.hazardLevel.equals("RENDAH", true)) {
@@ -1188,23 +1528,23 @@ private fun AdminReportCard(
                         )
                     }
                 }
-                if (report.workerName.isNotBlank()) {
+                val assignmentSummary = report.assignmentSummary()
+                if (assignmentSummary.isNotBlank()) {
                     Text(
-                        "Petugas: ${report.workerName}  •  ${report.vehiclePlate}  •  ${report.tpaName}",
+                        assignmentSummary,
                         color = LoginMuted,
-                        fontSize = 11.sp
+                        fontSize = 10.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                if (report.reportedAt.isNotBlank()) Text(
-                    "Dilaporkan ${report.reportedAt}",
-                    color = AppTextMuted,
-                    fontSize = 11.sp
-                )
                 if (report.description.isNotBlank()) Text(
                     report.description,
                     color = AppTextMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp
+                    fontSize = 10.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (!report.photoUrl.isNullOrBlank()) {
                     TextButton(onClick = { onOpenPhoto(report.photoUrl) }) {
@@ -1242,7 +1582,7 @@ private fun AdminReportCard(
                     )
                 }
             }
-            if (onReject != null || onAssign != null) {
+            if (onReject != null || onAssign != null || onArchive != null || onRestore != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -1261,7 +1601,23 @@ private fun AdminReportCard(
                             onClick = onAssign,
                             colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
                         ) {
-                            Text("Tugaskan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(assignmentLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (onArchive != null) {
+                        TextButton(
+                            onClick = onArchive,
+                            colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
+                        ) {
+                            Text("Arsipkan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (onRestore != null) {
+                        TextButton(
+                            onClick = onRestore,
+                            colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
+                        ) {
+                            Text("Pulihkan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1415,8 +1771,13 @@ private fun <T> SelectionField(
 @Composable
 private fun AdminUsersContent(
     users: List<AdminUser>,
-    onToggleUser: (AdminUser) -> Unit
+    onToggleUser: suspend (AdminUser) -> Unit,
+    onDeleteUser: suspend (AdminUser) -> Unit,
+    onActionError: (String) -> Unit
 ) {
+    var deletingUser by remember { mutableStateOf<AdminUser?>(null) }
+    var updatingUserId by remember { mutableStateOf<Int?>(null) }
+    val scope = rememberCoroutineScope()
     SectionTitle("Data warga", "Akun warga yang mengirim laporan melalui website")
     if (users.isEmpty()) EmptyAdminState("Belum ada warga terdaftar.")
     users.forEach { user ->
@@ -1430,37 +1791,239 @@ private fun AdminUsersContent(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                UserAvatar(user.name)
+                UserAvatar(user.name.displayPersonName())
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        user.name,
+                        user.name.displayPersonName(),
                         color = AppText,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text("@${user.username}", color = AppTextMuted, fontSize = 11.sp)
+                    if (user.email.isNotBlank()) {
+                        Text(
+                            user.email.trim(),
+                            color = AppTextMuted,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     Text(
-                        "${user.totalReports} laporan${if (user.email.isNotBlank()) "  •  ${user.email}" else ""}",
-                        color = AppTextMuted,
-                        fontSize = 11.sp
+                        "${user.totalReports} laporan dikirim",
+                        color = LoginAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
-                TextButton(
-                    onClick = { onToggleUser(user) },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = if (user.active) WasteRed else LoginAccent
-                    )
-                ) {
-                    Text(
-                        if (user.active) "Nonaktifkan" else "Aktifkan",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(
+                        enabled = updatingUserId != user.id,
+                        onClick = {
+                            scope.launch {
+                                updatingUserId = user.id
+                                onActionError("")
+                                try {
+                                    onToggleUser(user)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (error: Exception) {
+                                    onActionError(error.message ?: "Status akun gagal diperbarui.")
+                                } finally {
+                                    updatingUserId = null
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (user.active) WasteRed else LoginAccent
+                        )
+                    ) {
+                        Text(
+                            if (updatingUserId == user.id) "Menyimpan…" else if (user.active) "Nonaktifkan" else "Aktifkan",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(
+                        onClick = { deletingUser = user },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = "Hapus akun ${user.username}",
+                            tint = WasteRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
     }
+    deletingUser?.let { user ->
+        DeleteAccountConfirmationDialog(
+            title = "Hapus akun warga?",
+            message = "Akun @${user.username} akan dihapus. Laporan yang pernah dikirim tetap tersimpan tanpa terhubung ke akun ini.",
+            onDismiss = { deletingUser = null },
+            onDelete = { onDeleteUser(user) }
+        )
+    }
+}
+
+@Composable
+private fun DeleteAccountConfirmationDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    onDelete: suspend () -> Unit
+) {
+    var deleting by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = { if (!deleting) onDismiss() },
+        title = { Text(title, color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(message, color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                if (errorMessage.isNotBlank()) InlineError(errorMessage)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !deleting,
+                onClick = {
+                    scope.launch {
+                        deleting = true
+                        errorMessage = ""
+                        try {
+                            onDelete()
+                            onDismiss()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            errorMessage = error.message ?: "Akun gagal dihapus."
+                        } finally {
+                            deleting = false
+                        }
+                    }
+                },
+                colors = ButtonDefaults.textButtonColors(contentColor = WasteRed)
+            ) {
+                Text(if (deleting) "Menghapus…" else "Hapus akun", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !deleting, onClick = onDismiss) {
+                Text("Batal", color = LoginMuted)
+            }
+        },
+        containerColor = AppSurface
+    )
+}
+
+@Composable
+private fun DeleteWorkerAccountDialog(
+    worker: AdminWorker,
+    replacementWorkers: List<AdminWorker>,
+    onDismiss: () -> Unit,
+    onDelete: suspend (AdminWorker, Int?) -> Unit
+) {
+    var selectedReplacementId by remember(worker.id) {
+        mutableStateOf(replacementWorkers.firstOrNull()?.id)
+    }
+    var menuExpanded by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val needsReplacement = worker.activeTasks > 0
+    val selectedReplacement = replacementWorkers.firstOrNull { it.id == selectedReplacementId }
+
+    AlertDialog(
+        onDismissRequest = { if (!deleting) onDismiss() },
+        title = { Text("Hapus akun petugas?", color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "${worker.name.displayPersonName()} tidak bisa login lagi. Profil dan riwayat kinerja tetap disimpan.",
+                    color = AppTextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp
+                )
+                if (needsReplacement) {
+                    Text(
+                        "${worker.activeTasks} tugas aktif perlu dialihkan sebelum akun dihapus.",
+                        color = AppText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (replacementWorkers.isEmpty()) {
+                        Text(
+                            "Belum ada petugas lain yang aktif. Aktifkan atau tambahkan akun petugas pengganti terlebih dahulu.",
+                            color = WasteRed,
+                            fontSize = 11.sp
+                        )
+                    } else {
+                        Box {
+                            TextButton(onClick = { menuExpanded = true }, enabled = !deleting) {
+                                Text(
+                                    "Pengganti: ${selectedReplacement?.name?.displayPersonName() ?: "Pilih petugas"} ▾",
+                                    color = LoginAccent
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false }
+                            ) {
+                                replacementWorkers.forEach { replacement ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text("${replacement.name.displayPersonName()} · @${replacement.username}")
+                                        },
+                                        onClick = {
+                                            selectedReplacementId = replacement.id
+                                            menuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (errorMessage.isNotBlank()) InlineError(errorMessage)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !deleting && (!needsReplacement || selectedReplacement != null),
+                onClick = {
+                    scope.launch {
+                        deleting = true
+                        errorMessage = ""
+                        try {
+                            onDelete(worker, if (needsReplacement) selectedReplacementId else null)
+                            onDismiss()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            errorMessage = error.message ?: "Akun petugas gagal dihapus."
+                        } finally {
+                            deleting = false
+                        }
+                    }
+                },
+                colors = ButtonDefaults.textButtonColors(contentColor = WasteRed)
+            ) {
+                Text(if (deleting) "Menghapus…" else "Hapus akun", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !deleting, onClick = onDismiss) {
+                Text("Batal", color = LoginMuted)
+            }
+        },
+        containerColor = AppSurface
+    )
 }
 
 @Composable
@@ -1709,34 +2272,65 @@ fun AdminStatsScreen(
 fun AdminOperationsScreen(
     users: List<AdminUser>,
     workers: List<AdminWorker>,
+    completionReviews: List<TaskCompletionReview>,
+    adminNotes: List<AdminNoteRecord>,
+    archivedAdminNotes: List<ArchivedAdminNote>,
     vehicles: List<WasteVehicle>,
     facilities: List<WasteFacility>,
     errorMessage: String,
     account: UserAccount,
     onCreateWorker: suspend (String, String, String, String, String, String) -> Unit,
     onUpdateWorker: suspend (AdminWorker, Boolean) -> Unit,
+    onDeleteWorker: suspend (AdminWorker, Int?) -> Unit,
     onCreateVehicle: suspend (String, Double, String, String) -> Unit,
     onUpdateVehicle: suspend (WasteVehicle) -> Unit,
     onCreateFacility: suspend (String, String, Double) -> Unit,
     onUpdateFacility: suspend (WasteFacility) -> Unit,
-    onToggleUser: (AdminUser) -> Unit,
+    onToggleUser: suspend (AdminUser) -> Unit,
+    onDeleteUser: suspend (AdminUser) -> Unit,
+    onOpenPhoto: (String) -> Unit,
+    onReviewCompletion: suspend (TaskCompletionReview, String, String) -> Unit,
+    onAddAdminNote: suspend (AdminNoteRecord, String) -> Unit,
+    onArchiveAdminNote: suspend (AdminNoteRecord) -> Unit,
+    onRestoreAdminNote: suspend (ArchivedAdminNote) -> Unit,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
-    initialTab: String = "petugas"
+    initialTab: String = "petugas",
+    onTabSelected: (String) -> Unit
 ) {
-    var tab by rememberSaveable(initialTab) { mutableStateOf(initialTab) }
+    var tab by rememberSaveable(account.role, initialTab) {
+        mutableStateOf(initialTab.takeIf { it == "catatan" } ?: "petugas")
+    }
     var adding by rememberSaveable { mutableStateOf(false) }
     var editingWorker by remember { mutableStateOf<AdminWorker?>(null) }
+    var deletingWorker by remember { mutableStateOf<AdminWorker?>(null) }
     var editingVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
     var editingFacility by remember { mutableStateOf<WasteFacility?>(null) }
+    var revisionReview by remember { mutableStateOf<TaskCompletionReview?>(null) }
+    var revisionNote by rememberSaveable { mutableStateOf("") }
+    var revisionError by remember { mutableStateOf("") }
+    var revisionSending by remember { mutableStateOf(false) }
+    var processingCompletionId by remember { mutableStateOf<Int?>(null) }
+    var showingNoteArchive by rememberSaveable { mutableStateOf(false) }
+    var activeNoteSearch by rememberSaveable { mutableStateOf("") }
+    var activeNoteFilter by rememberSaveable { mutableStateOf("semua") }
+    var archiveSearch by rememberSaveable { mutableStateOf("") }
+    var archivingAdminNote by remember { mutableStateOf<AdminNoteRecord?>(null) }
+    var restoringAdminNote by remember { mutableStateOf<ArchivedAdminNote?>(null) }
+    var writingAdminNote by remember { mutableStateOf<AdminNoteRecord?>(null) }
+    var adminNoteDraft by rememberSaveable { mutableStateOf("") }
+    var adminNoteError by remember { mutableStateOf("") }
+    var adminNoteSending by remember { mutableStateOf(false) }
+    var noteArchiveInProgress by remember { mutableStateOf(false) }
     var actionError by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     AdminPage("ops", account, onNavigate, onLogout) {
+        val operationsTabs = listOf("petugas" to "Petugas", "catatan" to "Catatan Admin")
         AdminSectionHeading(
-            if (tab == "warga") "ADMIN • DATA WARGA" else "ADMIN • OPERASIONAL",
-            if (tab == "warga") "Kelola akun warga" else "Tim dan fasilitas",
-            if (tab == "warga") "Pantau akun warga dan tindak lanjuti akun bermasalah."
-            else "Data ini dipakai saat laporan ditugaskan ke lapangan."
+            if (tab == "catatan") "ADMIN • PEMANTAUAN" else "ADMIN • OPERASIONAL",
+            if (tab == "catatan") "Catatan Admin" else "Kelola petugas",
+            if (tab == "catatan") "Notifikasi bukti tugas dan catatan pekerjaan petugas."
+            else "Atur akun petugas dan pantau pembagian tugas."
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
         if (actionError.isNotBlank()) InlineError(actionError)
@@ -1744,20 +2338,26 @@ fun AdminOperationsScreen(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            listOf(
-                "petugas" to "Petugas",
-                "kendaraan" to "Kendaraan",
-                "tpa" to "TPA",
-                "warga" to "Warga"
-            ).forEach { (key, label) ->
+            operationsTabs.forEach { (key, label) ->
                 TextButton(
-                    onClick = { tab = key },
+                    onClick = {
+                        tab = key
+                        onTabSelected(key)
+                    },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = if (tab == key) LoginAccent else LoginMuted,
                         containerColor = if (tab == key) WasteBlue else AppSurface
                     ),
                     shape = RoundedCornerShape(13.dp)
-                ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                ) {
+                    Text(
+                        if (key == "catatan" && adminNotes.any { it.report.completionStatus == "menunggu" }) {
+                            "$label · ${adminNotes.count { it.report.completionStatus == "menunggu" }}"
+                        } else label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
         when (tab) {
@@ -1766,19 +2366,11 @@ fun AdminOperationsScreen(
                     "Data petugas",
                     "Akun Android dibuat oleh admin, tidak melalui registrasi umum"
                 )
-                if (account.isSuperAdmin) {
-                    AppButton(
-                        "＋ Daftarkan akun Admin/Petugas",
-                        { adding = true },
-                        containerColor = LoginAccent
-                    )
-                } else {
-                    Text(
-                        "Pendaftaran akun Admin/Petugas hanya dapat dilakukan oleh admin pertama.",
-                        color = LoginMuted,
-                        fontSize = 11.sp
-                    )
-                }
+                AppButton(
+                    "＋ Tambah akun petugas",
+                    { adding = true },
+                    containerColor = LoginAccent
+                )
                 if (workers.isEmpty()) EmptyAdminState("Belum ada data petugas.")
                 workers.forEach { item ->
                     AppCard(
@@ -1791,11 +2383,11 @@ fun AdminOperationsScreen(
                             modifier = Modifier.fillMaxWidth().padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            UserAvatar(item.name)
+                            UserAvatar(item.name.displayPersonName())
                             Spacer(modifier = Modifier.width(9.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    item.name,
+                                    item.name.displayPersonName(),
                                     color = AppText,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
@@ -1807,9 +2399,14 @@ fun AdminOperationsScreen(
                                     fontSize = 11.sp
                                 )
                                 Text(
-                                    "${item.totalPickups} penugasan selesai",
+                                    "${item.completedTasks} tugas disetujui · ${item.completedWeightKg.pretty()} kg",
                                     color = LoginAccent,
                                     fontSize = 11.sp
+                                )
+                                Text(
+                                    "${item.activeTasks} tugas aktif · ${item.pendingConfirmations} bukti menunggu",
+                                    color = AppTextMuted,
+                                    fontSize = 10.sp
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
@@ -1841,7 +2438,252 @@ fun AdminOperationsScreen(
                                         )
                                     }
                                 } else {
-                                    Text("Tidak bisa login", color = WasteRed, fontSize = 11.sp)
+                                    Text("Akun sudah dihapus", color = AppTextMuted, fontSize = 10.sp)
+                                }
+                                if (item.hasAccount) {
+                                    IconButton(
+                                        onClick = { deletingWorker = item },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Delete,
+                                            contentDescription = "Hapus akun petugas",
+                                            tint = WasteRed,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            "catatan" -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        false to "Catatan aktif · ${adminNotes.size}",
+                        true to "Arsip · ${archivedAdminNotes.size}"
+                    ).forEach { (archive, label) ->
+                        TextButton(
+                            onClick = { showingNoteArchive = archive },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (showingNoteArchive == archive) LoginAccent else LoginMuted,
+                                containerColor = if (showingNoteArchive == archive) WasteBlue else AppSurface
+                            ),
+                            shape = RoundedCornerShape(13.dp)
+                        ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                    }
+                }
+
+                if (showingNoteArchive) {
+                    OutlinedTextField(
+                        value = archiveSearch,
+                        onValueChange = { archiveSearch = it.take(120) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Cari arsip") },
+                        placeholder = { Text("Kode, status, petugas, atau catatan") },
+                        singleLine = true
+                    )
+                    val query = archiveSearch.trim().lowercase()
+                    val filteredArchive = archivedAdminNotes.filter { archived ->
+                        val note = archived.note
+                        listOf(
+                            note.report.code, note.report.status, WasteFlow.label(note.report.status), note.report.type,
+                            note.report.location, note.report.reportedBy, note.report.workerName,
+                            note.report.description, note.statusNote, note.workerNote,
+                            note.adminNote, archived.archivedAt, archived.archivedBy
+                        ).any { it.lowercase().contains(query) }
+                    }
+                    SectionTitle("Arsip catatan", "Laporan tetap tersimpan dan dapat dipulihkan kapan saja")
+                    if (filteredArchive.isEmpty()) {
+                        EmptyAdminState(if (query.isBlank()) "Belum ada catatan yang diarsipkan." else "Arsip yang cocok tidak ditemukan.")
+                    }
+                    filteredArchive.forEach { archived ->
+                        val note = archived.note
+                        AppCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = Color.White,
+                            borderColor = AppBorder,
+                            accentColor = reportAccent(note.report.status)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(13.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(note.report.code, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("${note.report.type} · ${note.report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 10.sp)
+                                    }
+                                    StatusPill(note.report.status, reportAccent(note.report.status))
+                                }
+                                Text(note.report.location, color = AppTextMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                val detail = note.statusNote.takeIf { it.startsWith("Catatan Admin:", true) }
+                                    ?: note.adminNote.takeIf { it.isNotBlank() }
+                                    ?: note.workerNote.takeIf { it.isNotBlank() }
+                                    ?: note.statusNote.takeIf { it.isNotBlank() }
+                                    ?: note.report.description
+                                if (detail.isNotBlank()) {
+                                    Text(detail, color = AppText, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                }
+                                Text("Diarsipkan ${archived.archivedAt} · ${archived.archivedBy}", color = AppTextMuted, fontSize = 9.sp)
+                                TextButton(
+                                    enabled = !noteArchiveInProgress,
+                                    onClick = { restoringAdminNote = archived }
+                                ) { Text("Pulihkan catatan", color = LoginAccent, fontSize = 11.sp) }
+                            }
+                        }
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = activeNoteSearch,
+                        onValueChange = { activeNoteSearch = it.take(120) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Cari catatan aktif") },
+                        placeholder = { Text("Kode, jenis, lokasi, petugas, atau isi catatan") },
+                        singleLine = true
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        listOf(
+                            "semua" to "Semua",
+                            "tinjau" to "Perlu tinjau",
+                            "selesai" to "Selesai",
+                            "ditolak" to "Ditolak"
+                        ).forEach { (key, label) ->
+                            TextButton(
+                                onClick = { activeNoteFilter = key },
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = if (activeNoteFilter == key) LoginAccent else LoginMuted,
+                                    containerColor = if (activeNoteFilter == key) WasteBlue else AppSurface
+                                ),
+                                shape = RoundedCornerShape(13.dp)
+                            ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                        }
+                    }
+                    SectionTitle(
+                        "Aktivitas laporan",
+                        "Cari laporan, tinjau bukti, tulis catatan, atau arsipkan."
+                    )
+                    val query = activeNoteSearch.trim().lowercase()
+                    val filteredActiveNotes = adminNotes.filter { note ->
+                        val report = note.report
+                        val matchesQuery = query.isBlank() || listOf(
+                            report.code, report.type, report.location, report.reportedBy,
+                            report.workerName, report.description, note.statusNote,
+                            note.workerNote, note.adminNote, WasteFlow.label(report.status)
+                        ).any { it.lowercase().contains(query) }
+                        val matchesFilter = when (activeNoteFilter) {
+                            "tinjau" -> report.completionStatus.equals("menunggu", true)
+                            "selesai" -> report.status.equals("selesai", true)
+                            "ditolak" -> report.status.equals("ditolak", true)
+                            else -> true
+                        }
+                        matchesQuery && matchesFilter
+                    }
+                    val reviewsByReport = completionReviews.associateBy { it.report.id }
+                    if (filteredActiveNotes.isEmpty()) {
+                        EmptyAdminState(
+                            when {
+                                adminNotes.isEmpty() -> "Belum ada laporan di Catatan Admin."
+                                query.isNotBlank() -> "Tidak ada catatan yang cocok dengan pencarian."
+                                activeNoteFilter == "tinjau" -> "Tidak ada bukti penyelesaian yang menunggu tinjauan."
+                                else -> "Belum ada laporan pada filter ini."
+                            }
+                        )
+                    }
+                    filteredActiveNotes.forEach { note ->
+                        val report = note.report
+                        val review = reviewsByReport[report.id]
+                        val detail = note.statusNote.takeIf { it.startsWith("Catatan Admin:", true) }
+                            ?: note.adminNote.takeIf { it.isNotBlank() }
+                            ?: note.workerNote.takeIf { it.isNotBlank() }
+                            ?: note.statusNote.takeIf { it.isNotBlank() }
+                            ?: report.description
+                        AppCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = Color.White,
+                            borderColor = AppBorder,
+                            accentColor = reportAccent(report.status)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(13.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(report.code, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 10.sp)
+                                    }
+                                    StatusPill(report.status, reportAccent(report.status))
+                                }
+                                Text(report.location, color = AppTextMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (report.workerName.isNotBlank()) {
+                                    Text("Petugas: ${report.workerName.displayPersonName()}", color = AppTextMuted, fontSize = 10.sp)
+                                }
+                                if (detail.isNotBlank()) {
+                                    Text(detail, color = AppText, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                }
+                                if (review != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        TextButton(onClick = { onOpenPhoto(review.proofPhotoUrl) }) {
+                                            Text("Lihat bukti foto", color = LoginAccent, fontSize = 10.sp)
+                                        }
+                                        Spacer(Modifier.weight(1f))
+                                        TextButton(
+                                            enabled = processingCompletionId == null,
+                                            onClick = {
+                                                revisionNote = ""
+                                                revisionError = ""
+                                                revisionReview = review
+                                            }
+                                        ) { Text("Minta perbaikan", color = WasteOrange, fontSize = 10.sp) }
+                                        TextButton(
+                                            enabled = processingCompletionId == null,
+                                            onClick = {
+                                                scope.launch {
+                                                    processingCompletionId = review.id
+                                                    actionError = ""
+                                                    try {
+                                                        onReviewCompletion(review, "approve", "")
+                                                    } catch (cancelled: CancellationException) {
+                                                        throw cancelled
+                                                    } catch (error: Exception) {
+                                                        actionError = error.message ?: "Pemeriksaan bukti gagal disimpan."
+                                                    } finally {
+                                                        processingCompletionId = null
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Text(
+                                                if (processingCompletionId == review.id) "Memeriksa…" else "Setujui",
+                                                color = WasteGreen,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    TextButton(
+                                        onClick = {
+                                            adminNoteDraft = ""
+                                            adminNoteError = ""
+                                            writingAdminNote = note
+                                        }
+                                    ) { Text("Tambah catatan", color = LoginAccent, fontSize = 10.sp) }
+                                    Spacer(Modifier.weight(1f))
+                                    TextButton(
+                                        enabled = !noteArchiveInProgress,
+                                        onClick = { archivingAdminNote = note }
+                                    ) { Text("Arsipkan", color = LoginMuted, fontSize = 10.sp) }
                                 }
                             }
                         }
@@ -1953,12 +2795,18 @@ fun AdminOperationsScreen(
                 }
             }
 
-            "warga" -> AdminUsersContent(users, onToggleUser)
+            "warga" -> AdminUsersContent(
+                users = users,
+                onToggleUser = onToggleUser,
+                onDeleteUser = onDeleteUser,
+                onActionError = { actionError = it }
+            )
         }
     }
     if (adding) {
         when (tab) {
             "petugas" -> StaffAccountFormDialog(
+                allowAdminAccount = false,
                 onDismiss = { adding = false },
                 onSave = { name, username, email, password, zone, role ->
                     onCreateWorker(
@@ -1970,6 +2818,8 @@ fun AdminOperationsScreen(
                         role
                     ); adding = false
                 })
+
+            "catatan" -> Unit
 
             "kendaraan" -> VehicleFormDialog(
                 null,
@@ -2004,6 +2854,14 @@ fun AdminOperationsScreen(
             onUpdateWorker(item.copy(zone = zone), item.active); editingWorker = null
         }
     }
+    deletingWorker?.let { item ->
+        DeleteWorkerAccountDialog(
+            worker = item,
+            replacementWorkers = workers.filter { it.id != item.id && it.active && it.hasAccount },
+            onDismiss = { deletingWorker = null },
+            onDelete = onDeleteWorker
+        )
+    }
     editingVehicle?.let { item ->
         VehicleFormDialog(item, { editingVehicle = null }, { plate, capacity, condition, route ->
             onUpdateVehicle(
@@ -2027,19 +2885,260 @@ fun AdminOperationsScreen(
             ); editingFacility = null
         })
     }
+    revisionReview?.let { review ->
+        AlertDialog(
+            onDismissRequest = { if (!revisionSending) revisionReview = null },
+            title = { Text("Minta perbaikan bukti", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Tugas ${review.report.code} · ${review.workerName.displayPersonName()}", color = AppTextMuted, fontSize = 11.sp)
+                    if (revisionError.isNotBlank()) InlineError(revisionError)
+                    OutlinedTextField(
+                        value = revisionNote,
+                        onValueChange = { revisionNote = it.take(500) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Catatan perbaikan") },
+                        placeholder = { Text("Jelaskan bagian bukti yang perlu diperbaiki") },
+                        minLines = 3,
+                        maxLines = 5,
+                        enabled = !revisionSending
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = revisionNote.isNotBlank() && !revisionSending,
+                    onClick = {
+                        scope.launch {
+                            revisionSending = true
+                            processingCompletionId = review.id
+                            revisionError = ""
+                            try {
+                                onReviewCompletion(review, "revision", revisionNote.trim())
+                                revisionReview = null
+                                revisionNote = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                revisionError = error.message ?: "Catatan perbaikan gagal dikirim."
+                            } finally {
+                                processingCompletionId = null
+                                revisionSending = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (revisionSending) "Mengirim…" else "Kirim catatan", color = LoginAccent)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { revisionReview = null },
+                    enabled = !revisionSending
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
+    writingAdminNote?.let { item ->
+        val noteBytes = adminNoteDraft.toByteArray(Charsets.UTF_8).size
+        AlertDialog(
+            onDismissRequest = { if (!adminNoteSending) writingAdminNote = null },
+            title = { Text("Catatan admin", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "${item.report.code} · ${WasteFlow.label(item.report.status)}",
+                        color = AppTextMuted,
+                        fontSize = 11.sp
+                    )
+                    OutlinedTextField(
+                        value = adminNoteDraft,
+                        onValueChange = { value ->
+                            if (value.toByteArray(Charsets.UTF_8).size <= 240) adminNoteDraft = value
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Tulis catatan") },
+                        placeholder = { Text("Contoh: lokasi sudah dikonfirmasi dengan petugas") },
+                        minLines = 3,
+                        maxLines = 5,
+                        enabled = !adminNoteSending
+                    )
+                    Text("$noteBytes/240 byte", color = AppTextMuted, fontSize = 10.sp)
+                    if (adminNoteError.isNotBlank()) InlineError(adminNoteError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = adminNoteDraft.isNotBlank() && !adminNoteSending,
+                    onClick = {
+                        scope.launch {
+                            adminNoteSending = true
+                            adminNoteError = ""
+                            actionError = ""
+                            try {
+                                onAddAdminNote(item, adminNoteDraft.trim())
+                                writingAdminNote = null
+                                adminNoteDraft = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                adminNoteError = error.message ?: "Catatan admin gagal disimpan."
+                            } finally {
+                                adminNoteSending = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (adminNoteSending) "Menyimpan…" else "Simpan catatan", color = LoginAccent)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !adminNoteSending,
+                    onClick = { writingAdminNote = null }
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
+    archivingAdminNote?.let { item ->
+        AlertDialog(
+            onDismissRequest = { if (!noteArchiveInProgress) archivingAdminNote = null },
+            title = {
+                Text("Arsipkan catatan laporan?", color = LoginInk, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Catatan ${item.report.code} (${WasteFlow.label(item.report.status)}) dipindahkan ke Arsip. Laporan, foto, catatan, dan riwayat tetap tersimpan.",
+                    color = AppTextMuted
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !noteArchiveInProgress,
+                    onClick = {
+                        scope.launch {
+                            noteArchiveInProgress = true
+                            actionError = ""
+                            try {
+                                onArchiveAdminNote(item)
+                                archivingAdminNote = null
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                actionError = error.message ?: "Catatan gagal diarsipkan."
+                            } finally {
+                                noteArchiveInProgress = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(
+                        if (noteArchiveInProgress) "Menyimpan…" else "Arsipkan",
+                        color = LoginAccent
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !noteArchiveInProgress,
+                    onClick = { archivingAdminNote = null }
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
+    restoringAdminNote?.let { item ->
+        AlertDialog(
+            onDismissRequest = { if (!noteArchiveInProgress) restoringAdminNote = null },
+            title = { Text("Pulihkan catatan?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Catatan ${item.note.report.code} akan kembali ke daftar Catatan Admin. Data laporan tetap utuh.",
+                    color = AppTextMuted
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !noteArchiveInProgress,
+                    onClick = {
+                        scope.launch {
+                            noteArchiveInProgress = true
+                            actionError = ""
+                            try {
+                                onRestoreAdminNote(item)
+                                restoringAdminNote = null
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                actionError = error.message ?: "Catatan gagal dipulihkan."
+                            } finally {
+                                noteArchiveInProgress = false
+                            }
+                        }
+                    }
+                ) { Text(if (noteArchiveInProgress) "Memulihkan…" else "Pulihkan", color = LoginAccent) }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !noteArchiveInProgress,
+                    onClick = { restoringAdminNote = null }
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
 }
 
 @Composable
 fun PetugasTasksScreen(
     tasks: List<WasteRecord>,
+    incomingReports: List<WasteRecord>,
+    vehicles: List<WasteVehicle>,
+    facilities: List<WasteFacility>,
     errorMessage: String,
     account: UserAccount,
     onOpenPhoto: (String) -> Unit,
-    onMarkTransported: (WasteRecord) -> Unit,
-    onComplete: (WasteRecord) -> Unit,
+    onAssignReport: suspend (WasteRecord, Int, Int) -> Unit,
+    onRejectReport: suspend (WasteRecord, String) -> Unit,
+    onMarkTransported: suspend (WasteRecord) -> Unit,
+    onSubmitProof: suspend (WasteRecord, Uri, String) -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedSection by rememberSaveable(account.username) { mutableStateOf("ringkasan") }
+    var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
+    var rejectingReport by remember { mutableStateOf<WasteRecord?>(null) }
+    var rejectionNote by rememberSaveable { mutableStateOf("") }
+    var reportActionError by remember { mutableStateOf("") }
+    var processingReportAction by remember { mutableStateOf(false) }
+    var transportingTaskId by remember { mutableStateOf<Int?>(null) }
+    var selectedCompletionTask by remember { mutableStateOf<WasteRecord?>(null) }
+    var selectedProofUri by remember { mutableStateOf<Uri?>(null) }
+    var proofNote by rememberSaveable { mutableStateOf("") }
+    var proofError by remember { mutableStateOf("") }
+    var sendingProof by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        selectedProofUri = uri
+        if (uri == null) selectedCompletionTask = null
+    }
+    fun startTransport(task: WasteRecord) {
+        if (transportingTaskId != null) return
+        scope.launch {
+            transportingTaskId = task.id
+            reportActionError = ""
+            try {
+                onMarkTransported(task)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                reportActionError = error.message ?: "Status angkut gagal diperbarui. Coba lagi."
+            } finally {
+                transportingTaskId = null
+            }
+        }
+    }
     val currentSection = selectedSection.takeIf {
         it in setOf("ringkasan", "tugas", "riwayat", "profil")
     } ?: "ringkasan"
@@ -2062,6 +3161,7 @@ fun PetugasTasksScreen(
                 onOpenTasks = { selectedSection = "tugas" }
             )
             if (errorMessage.isNotBlank()) InlineError(errorMessage)
+            if (reportActionError.isNotBlank()) InlineError(reportActionError)
         }
         AnimatedContent(
             targetState = currentSection,
@@ -2093,12 +3193,33 @@ fun PetugasTasksScreen(
                 when (section) {
             "ringkasan" -> {
                 PetugasOperationalOverview(tasks) { selectedSection = "tugas" }
-                SectionTitle("Penugasan berikutnya", "Lanjutkan pekerjaan yang masih aktif")
+                SectionTitle("Pekerjaan berikutnya", "Tinjau laporan masuk dan lanjutkan tugas lapangan")
+                val nextReport = incomingReports.firstOrNull()
                 val nextTask = activeTasks.firstOrNull()
-                if (nextTask == null) {
-                    PetugasEmptyState("Belum ada tugas aktif", "Penugasan baru dari admin akan muncul di sini.")
+                if (nextReport != null) {
+                    AdminReportCard(
+                        report = nextReport,
+                        onOpenPhoto = onOpenPhoto,
+                        onReject = { rejectingReport = nextReport },
+                        onAssign = { assigningReport = nextReport },
+                        compact = true,
+                        assignmentLabel = "Terima & tugaskan"
+                    )
+                } else if (nextTask == null) {
+                    PetugasEmptyState("Belum ada pekerjaan", "Laporan baru dan tugas lapangan akan muncul di sini.")
                 } else {
-                    PetugasTaskCard(nextTask, onOpenPhoto, onMarkTransported, onComplete)
+                    PetugasTaskCard(
+                        report = nextTask,
+                        onOpenPhoto = onOpenPhoto,
+                        onMarkTransported = ::startTransport,
+                        isTransporting = transportingTaskId == nextTask.id,
+                        onComplete = {
+                            selectedCompletionTask = nextTask
+                            proofNote = ""
+                            proofError = ""
+                            proofPicker.launch("image/*")
+                        }
+                    )
                     TextButton(
                         onClick = { selectedSection = "tugas" },
                         modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -2114,17 +3235,41 @@ fun PetugasTasksScreen(
             }
 
             "tugas" -> {
+                SectionTitle("Laporan masuk", "Petugas meninjau, menerima, dan menentukan armada serta TPA")
+                if (incomingReports.isEmpty()) {
+                    PetugasEmptyState("Tidak ada laporan baru", "Laporan warga yang menunggu penanganan akan tampil di sini.")
+                } else {
+                    incomingReports.forEach { report ->
+                        AdminReportCard(
+                            report = report,
+                            onOpenPhoto = onOpenPhoto,
+                            onReject = {
+                                rejectionNote = ""
+                                rejectingReport = report
+                            },
+                            onAssign = { assigningReport = report },
+                            compact = true,
+                            assignmentLabel = "Terima & tugaskan"
+                        )
+                    }
+                }
                 SectionTitle(
                     "Tugas aktif",
-                    "Perbarui status setelah kegiatan benar-benar dilakukan"
+                    "Muat sampah ke armada, antar ke TPA tujuan, lalu kirim bukti penerimaan"
                 )
-                if (activeTasks.isEmpty()) PetugasEmptyState("Belum ada tugas aktif", "Penugasan baru akan muncul di bagian ini.")
+                if (activeTasks.isEmpty()) PetugasEmptyState("Belum ada tugas aktif", "Tugas yang kamu terima akan muncul di bagian ini.")
                 activeTasks.forEach { task ->
                     PetugasTaskCard(
-                        task,
-                        onOpenPhoto,
-                        onMarkTransported,
-                        onComplete
+                        report = task,
+                        onOpenPhoto = onOpenPhoto,
+                        onMarkTransported = ::startTransport,
+                        isTransporting = transportingTaskId == task.id,
+                        onComplete = {
+                            selectedCompletionTask = task
+                            proofNote = ""
+                            proofError = ""
+                            proofPicker.launch("image/*")
+                        }
                     )
                 }
             }
@@ -2140,6 +3285,204 @@ fun PetugasTasksScreen(
             }
         }
     }
+    assigningReport?.let { report ->
+        PetugasAssignmentDialog(
+            report = report,
+            vehicles = vehicles,
+            facilities = facilities,
+            onDismiss = { assigningReport = null },
+            onAssign = { vehicleId, tpaId ->
+                onAssignReport(report, vehicleId, tpaId)
+                assigningReport = null
+                reportActionError = ""
+            }
+        )
+    }
+    rejectingReport?.let { report ->
+        AlertDialog(
+            onDismissRequest = { if (!processingReportAction) rejectingReport = null },
+            title = { Text("Tolak laporan ini?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${report.code} · ${report.type}", color = AppTextMuted, fontSize = 11.sp)
+                    Text("Petugas menolak laporan setelah meninjaunya. Admin tetap dapat melihat catatan dan statusnya.", color = AppText, fontSize = 11.sp)
+                    OutlinedTextField(
+                        value = rejectionNote,
+                        onValueChange = { rejectionNote = it.take(500) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Alasan penolakan") },
+                        minLines = 2,
+                        maxLines = 3,
+                        enabled = !processingReportAction
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !processingReportAction,
+                    onClick = {
+                        scope.launch {
+                            processingReportAction = true
+                            reportActionError = ""
+                            try {
+                                onRejectReport(report, rejectionNote.trim())
+                                rejectingReport = null
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                reportActionError = error.message ?: "Laporan gagal ditolak."
+                            } finally {
+                                processingReportAction = false
+                            }
+                        }
+                    }
+                ) { Text(if (processingReportAction) "Menyimpan…" else "Tolak laporan", color = WasteRed) }
+            },
+            dismissButton = {
+                TextButton(onClick = { rejectingReport = null }, enabled = !processingReportAction) {
+                    Text("Batal", color = LoginMuted)
+                }
+            },
+            containerColor = AppSurface
+        )
+    }
+    val taskForProof = selectedCompletionTask
+    val proofUri = selectedProofUri
+    if (taskForProof != null && proofUri != null) {
+        AlertDialog(
+            onDismissRequest = { if (!sendingProof) { selectedCompletionTask = null; selectedProofUri = null } },
+            title = { Text("Kirim bukti penyelesaian", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("${taskForProof.code} · ${taskForProof.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 11.sp)
+                    Text(
+                        "Unggah foto saat sampah sudah diterima di ${taskForProof.tpaName.ifBlank { "TPA tujuan" }}. Setelah admin menyetujui bukti, muatan dicatat di TPA dan dikeluarkan dari kendaraan.",
+                        color = AppText,
+                        fontSize = 11.sp
+                    )
+                    OutlinedTextField(
+                        value = proofNote,
+                        onValueChange = { proofNote = it.take(500) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Catatan untuk admin (opsional)") },
+                        minLines = 2,
+                        maxLines = 4,
+                        enabled = !sendingProof
+                    )
+                    if (proofError.isNotBlank()) InlineError(proofError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !sendingProof,
+                    onClick = {
+                        scope.launch {
+                            sendingProof = true
+                            proofError = ""
+                            try {
+                                onSubmitProof(taskForProof, proofUri, proofNote.trim())
+                                selectedCompletionTask = null
+                                selectedProofUri = null
+                                proofNote = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                proofError = error.message ?: "Bukti gagal dikirim. Coba lagi."
+                            } finally {
+                                sendingProof = false
+                            }
+                        }
+                    }
+                ) { Text(if (sendingProof) "Mengirim…" else "Kirim bukti TPA", color = LoginAccent) }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedCompletionTask = null; selectedProofUri = null }, enabled = !sendingProof) {
+                    Text("Batal", color = LoginMuted)
+                }
+            },
+            containerColor = AppSurface
+        )
+    }
+}
+
+@Composable
+private fun PetugasAssignmentDialog(
+    report: WasteRecord,
+    vehicles: List<WasteVehicle>,
+    facilities: List<WasteFacility>,
+    onDismiss: () -> Unit,
+    onAssign: suspend (Int, Int) -> Unit
+) {
+    var selectedVehicle by remember(report.id) { mutableStateOf<WasteVehicle?>(null) }
+    var selectedFacility by remember(report.id) { mutableStateOf<WasteFacility?>(null) }
+    var saving by remember(report.id) { mutableStateOf(false) }
+    var saveError by remember(report.id) { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val eligibleVehicles = vehicles.filter {
+        it.condition.equals("baik", ignoreCase = true) && it.availableKg >= report.weightKg
+    }
+    val eligibleFacilities = facilities.filter {
+        it.remainingTon * 1000 >= report.weightKg
+    }
+    val canAssign = selectedVehicle?.let(eligibleVehicles::contains) == true &&
+            selectedFacility?.let(eligibleFacilities::contains) == true
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Terima & tugaskan", color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            ScrollableDialogContent(spacing = 8.dp) {
+                Text("${report.code} · ${report.weightKg.pretty()} kg", color = LoginMuted, fontSize = 11.sp)
+                Text("Pilih armada dan TPA. Laporan akan menjadi tugas milik akun Petugas yang sedang masuk.", color = AppText, fontSize = 11.sp)
+                SelectionField(
+                    "Kendaraan angkut",
+                    selectedVehicle?.let { "${it.plate} · sisa ${it.availableKg.pretty()} kg" },
+                    eligibleVehicles,
+                    { "${it.plate} · sisa ${it.availableKg.pretty()} kg" }
+                ) { selectedVehicle = it }
+                SelectionField(
+                    "TPA tujuan",
+                    selectedFacility?.let { "${it.name} · sisa ${it.remainingTon.pretty()} ton" },
+                    eligibleFacilities,
+                    { "${it.name} · sisa ${it.remainingTon.pretty()} ton" }
+                ) { selectedFacility = it }
+                if (eligibleVehicles.isEmpty() || eligibleFacilities.isEmpty()) {
+                    val unavailable = buildList {
+                        if (eligibleVehicles.isEmpty()) add("kendaraan sehat dengan kapasitas cukup")
+                        if (eligibleFacilities.isEmpty()) add("TPA yang kapasitasnya cukup")
+                    }.joinToString(" dan ")
+                    Text("Belum dapat diterima: tidak tersedia $unavailable.", color = WasteRed, fontSize = 10.sp)
+                }
+                if (saveError.isNotBlank()) InlineError(saveError)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = canAssign && !saving,
+                onClick = {
+                    val vehicleId = selectedVehicle?.id ?: return@TextButton
+                    val tpaId = selectedFacility?.id ?: return@TextButton
+                    scope.launch {
+                        saving = true
+                        saveError = ""
+                        try {
+                            onAssign(vehicleId, tpaId)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            saveError = error.message ?: "Penugasan gagal disimpan."
+                        } finally {
+                            saving = false
+                        }
+                    }
+                }
+            ) { Text(if (saving) "Menyimpan…" else "Terima laporan", color = LoginAccent) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) { Text("Batal", color = LoginMuted) }
+        },
+        containerColor = AppSurface
+    )
 }
 
 @Composable
@@ -2792,6 +4135,7 @@ private fun PetugasTaskCard(
     report: WasteRecord,
     onOpenPhoto: (String) -> Unit,
     onMarkTransported: ((WasteRecord) -> Unit)? = null,
+    isTransporting: Boolean = false,
     onComplete: ((WasteRecord) -> Unit)? = null
 ) {
     val isComplete = report.status == WasteFlow.DONE
@@ -2865,51 +4209,93 @@ private fun PetugasTaskCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            if (!isComplete) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Box(
-                        modifier = Modifier.size(25.dp).clip(CircleShape)
-                            .background(statusAccent.copy(alpha = 0.09f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = AppTextMuted, modifier = Modifier.size(13.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("KENDARAAN", color = AppTextMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = statusAccent, modifier = Modifier.size(14.dp))
+                        Text(
+                            report.vehiclePlate.ifBlank { "Belum ditetapkan" },
+                            color = AppText,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    Text(
-                        "${report.vehiclePlate.ifBlank { "Armada —" }}   /   ${report.tpaName.ifBlank { "TPA belum ditentukan" }}",
-                        color = AppTextMuted,
-                        fontSize = 10.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
+                Text("→", color = statusAccent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Icon(Icons.Filled.Place, contentDescription = null, tint = statusAccent, modifier = Modifier.size(14.dp))
+                        Text(
+                            report.tpaName.ifBlank { "Belum ditetapkan" },
+                            color = AppText,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            if (!isComplete) {
                 if (!report.hazardLevel.equals("RENDAH", true)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Icon(Icons.Filled.ReportProblem, contentDescription = null, tint = WasteRed, modifier = Modifier.size(14.dp))
                         Text("Perlu penanganan khusus · ${report.hazardLevel}", color = WasteRed, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
+                when (report.completionStatus) {
+                    "menunggu" -> Text(
+                        "Bukti penerimaan TPA terkirim · menunggu pemeriksaan admin",
+                        color = WasteOrange,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    "perlu_perbaikan" -> Text(
+                        "Perbaikan bukti TPA: ${report.completionReviewNote.ifBlank { "kirim ulang foto" }}",
+                        color = WasteRed,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!report.photoUrl.isNullOrBlank()) {
                     TextButton(onClick = { onOpenPhoto(report.photoUrl) }) {
-                        Text("Lihat foto", color = statusAccent, fontSize = 10.sp)
+                        Text("Foto laporan", color = statusAccent, fontSize = 10.sp)
+                    }
+                }
+                if (!report.completionProofPhotoUrl.isNullOrBlank()) {
+                    TextButton(onClick = { onOpenPhoto(report.completionProofPhotoUrl) }) {
+                        Text("Bukti petugas", color = WasteTeal, fontSize = 10.sp)
                     }
                 }
                 Spacer(Modifier.weight(1f))
                 when {
                     report.status == WasteFlow.ASSIGNED && onMarkTransported != null ->
                         AppButton(
-                            "Mulai angkut",
+                            if (isTransporting) "Memperbarui status…" else "Muat ke armada",
                             { onMarkTransported(report) },
                             modifier = Modifier.widthIn(min = 132.dp, max = 172.dp).height(42.dp),
+                            enabled = !isTransporting,
                             containerColor = LoginAccent
                         )
 
+                    report.status == WasteFlow.TRANSPORTED && onComplete != null && report.completionStatus == "menunggu" ->
+                        StatusPill("Menunggu admin", WasteOrange)
+
                     report.status == WasteFlow.TRANSPORTED && onComplete != null ->
                         AppButton(
-                            "Tandai selesai",
+                            if (report.completionStatus == "perlu_perbaikan") "Kirim ulang bukti TPA" else "Konfirmasi tiba di TPA",
                             { onComplete(report) },
-                            modifier = Modifier.widthIn(min = 132.dp, max = 172.dp).height(42.dp),
+                            modifier = Modifier.widthIn(min = 148.dp, max = 196.dp).height(42.dp),
                             containerColor = WasteGreenDark
                         )
                 }
@@ -2949,6 +4335,7 @@ private fun PetugasEmptyState(title: String, message: String) {
 
 @Composable
 private fun StaffAccountFormDialog(
+    allowAdminAccount: Boolean,
     onDismiss: () -> Unit,
     onSave: suspend (String, String, String, String, String, String) -> Unit
 ) {
@@ -2963,7 +4350,13 @@ private fun StaffAccountFormDialog(
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Daftarkan akun staf", color = LoginInk, fontWeight = FontWeight.Bold) },
+        title = {
+            Text(
+                if (allowAdminAccount) "Daftarkan akun staf" else "Tambah akun petugas",
+                color = LoginInk,
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
             ScrollableDialogContent {
                 Text(
@@ -2971,11 +4364,15 @@ private fun StaffAccountFormDialog(
                     color = LoginMuted,
                     fontSize = 11.sp
                 )
-                SelectionField(
-                    "Role akun",
-                    role,
-                    listOf("admin", "petugas"),
-                    { if (it == "admin") "Admin" else "Petugas" }) { role = it }
+                if (allowAdminAccount) {
+                    SelectionField(
+                        "Role akun",
+                        role,
+                        listOf("admin", "petugas"),
+                        { if (it == "admin") "Admin" else "Petugas" }) { role = it }
+                } else {
+                    Text("Role akun · Petugas", color = AppTextMuted, fontSize = 11.sp)
+                }
                 FormField(name, { name = it }, "Nama lengkap")
                 FormField(username, { username = it }, "Username")
                 FormField(email, { email = it }, "Email akun")
@@ -3368,8 +4765,67 @@ private fun EmptyAdminState(message: String) {
     }
 }
 
-private fun Double.pretty(): String =
-    if (this % 1.0 == 0.0) toLong().toString() else String.format(java.util.Locale.US, "%.1f", this)
+private fun Double.pretty(): String {
+    if (!isFinite()) return "0"
+    val locale = java.util.Locale.forLanguageTag("id-ID")
+    val symbols = java.text.DecimalFormatSymbols.getInstance(locale)
+    return java.text.DecimalFormat("#,##0.#", symbols).format(this)
+}
+
+private fun String.displayPersonName(): String {
+    val value = trim().replace(Regex("\\s+"), " ")
+    if (value.isBlank()) return "—"
+    val locale = java.util.Locale.forLanguageTag("id-ID")
+    return value.split(' ').joinToString(" ") { word ->
+        word.split('-').joinToString("-") { part ->
+            part.lowercase(locale).replaceFirstChar { first -> first.titlecase(locale) }
+        }
+    }
+}
+
+private fun String.reporterDisplayName(): String = when (
+    trim().lowercase(java.util.Locale.forLanguageTag("id-ID"))
+) {
+    "admin smart waste", "admin" -> "Admin"
+    "user smart waste", "user" -> "Warga"
+    else -> displayPersonName()
+}
+
+private fun WasteRecord.assignmentSummary(): String = buildList {
+    workerName.trim().takeIf { it.isNotBlank() }?.let {
+        add("Petugas ${it.displayPersonName()}")
+    }
+    vehiclePlate.trim().takeIf { it.isNotBlank() }?.let {
+        add("Armada ${it.uppercase(java.util.Locale.forLanguageTag("id-ID"))}")
+    }
+    tpaName.trim().takeIf { it.isNotBlank() }?.let {
+        add("TPA ${it.displayPersonName()}")
+    }
+}.joinToString("  ·  ")
+
+private fun String.toDisplayDateTime(): String {
+    val raw = trim()
+    if (raw.isBlank()) return raw
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "yyyy-MM-dd"
+    )
+    val parsed = patterns.firstNotNullOfOrNull { pattern ->
+        runCatching {
+            java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply {
+                isLenient = false
+            }.parse(raw)
+        }.getOrNull()
+    } ?: return raw
+    val outputPattern = if (raw.length <= 10) "d MMM yyyy" else "d MMM yyyy, HH.mm"
+    return java.text.SimpleDateFormat(
+        outputPattern,
+        java.util.Locale.forLanguageTag("id-ID")
+    ).format(parsed)
+}
 
 private fun shortMonth(period: String): String {
     val month = period.substringAfter('-', "").toIntOrNull() ?: return period.takeLast(2)

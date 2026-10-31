@@ -1,6 +1,11 @@
 package com.uoi.pratikumwithbunafla
 
 import android.graphics.Color as AndroidColor
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import android.net.Uri
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
@@ -34,8 +39,11 @@ import com.uoi.pratikumwithbunafla.ui.auth.LoginScreen
 import com.uoi.pratikumwithbunafla.ui.components.SmartWasteSplash
 import com.uoi.pratikumwithbunafla.ui.theme.SmartWasteTheme
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.io.File
 import java.util.Calendar
@@ -63,10 +71,11 @@ class MainActivity : ComponentActivity() {
             var isDarkMode by rememberSaveable {
                 mutableStateOf(appearancePreferences.getBoolean("dark_mode", false))
             }
+            var activeAccount by remember { mutableStateOf<UserAccount?>(null) }
             SideEffect {
                 WindowCompat.getInsetsController(window, window.decorView).apply {
                     isAppearanceLightStatusBars = !isDarkMode
-                    isAppearanceLightNavigationBars = !isDarkMode
+                    isAppearanceLightNavigationBars = activeAccount == null && !isDarkMode
                 }
             }
             SmartWasteTheme(
@@ -79,12 +88,16 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val scope = rememberCoroutineScope()
                 var showSplash by rememberSaveable { mutableStateOf(true) }
-                var activeAccount by remember { mutableStateOf<UserAccount?>(null) }
                 var summary by remember { mutableStateOf(AdminDashboardSummary()) }
                 var reports by remember { mutableStateOf(emptyList<WasteRecord>()) }
+                var archivedReports by remember { mutableStateOf(emptyList<ArchivedWasteRecord>()) }
+                var incomingReports by remember { mutableStateOf(emptyList<WasteRecord>()) }
                 var tasks by remember { mutableStateOf(emptyList<WasteRecord>()) }
                 var users by remember { mutableStateOf(emptyList<AdminUser>()) }
                 var workers by remember { mutableStateOf(emptyList<AdminWorker>()) }
+                var completionReviews by remember { mutableStateOf(emptyList<TaskCompletionReview>()) }
+                var adminNotes by remember { mutableStateOf(emptyList<AdminNoteRecord>()) }
+                var archivedAdminNotes by remember { mutableStateOf(emptyList<ArchivedAdminNote>()) }
                 var vehicles by remember { mutableStateOf(emptyList<WasteVehicle>()) }
                 var facilities by remember { mutableStateOf(emptyList<WasteFacility>()) }
                 var dailyReports by remember { mutableStateOf(emptyList<DailyReport>()) }
@@ -116,8 +129,11 @@ class MainActivity : ComponentActivity() {
                         ) { SmartWasteApi.dashboard() }
                         reports =
                             loadOrKeep("Laporan", reports, loadErrors) { SmartWasteApi.reports() }
-                        users =
-                            loadOrKeep("Data warga", users, loadErrors) { SmartWasteApi.users() }
+                        archivedReports = loadOrKeep(
+                            "Arsip laporan",
+                            archivedReports,
+                            loadErrors
+                        ) { SmartWasteApi.archivedReports() }
                         statistics = loadOrKeep(
                             "Statistik",
                             statistics,
@@ -128,16 +144,21 @@ class MainActivity : ComponentActivity() {
                             workers,
                             loadErrors
                         ) { SmartWasteApi.workers() }
-                        vehicles = loadOrKeep(
-                            "Data kendaraan",
-                            vehicles,
+                        completionReviews = loadOrKeep(
+                            "Bukti penyelesaian",
+                            completionReviews,
                             loadErrors
-                        ) { SmartWasteApi.vehicles() }
-                        facilities = loadOrKeep(
-                            "Data TPA",
-                            facilities,
+                        ) { SmartWasteApi.completionReviews() }
+                        adminNotes = loadOrKeep(
+                            "Catatan Admin",
+                            adminNotes,
                             loadErrors
-                        ) { SmartWasteApi.facilities() }
+                        ) { SmartWasteApi.adminNotes() }
+                        archivedAdminNotes = loadOrKeep(
+                            "Arsip catatan",
+                            archivedAdminNotes,
+                            loadErrors
+                        ) { SmartWasteApi.archivedAdminNotes() }
                         dailyReports = loadOrKeep("Aktivitas harian", dailyReports, loadErrors) {
                             SmartWasteApi.dailyReports(from, to)
                         }
@@ -147,6 +168,13 @@ class MainActivity : ComponentActivity() {
                             tasks,
                             loadErrors
                         ) { SmartWasteApi.workerTasks() }
+                        incomingReports = loadOrKeep(
+                            "Laporan masuk",
+                            incomingReports,
+                            loadErrors
+                        ) { SmartWasteApi.workerIncomingReports() }
+                        vehicles = loadOrKeep("Armada", vehicles, loadErrors) { SmartWasteApi.vehicles() }
+                        facilities = loadOrKeep("TPA", facilities, loadErrors) { SmartWasteApi.facilities() }
                     }
                     errorMessage = loadErrors.take(4).joinToString("\n") +
                             if (loadErrors.size > 4) "\n+ ${loadErrors.size - 4} data lain gagal dimuat" else ""
@@ -156,9 +184,14 @@ class MainActivity : ComponentActivity() {
                     scope.launch { SmartWasteApi.logout() }
                     activeAccount = null
                     reports = emptyList()
+                    archivedReports = emptyList()
+                    incomingReports = emptyList()
                     tasks = emptyList()
                     users = emptyList()
                     workers = emptyList()
+                    completionReviews = emptyList()
+                    adminNotes = emptyList()
+                    archivedAdminNotes = emptyList()
                     vehicles = emptyList()
                     facilities = emptyList()
                     dailyReports = emptyList()
@@ -289,37 +322,27 @@ class MainActivity : ComponentActivity() {
                             }
                             else AdminVerificationScreen(
                                 reports = reports,
-                                workers = workers,
-                                vehicles = vehicles,
-                                facilities = facilities,
+                                archivedReports = archivedReports,
                                 selectedStatus = selectedStatus,
                                 showAllReports = selectedReportView == "all",
+                                showingArchive = selectedReportView == "archive",
                                 errorMessage = errorMessage,
                                 account = account,
-                                onReject = { report ->
-                                    scope.launch {
-                                        try {
-                                            SmartWasteApi.updateReportStatus(
-                                                report.id,
-                                                WasteFlow.REJECTED,
-                                                "Laporan ditolak oleh admin."
-                                            )
-                                            refreshWorkspace()
-                                        } catch (error: Exception) {
-                                            errorMessage = error.message ?: "Laporan gagal ditolak."
-                                        }
-                                    }
+                                onOpenPhoto = { openPhoto(it) },
+                                onArchiveViewChange = { showing ->
+                                    selectedReportView = if (showing) "archive" else "all"
+                                    selectedStatus = null
                                 },
-                                onAssign = { report, workerId, vehicleId, tpaId ->
-                                    SmartWasteApi.assignReport(
-                                        report.id,
-                                        workerId,
-                                        vehicleId,
-                                        tpaId
-                                    )
+                                onArchiveReport = { report ->
+                                    SmartWasteApi.archiveReport(report.id)
                                     refreshWorkspace()
                                 },
-                                onOpenPhoto = { openPhoto(it) },
+                                onRestoreArchivedReport = { report ->
+                                    SmartWasteApi.restoreArchivedReport(report.id)
+                                    selectedReportView = "all"
+                                    selectedStatus = null
+                                    refreshWorkspace()
+                                },
                                 onReportViewChange = { showAll ->
                                     selectedReportView = if (showAll) "all" else "verify"
                                     selectedStatus = null
@@ -340,6 +363,9 @@ class MainActivity : ComponentActivity() {
                             else AdminOperationsScreen(
                                 users = users,
                                 workers = workers,
+                                completionReviews = completionReviews,
+                                adminNotes = adminNotes,
+                                archivedAdminNotes = archivedAdminNotes,
                                 vehicles = vehicles,
                                 facilities = facilities,
                                 errorMessage = errorMessage,
@@ -359,6 +385,10 @@ class MainActivity : ComponentActivity() {
                                     SmartWasteApi.updateWorker(worker, active)
                                     refreshWorkspace()
                                 },
+                                onDeleteWorker = { worker, replacementWorkerId ->
+                                    SmartWasteApi.deleteWorkerAccount(worker.id, replacementWorkerId)
+                                    refreshWorkspace()
+                                },
                                 onCreateVehicle = { plate, capacity, condition, route ->
                                     SmartWasteApi.createVehicle(plate, capacity, condition, route)
                                     refreshWorkspace()
@@ -376,18 +406,33 @@ class MainActivity : ComponentActivity() {
                                     refreshWorkspace()
                                 },
                                 onToggleUser = { user ->
-                                    scope.launch {
-                                        try {
-                                            SmartWasteApi.toggleUser(user.id, !user.active)
-                                            refreshWorkspace()
-                                        } catch (error: Exception) {
-                                            errorMessage =
-                                                error.message ?: "Status warga gagal diperbarui."
-                                        }
-                                    }
+                                    SmartWasteApi.toggleUser(user.id, !user.active)
+                                    refreshWorkspace()
+                                },
+                                onDeleteUser = { user ->
+                                    SmartWasteApi.deleteUserAccount(user.id)
+                                    refreshWorkspace()
+                                },
+                                onOpenPhoto = ::openPhoto,
+                                onReviewCompletion = { review, action, note ->
+                                    SmartWasteApi.reviewCompletion(review.id, action, note)
+                                    refreshWorkspace()
+                                },
+                                onAddAdminNote = { note, text ->
+                                    SmartWasteApi.addAdminNote(note.report.id, text)
+                                    refreshWorkspace()
+                                },
+                                onArchiveAdminNote = { note ->
+                                    SmartWasteApi.archiveAdminNote(note.report.id)
+                                    refreshWorkspace()
+                                },
+                                onRestoreAdminNote = { note ->
+                                    SmartWasteApi.restoreAdminNote(note.note.report.id)
+                                    refreshWorkspace()
                                 },
                                 onNavigate = ::navigateAdminRoute,
                                 initialTab = selectedOpsTab,
+                                onTabSelected = { selectedOpsTab = it },
                                 onLogout = ::signOut
                             )
                         }
@@ -435,30 +480,33 @@ class MainActivity : ComponentActivity() {
                             }
                             else PetugasTasksScreen(
                                 tasks = tasks,
+                                incomingReports = incomingReports,
+                                vehicles = vehicles,
+                                facilities = facilities,
                                 errorMessage = errorMessage,
                                 account = account,
                                 onOpenPhoto = { openPhoto(it) },
-                                onMarkTransported = { task ->
-                                    scope.launch {
-                                        try {
-                                            SmartWasteApi.markTaskTransported(task.id)
-                                            refreshWorkspace()
-                                        } catch (error: Exception) {
-                                            errorMessage =
-                                                error.message ?: "Status angkut gagal diperbarui."
-                                        }
-                                    }
+                                onAssignReport = { report, vehicleId, tpaId ->
+                                    SmartWasteApi.assignReport(report.id, vehicleId, tpaId)
+                                    refreshWorkspace()
                                 },
-                                onComplete = { task ->
-                                    scope.launch {
-                                        try {
-                                            SmartWasteApi.completeTask(task.id)
-                                            refreshWorkspace()
-                                        } catch (error: Exception) {
-                                            errorMessage =
-                                                error.message ?: "Penugasan gagal diselesaikan."
-                                        }
-                                    }
+                                onRejectReport = { report, note ->
+                                    SmartWasteApi.updateReportStatus(report.id, WasteFlow.REJECTED, note)
+                                    refreshWorkspace()
+                                },
+                                onMarkTransported = { task ->
+                                    SmartWasteApi.markTaskTransported(task.id)
+                                    refreshWorkspace()
+                                },
+                                onSubmitProof = { task, photoUri, note ->
+                                    val photoBytes = compressEvidence(photoUri)
+                                    SmartWasteApi.submitCompletionProof(
+                                        task.id,
+                                        photoBytes,
+                                        "bukti-${task.id}.jpg",
+                                        note
+                                    )
+                                    refreshWorkspace()
                                 },
                                 onLogout = ::signOut
                             )
@@ -558,6 +606,83 @@ class MainActivity : ComponentActivity() {
         if (url.isBlank()) return
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
             .onFailure { /* Laporan tetap bisa dibaca meski browser foto tidak tersedia. */ }
+    }
+
+    private suspend fun compressEvidence(uri: Uri): ByteArray = withContext(Dispatchers.IO) {
+        val original = contentResolver.openInputStream(uri)?.use { input ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(16 * 1024)
+            var total = 0
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                total += read
+                if (total > 25 * 1024 * 1024) {
+                    throw IllegalStateException("Ukuran foto terlalu besar. Pilih foto di bawah 25 MB.")
+                }
+                output.write(buffer, 0, read)
+            }
+            output.toByteArray()
+        } ?: throw IllegalStateException("Foto tidak dapat dibaca dari perangkat.")
+
+        if (original.size <= 4 * 1024 * 1024) return@withContext original
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(original, 0, original.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            throw IllegalStateException("File yang dipilih bukan foto yang bisa dibaca.")
+        }
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1800) sample *= 2
+        val bitmap = BitmapFactory.decodeByteArray(
+            original,
+            0,
+            original.size,
+            BitmapFactory.Options().apply { inSampleSize = sample }
+        ) ?: throw IllegalStateException("Foto gagal diproses. Coba pilih foto lain.")
+
+        val oriented = runCatching {
+            val orientation = original.inputStream().use { stream ->
+                ExifInterface(stream).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+            }
+            val degrees = when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+            if (degrees == 0f) bitmap else {
+                val matrix = Matrix().apply { postRotate(degrees) }
+                Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            }
+        }.getOrElse { bitmap }
+
+        val maxDimension = maxOf(oriented.width, oriented.height)
+        val outputBitmap = if (maxDimension > 1800) {
+            val scale = 1800f / maxDimension
+            Bitmap.createScaledBitmap(
+                oriented,
+                (oriented.width * scale).toInt().coerceAtLeast(1),
+                (oriented.height * scale).toInt().coerceAtLeast(1),
+                true
+            )
+        } else oriented
+        val compressed = ByteArrayOutputStream()
+        var quality = 84
+        do {
+            compressed.reset()
+            outputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, compressed)
+            quality -= 8
+        } while (compressed.size() > 4 * 1024 * 1024 && quality >= 52)
+        if (compressed.size() > 5 * 1024 * 1024) {
+            throw IllegalStateException("Foto masih terlalu besar setelah dikompres. Pilih foto lain.")
+        }
+        if (outputBitmap !== oriented) outputBitmap.recycle()
+        if (oriented !== bitmap) oriented.recycle()
+        bitmap.recycle()
+        compressed.toByteArray()
     }
 }
 
