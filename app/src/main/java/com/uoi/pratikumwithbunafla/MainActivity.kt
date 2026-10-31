@@ -93,7 +93,6 @@ class MainActivity : ComponentActivity() {
                 var archivedReports by remember { mutableStateOf(emptyList<ArchivedWasteRecord>()) }
                 var incomingReports by remember { mutableStateOf(emptyList<WasteRecord>()) }
                 var tasks by remember { mutableStateOf(emptyList<WasteRecord>()) }
-                var users by remember { mutableStateOf(emptyList<AdminUser>()) }
                 var workers by remember { mutableStateOf(emptyList<AdminWorker>()) }
                 var completionReviews by remember { mutableStateOf(emptyList<TaskCompletionReview>()) }
                 var adminNotes by remember { mutableStateOf(emptyList<AdminNoteRecord>()) }
@@ -187,7 +186,6 @@ class MainActivity : ComponentActivity() {
                     archivedReports = emptyList()
                     incomingReports = emptyList()
                     tasks = emptyList()
-                    users = emptyList()
                     workers = emptyList()
                     completionReviews = emptyList()
                     adminNotes = emptyList()
@@ -361,13 +359,10 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             else AdminOperationsScreen(
-                                users = users,
                                 workers = workers,
                                 completionReviews = completionReviews,
                                 adminNotes = adminNotes,
                                 archivedAdminNotes = archivedAdminNotes,
-                                vehicles = vehicles,
-                                facilities = facilities,
                                 errorMessage = errorMessage,
                                 account = account,
                                 onCreateWorker = { name, username, email, password, zone, role ->
@@ -387,30 +382,6 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onDeleteWorker = { worker, replacementWorkerId ->
                                     SmartWasteApi.deleteWorkerAccount(worker.id, replacementWorkerId)
-                                    refreshWorkspace()
-                                },
-                                onCreateVehicle = { plate, capacity, condition, route ->
-                                    SmartWasteApi.createVehicle(plate, capacity, condition, route)
-                                    refreshWorkspace()
-                                },
-                                onUpdateVehicle = { vehicle ->
-                                    SmartWasteApi.updateVehicle(vehicle)
-                                    refreshWorkspace()
-                                },
-                                onCreateFacility = { name, address, capacity ->
-                                    SmartWasteApi.createFacility(name, address, capacity)
-                                    refreshWorkspace()
-                                },
-                                onUpdateFacility = { facility ->
-                                    SmartWasteApi.updateFacility(facility)
-                                    refreshWorkspace()
-                                },
-                                onToggleUser = { user ->
-                                    SmartWasteApi.toggleUser(user.id, !user.active)
-                                    refreshWorkspace()
-                                },
-                                onDeleteUser = { user ->
-                                    SmartWasteApi.deleteUserAccount(user.id)
                                     refreshWorkspace()
                                 },
                                 onOpenPhoto = ::openPhoto,
@@ -506,6 +477,22 @@ class MainActivity : ComponentActivity() {
                                         "bukti-${task.id}.jpg",
                                         note
                                     )
+                                    refreshWorkspace()
+                                },
+                                onCreateVehicle = { plate, capacity, condition, route ->
+                                    SmartWasteApi.createVehicle(plate, capacity, condition, route)
+                                    refreshWorkspace()
+                                },
+                                onUpdateVehicle = { vehicle ->
+                                    SmartWasteApi.updateVehicle(vehicle)
+                                    refreshWorkspace()
+                                },
+                                onCreateFacility = { name, address, capacity ->
+                                    SmartWasteApi.createFacility(name, address, capacity)
+                                    refreshWorkspace()
+                                },
+                                onUpdateFacility = { facility ->
+                                    SmartWasteApi.updateFacility(facility)
                                     refreshWorkspace()
                                 },
                                 onLogout = ::signOut

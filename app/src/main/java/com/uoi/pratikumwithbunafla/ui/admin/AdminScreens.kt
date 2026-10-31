@@ -207,7 +207,7 @@ private fun AdminThemeTransitionWave() {
     val waveProgress = if (dark) modeProgress else 1f - modeProgress
 
     Canvas(Modifier.fillMaxSize()) {
-        val waveStrength = sin((waveProgress * PI).toDouble()).toFloat().coerceIn(0f, 1f)
+        val waveStrength = sin(waveProgress * PI).toFloat().coerceIn(0f, 1f)
         if (waveStrength > 0.015f) {
             val center = Offset(size.width * 0.96f, size.height * 0.08f)
             val radius = size.maxDimension * (0.04f + waveProgress * 1.18f)
@@ -882,7 +882,7 @@ private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
         val width = size.width
         val height = size.height
         val drift = breeze * 18.dp.toPx()
-        val pulse = 0.5f + 0.5f * sin((lightPulse * 2f * PI).toDouble()).toFloat()
+        val pulse = 0.5f + 0.5f * sin(lightPulse * 2f * PI).toFloat()
         val upperGlow = Offset(width * 0.88f + drift * 0.35f, height * 0.12f)
         val upperColor = if (dark) Color(0xFF82B99A) else Color(0xFFE7D6A8)
         val upperRadius = width * 0.56f
@@ -921,7 +921,7 @@ private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
             Triple(0.86f, 0.77f, 0.48f)
         )
         leaves.forEachIndexed { index, (xFraction, yFraction, scale) ->
-            val sway = sin((lightPulse * 2f * PI + index * 1.7f).toDouble()).toFloat()
+            val sway = sin(lightPulse * 2f * PI + index * 1.7f).toFloat()
             val center = Offset(
                 width * xFraction + drift * (if (index % 2 == 0) 0.28f else -0.24f),
                 height * yFraction + sway * 5.dp.toPx()
@@ -1769,160 +1769,6 @@ private fun <T> SelectionField(
 }
 
 @Composable
-private fun AdminUsersContent(
-    users: List<AdminUser>,
-    onToggleUser: suspend (AdminUser) -> Unit,
-    onDeleteUser: suspend (AdminUser) -> Unit,
-    onActionError: (String) -> Unit
-) {
-    var deletingUser by remember { mutableStateOf<AdminUser?>(null) }
-    var updatingUserId by remember { mutableStateOf<Int?>(null) }
-    val scope = rememberCoroutineScope()
-    SectionTitle("Data warga", "Akun warga yang mengirim laporan melalui website")
-    if (users.isEmpty()) EmptyAdminState("Belum ada warga terdaftar.")
-    users.forEach { user ->
-        AppCard(
-            modifier = Modifier.fillMaxWidth(),
-            containerColor = Color.White,
-            borderColor = AppBorder,
-            accentColor = if (user.active) LoginAccent else WasteRed
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                UserAvatar(user.name.displayPersonName())
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        user.name.displayPersonName(),
-                        color = AppText,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text("@${user.username}", color = AppTextMuted, fontSize = 11.sp)
-                    if (user.email.isNotBlank()) {
-                        Text(
-                            user.email.trim(),
-                            color = AppTextMuted,
-                            fontSize = 10.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Text(
-                        "${user.totalReports} laporan dikirim",
-                        color = LoginAccent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    TextButton(
-                        enabled = updatingUserId != user.id,
-                        onClick = {
-                            scope.launch {
-                                updatingUserId = user.id
-                                onActionError("")
-                                try {
-                                    onToggleUser(user)
-                                } catch (cancelled: CancellationException) {
-                                    throw cancelled
-                                } catch (error: Exception) {
-                                    onActionError(error.message ?: "Status akun gagal diperbarui.")
-                                } finally {
-                                    updatingUserId = null
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = if (user.active) WasteRed else LoginAccent
-                        )
-                    ) {
-                        Text(
-                            if (updatingUserId == user.id) "Menyimpan…" else if (user.active) "Nonaktifkan" else "Aktifkan",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    IconButton(
-                        onClick = { deletingUser = user },
-                        modifier = Modifier.size(34.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Delete,
-                            contentDescription = "Hapus akun ${user.username}",
-                            tint = WasteRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-    deletingUser?.let { user ->
-        DeleteAccountConfirmationDialog(
-            title = "Hapus akun warga?",
-            message = "Akun @${user.username} akan dihapus. Laporan yang pernah dikirim tetap tersimpan tanpa terhubung ke akun ini.",
-            onDismiss = { deletingUser = null },
-            onDelete = { onDeleteUser(user) }
-        )
-    }
-}
-
-@Composable
-private fun DeleteAccountConfirmationDialog(
-    title: String,
-    message: String,
-    onDismiss: () -> Unit,
-    onDelete: suspend () -> Unit
-) {
-    var deleting by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-    AlertDialog(
-        onDismissRequest = { if (!deleting) onDismiss() },
-        title = { Text(title, color = LoginInk, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(message, color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
-                if (errorMessage.isNotBlank()) InlineError(errorMessage)
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = !deleting,
-                onClick = {
-                    scope.launch {
-                        deleting = true
-                        errorMessage = ""
-                        try {
-                            onDelete()
-                            onDismiss()
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (error: Exception) {
-                            errorMessage = error.message ?: "Akun gagal dihapus."
-                        } finally {
-                            deleting = false
-                        }
-                    }
-                },
-                colors = ButtonDefaults.textButtonColors(contentColor = WasteRed)
-            ) {
-                Text(if (deleting) "Menghapus…" else "Hapus akun", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(enabled = !deleting, onClick = onDismiss) {
-                Text("Batal", color = LoginMuted)
-            }
-        },
-        containerColor = AppSurface
-    )
-}
-
-@Composable
 private fun DeleteWorkerAccountDialog(
     worker: AdminWorker,
     replacementWorkers: List<AdminWorker>,
@@ -2270,24 +2116,15 @@ fun AdminStatsScreen(
 
 @Composable
 fun AdminOperationsScreen(
-    users: List<AdminUser>,
     workers: List<AdminWorker>,
     completionReviews: List<TaskCompletionReview>,
     adminNotes: List<AdminNoteRecord>,
     archivedAdminNotes: List<ArchivedAdminNote>,
-    vehicles: List<WasteVehicle>,
-    facilities: List<WasteFacility>,
     errorMessage: String,
     account: UserAccount,
     onCreateWorker: suspend (String, String, String, String, String, String) -> Unit,
     onUpdateWorker: suspend (AdminWorker, Boolean) -> Unit,
     onDeleteWorker: suspend (AdminWorker, Int?) -> Unit,
-    onCreateVehicle: suspend (String, Double, String, String) -> Unit,
-    onUpdateVehicle: suspend (WasteVehicle) -> Unit,
-    onCreateFacility: suspend (String, String, Double) -> Unit,
-    onUpdateFacility: suspend (WasteFacility) -> Unit,
-    onToggleUser: suspend (AdminUser) -> Unit,
-    onDeleteUser: suspend (AdminUser) -> Unit,
     onOpenPhoto: (String) -> Unit,
     onReviewCompletion: suspend (TaskCompletionReview, String, String) -> Unit,
     onAddAdminNote: suspend (AdminNoteRecord, String) -> Unit,
@@ -2304,8 +2141,6 @@ fun AdminOperationsScreen(
     var adding by rememberSaveable { mutableStateOf(false) }
     var editingWorker by remember { mutableStateOf<AdminWorker?>(null) }
     var deletingWorker by remember { mutableStateOf<AdminWorker?>(null) }
-    var editingVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
-    var editingFacility by remember { mutableStateOf<WasteFacility?>(null) }
     var revisionReview by remember { mutableStateOf<TaskCompletionReview?>(null) }
     var revisionNote by rememberSaveable { mutableStateOf("") }
     var revisionError by remember { mutableStateOf("") }
@@ -2691,159 +2526,17 @@ fun AdminOperationsScreen(
                 }
             }
 
-            "kendaraan" -> {
-                SectionTitle("Data armada", "Kapasitas, muatan aktif, kondisi, dan rute")
-                AppButton("＋ Tambah kendaraan", { adding = true }, containerColor = LoginAccent)
-                if (vehicles.isEmpty()) EmptyAdminState("Belum ada kendaraan terdaftar.")
-                vehicles.forEach { item ->
-                    AppCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = Color.White,
-                        borderColor = AppBorder,
-                        accentColor = if (item.condition.equals(
-                                "baik",
-                                true
-                            )
-                        ) WasteTeal else WasteOrange
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    item.plate,
-                                    color = AppText,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    "${item.loadKg.pretty()} / ${item.capacityKg.pretty()} kg " +
-                                            "· ${item.reservedKg.pretty()} dicadangkan · ${item.condition}",
-                                    color = AppTextMuted,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    "Rute: ${item.route.ifBlank { "Belum ditentukan" }}",
-                                    color = LoginMuted,
-                                    fontSize = 11.sp
-                                )
-                            }
-                            TextButton(onClick = { editingVehicle = item }) {
-                                Text(
-                                    "Ubah",
-                                    color = LoginAccent,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            "tpa" -> {
-                SectionTitle(
-                    "Data TPA",
-                    "Kapasitas terisi diperbarui saat Petugas menyelesaikan penugasan"
-                )
-                AppButton("＋ Tambah TPA", { adding = true }, containerColor = LoginAccent)
-                if (facilities.isEmpty()) EmptyAdminState("Belum ada data TPA.")
-                facilities.forEach { item ->
-                    AppCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = Color.White,
-                        borderColor = AppBorder,
-                        accentColor = WastePurple
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        item.name,
-                                        color = AppText,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        item.address.ifBlank { "Alamat belum diisi" },
-                                        color = AppTextMuted,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                                TextButton(onClick = { editingFacility = item }) {
-                                    Text(
-                                        "Ubah",
-                                        color = LoginAccent,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-                            Text(
-                                "${item.filledTon.pretty()} ton terisi · " +
-                                        "${item.reservedTon.pretty()} ton dicadangkan dari ${item.capacityTon.pretty()} ton",
-                                color = LoginMuted,
-                                fontSize = 11.sp
-                            )
-                            SoftProgress(
-                                if (item.capacityTon > 0) ((item.filledTon + item.reservedTon) / item.capacityTon).toFloat() else 0f
-                            )
-                        }
-                    }
-                }
-            }
-
-            "warga" -> AdminUsersContent(
-                users = users,
-                onToggleUser = onToggleUser,
-                onDeleteUser = onDeleteUser,
-                onActionError = { actionError = it }
-            )
         }
     }
-    if (adding) {
-        when (tab) {
-            "petugas" -> StaffAccountFormDialog(
-                allowAdminAccount = false,
-                onDismiss = { adding = false },
-                onSave = { name, username, email, password, zone, role ->
-                    onCreateWorker(
-                        name,
-                        username,
-                        email,
-                        password,
-                        zone,
-                        role
-                    ); adding = false
-                })
-
-            "catatan" -> Unit
-
-            "kendaraan" -> VehicleFormDialog(
-                null,
-                onDismiss = { adding = false },
-                onSave = { plate, capacity, condition, route ->
-                    onCreateVehicle(
-                        plate,
-                        capacity,
-                        condition,
-                        route
-                    ); adding = false
-                })
-
-            else -> FacilityFormDialog(
-                null,
-                onDismiss = { adding = false },
-                onSave = { name, address, capacity ->
-                    onCreateFacility(
-                        name,
-                        address,
-                        capacity
-                    ); adding = false
-                })
-        }
+    if (adding && tab == "petugas") {
+        StaffAccountFormDialog(
+            allowAdminAccount = false,
+            onDismiss = { adding = false },
+            onSave = { name, username, email, password, zone, role ->
+                onCreateWorker(name, username, email, password, zone, role)
+                adding = false
+            }
+        )
     }
     editingWorker?.let { item ->
         SingleFieldDialog(
@@ -2861,29 +2554,6 @@ fun AdminOperationsScreen(
             onDismiss = { deletingWorker = null },
             onDelete = onDeleteWorker
         )
-    }
-    editingVehicle?.let { item ->
-        VehicleFormDialog(item, { editingVehicle = null }, { plate, capacity, condition, route ->
-            onUpdateVehicle(
-                item.copy(
-                    plate = plate,
-                    capacityKg = capacity,
-                    condition = condition,
-                    route = route
-                )
-            ); editingVehicle = null
-        })
-    }
-    editingFacility?.let { item ->
-        FacilityFormDialog(item, { editingFacility = null }, { name, address, capacity ->
-            onUpdateFacility(
-                item.copy(
-                    name = name,
-                    address = address,
-                    capacityTon = capacity
-                )
-            ); editingFacility = null
-        })
     }
     revisionReview?.let { review ->
         AlertDialog(
@@ -3104,9 +2774,18 @@ fun PetugasTasksScreen(
     onRejectReport: suspend (WasteRecord, String) -> Unit,
     onMarkTransported: suspend (WasteRecord) -> Unit,
     onSubmitProof: suspend (WasteRecord, Uri, String) -> Unit,
+    onCreateVehicle: suspend (String, Double, String, String) -> Unit,
+    onUpdateVehicle: suspend (WasteVehicle) -> Unit,
+    onCreateFacility: suspend (String, String, Double) -> Unit,
+    onUpdateFacility: suspend (WasteFacility) -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedSection by rememberSaveable(account.username) { mutableStateOf("ringkasan") }
+    var selectedWorkArea by rememberSaveable(account.username) { mutableStateOf("laporan") }
+    var showVehicleForm by remember { mutableStateOf(false) }
+    var editingVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
+    var showFacilityForm by remember { mutableStateOf(false) }
+    var editingFacility by remember { mutableStateOf<WasteFacility?>(null) }
     var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
     var rejectingReport by remember { mutableStateOf<WasteRecord?>(null) }
     var rejectionNote by rememberSaveable { mutableStateOf("") }
@@ -3235,42 +2914,122 @@ fun PetugasTasksScreen(
             }
 
             "tugas" -> {
-                SectionTitle("Laporan masuk", "Petugas meninjau, menerima, dan menentukan armada serta TPA")
-                if (incomingReports.isEmpty()) {
-                    PetugasEmptyState("Tidak ada laporan baru", "Laporan warga yang menunggu penanganan akan tampil di sini.")
-                } else {
-                    incomingReports.forEach { report ->
-                        AdminReportCard(
-                            report = report,
-                            onOpenPhoto = onOpenPhoto,
-                            onReject = {
-                                rejectionNote = ""
-                                rejectingReport = report
-                            },
-                            onAssign = { assigningReport = report },
-                            compact = true,
-                            assignmentLabel = "Terima & tugaskan"
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("laporan" to "Laporan", "armada" to "Armada", "tpa" to "TPA").forEach { (key, label) ->
+                        TextButton(
+                            onClick = { selectedWorkArea = key },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (selectedWorkArea == key) LoginAccent else LoginMuted,
+                                containerColor = if (selectedWorkArea == key) WasteBlue else AppSurface
+                            ),
+                            shape = RoundedCornerShape(13.dp)
+                        ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                     }
                 }
-                SectionTitle(
-                    "Tugas aktif",
-                    "Muat sampah ke armada, antar ke TPA tujuan, lalu kirim bukti penerimaan"
-                )
-                if (activeTasks.isEmpty()) PetugasEmptyState("Belum ada tugas aktif", "Tugas yang kamu terima akan muncul di bagian ini.")
-                activeTasks.forEach { task ->
-                    PetugasTaskCard(
-                        report = task,
-                        onOpenPhoto = onOpenPhoto,
-                        onMarkTransported = ::startTransport,
-                        isTransporting = transportingTaskId == task.id,
-                        onComplete = {
-                            selectedCompletionTask = task
-                            proofNote = ""
-                            proofError = ""
-                            proofPicker.launch("image/*")
+                when (selectedWorkArea) {
+                    "laporan" -> {
+                        SectionTitle("Laporan masuk", "Tinjau laporan, lalu pilih armada dan TPA tujuan")
+                        if (incomingReports.isEmpty()) {
+                            PetugasEmptyState("Tidak ada laporan baru", "Laporan warga yang menunggu penanganan akan tampil di sini.")
+                        } else {
+                            incomingReports.forEach { report ->
+                                AdminReportCard(
+                                    report = report,
+                                    onOpenPhoto = onOpenPhoto,
+                                    onReject = {
+                                        rejectionNote = ""
+                                        rejectingReport = report
+                                    },
+                                    onAssign = { assigningReport = report },
+                                    compact = true,
+                                    assignmentLabel = "Terima & tugaskan"
+                                )
+                            }
                         }
-                    )
+                        SectionTitle(
+                            "Tugas aktif",
+                            "Angkut sampah ke TPA, lalu kirim foto bukti penerimaan"
+                        )
+                        if (activeTasks.isEmpty()) PetugasEmptyState("Belum ada tugas aktif", "Tugas yang kamu terima akan muncul di bagian ini.")
+                        activeTasks.forEach { task ->
+                            PetugasTaskCard(
+                                report = task,
+                                onOpenPhoto = onOpenPhoto,
+                                onMarkTransported = ::startTransport,
+                                isTransporting = transportingTaskId == task.id,
+                                onComplete = {
+                                    selectedCompletionTask = task
+                                    proofNote = ""
+                                    proofError = ""
+                                    proofPicker.launch("image/*")
+                                }
+                            )
+                        }
+                    }
+
+                    "armada" -> {
+                        SectionTitle("Armada", "Kelola kendaraan yang tersedia untuk penugasan")
+                        AppButton("＋ Tambah kendaraan", { showVehicleForm = true }, containerColor = LoginAccent)
+                        if (vehicles.isEmpty()) PetugasEmptyState("Belum ada armada", "Tambahkan kendaraan agar laporan bisa ditugaskan.")
+                        vehicles.forEach { vehicle ->
+                            AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Text(vehicle.plate, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "${vehicle.loadKg.pretty()} / ${vehicle.capacityKg.pretty()} kg · ${vehicle.condition}",
+                                            color = AppTextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                        Text("Rute: ${vehicle.route.ifBlank { "Belum ditentukan" }}", color = AppTextMuted, fontSize = 10.sp)
+                                    }
+                                    TextButton(onClick = { editingVehicle = vehicle; showVehicleForm = true }) {
+                                        Text("Ubah", color = LoginAccent, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    "tpa" -> {
+                        SectionTitle("TPA", "Kelola tujuan penerimaan dan kapasitas sampah")
+                        AppButton("＋ Tambah TPA", { showFacilityForm = true }, containerColor = LoginAccent)
+                        if (facilities.isEmpty()) PetugasEmptyState("Belum ada TPA", "Tambahkan TPA agar laporan bisa ditugaskan.")
+                        facilities.forEach { facility ->
+                            AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(facility.name, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                            Text(facility.address, color = AppTextMuted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        TextButton(onClick = { editingFacility = facility; showFacilityForm = true }) {
+                                            Text("Ubah", color = LoginAccent, fontSize = 11.sp)
+                                        }
+                                    }
+                                    Text(
+                                        "${facility.filledTon.pretty()} ton terisi · ${facility.reservedTon.pretty()} ton dicadangkan dari ${facility.capacityTon.pretty()} ton",
+                                        color = AppTextMuted,
+                                        fontSize = 10.sp
+                                    )
+                                    SoftProgress(
+                                        if (facility.capacityTon > 0) {
+                                            ((facility.filledTon + facility.reservedTon) / facility.capacityTon).toFloat()
+                                        } else 0f
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -3401,6 +3160,32 @@ fun PetugasTasksScreen(
                 }
             },
             containerColor = AppSurface
+        )
+    }
+    if (showVehicleForm) {
+        VehicleFormDialog(
+            vehicle = editingVehicle,
+            onDismiss = { showVehicleForm = false; editingVehicle = null },
+            onSave = { plate, capacity, condition, route ->
+                val vehicle = editingVehicle
+                if (vehicle == null) onCreateVehicle(plate, capacity, condition, route)
+                else onUpdateVehicle(vehicle.copy(plate = plate, capacityKg = capacity, condition = condition, route = route))
+                showVehicleForm = false
+                editingVehicle = null
+            }
+        )
+    }
+    if (showFacilityForm) {
+        FacilityFormDialog(
+            facility = editingFacility,
+            onDismiss = { showFacilityForm = false; editingFacility = null },
+            onSave = { name, address, capacity ->
+                val facility = editingFacility
+                if (facility == null) onCreateFacility(name, address, capacity)
+                else onUpdateFacility(facility.copy(name = name, address = address, capacityTon = capacity))
+                showFacilityForm = false
+                editingFacility = null
+            }
         )
     }
 }

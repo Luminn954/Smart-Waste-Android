@@ -254,34 +254,6 @@ object SmartWasteApi {
         return mapReport(result.getJSONObject("report"))
     }
 
-    suspend fun users(): List<AdminUser> {
-        val data = request("GET", "/admin/users").optJSONArray("users") ?: JSONArray()
-        return (0 until data.length()).map { index ->
-            val item = data.getJSONObject(index)
-            AdminUser(
-                id = item.optInt("id", item.optInt("id_user", 0)),
-                name = value(item, "name", "nama"),
-                username = value(item, "username"),
-                email = value(item, "email"),
-                active = item.optBoolean("active", item.optBoolean("aktif", true)),
-                totalReports = item.optInt("total_reports", 0)
-            )
-        }
-    }
-
-    suspend fun toggleUser(id: Int, active: Boolean): Boolean {
-        val result = request(
-            "PATCH",
-            "/admin/users/$id/toggle",
-            JSONObject().put("aktif", active)
-        )
-        return result.optBoolean("active", active)
-    }
-
-    suspend fun deleteUserAccount(id: Int) {
-        request("DELETE", "/admin/users/$id")
-    }
-
     suspend fun workers(): List<AdminWorker> {
         val data = request("GET", "/admin/petugas").optJSONArray("workers") ?: JSONArray()
         return (0 until data.length()).map { index ->

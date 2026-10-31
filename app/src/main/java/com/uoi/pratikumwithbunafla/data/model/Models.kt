@@ -133,15 +133,6 @@ data class DailyReport(
     val b3Alerts: Int
 )
 
-data class AdminUser(
-    val id: Int,
-    val name: String,
-    val username: String,
-    val email: String,
-    val active: Boolean,
-    val totalReports: Int
-)
-
 data class MonthlyStat(
     val period: String,
     val total: Int

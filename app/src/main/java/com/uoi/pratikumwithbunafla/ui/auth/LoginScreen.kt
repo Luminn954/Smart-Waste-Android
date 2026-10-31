@@ -559,7 +559,6 @@ fun LoginScreen(
                         } else {
                             preferences.edit { clear() }
                         }
-                        onThemeModeChange(false)
                         onLoginSuccess()
                     }
                 } catch (error: Exception) {
@@ -1047,8 +1046,8 @@ private fun MorningAtmosphere(modifier: Modifier = Modifier) {
 
         // A small, slow-moving flock gives the light theme its own morning cue.
         val flightPhase = birdFlight * PI.toFloat()
-        val flockX = size.width * 0.13f + sin(flightPhase).toFloat() * 22.dp.toPx()
-        val flockY = size.height * 0.30f + cos(flightPhase).toFloat() * 5.dp.toPx()
+        val flockX = size.width * 0.13f + sin(flightPhase) * 22.dp.toPx()
+        val flockY = size.height * 0.30f + cos(flightPhase) * 5.dp.toPx()
         val birdColor = Color(0xFF426B50).copy(alpha = 0.46f)
         drawMorningBird(Offset(flockX, flockY), 7.dp.toPx(), birdColor)
         drawMorningBird(
