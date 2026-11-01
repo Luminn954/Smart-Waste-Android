@@ -448,6 +448,27 @@ object SmartWasteApi {
         return (0 until data.length()).map { index -> mapReport(data.getJSONObject(index)) }
     }
 
+    suspend fun archivedWorkerTasks(): List<ArchivedWasteRecord> {
+        val data = request("GET", "/petugas/arsip-tugas")
+            .optJSONArray("archived_tasks") ?: JSONArray()
+        return (0 until data.length()).map { index ->
+            val item = data.getJSONObject(index)
+            ArchivedWasteRecord(
+                report = mapReport(item.optJSONObject("report") ?: JSONObject()),
+                archivedAt = value(item, "archived_at"),
+                archivedBy = value(item, "archived_by").ifBlank { "Petugas" }
+            )
+        }
+    }
+
+    suspend fun archiveWorkerTask(reportId: Int) {
+        request("POST", "/petugas/tugas/$reportId/arsip", JSONObject())
+    }
+
+    suspend fun restoreWorkerTask(reportId: Int) {
+        request("PATCH", "/petugas/arsip-tugas/$reportId/pulihkan", JSONObject())
+    }
+
     suspend fun askPetugasAssistant(
         question: String,
         history: List<PetugasAssistantTurn> = emptyList()

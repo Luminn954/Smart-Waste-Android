@@ -96,6 +96,7 @@ class MainActivity : ComponentActivity() {
                 var archivedReports by remember { mutableStateOf(emptyList<ArchivedWasteRecord>()) }
                 var incomingReports by remember { mutableStateOf(emptyList<WasteRecord>()) }
                 var tasks by remember { mutableStateOf(emptyList<WasteRecord>()) }
+                var archivedPetugasTasks by remember { mutableStateOf(emptyList<ArchivedWasteRecord>()) }
                 var workers by remember { mutableStateOf(emptyList<AdminWorker>()) }
                 var completionReviews by remember { mutableStateOf(emptyList<TaskCompletionReview>()) }
                 var adminNotes by remember { mutableStateOf(emptyList<AdminNoteRecord>()) }
@@ -176,6 +177,11 @@ class MainActivity : ComponentActivity() {
                                 tasks,
                                 loadErrors
                             ) { SmartWasteApi.workerTasks() }
+                            archivedPetugasTasks = loadOrKeep(
+                                "Arsip Petugas",
+                                archivedPetugasTasks,
+                                loadErrors
+                            ) { SmartWasteApi.archivedWorkerTasks() }
                             incomingReports = loadOrKeep(
                                 "Laporan masuk",
                                 incomingReports,
@@ -200,6 +206,7 @@ class MainActivity : ComponentActivity() {
                     archivedReports = emptyList()
                     incomingReports = emptyList()
                     tasks = emptyList()
+                    archivedPetugasTasks = emptyList()
                     workers = emptyList()
                     completionReviews = emptyList()
                     adminNotes = emptyList()
@@ -488,6 +495,7 @@ class MainActivity : ComponentActivity() {
                             }
                             else PetugasTasksScreen(
                                 tasks = tasks,
+                                archivedTasks = archivedPetugasTasks,
                                 incomingReports = incomingReports,
                                 vehicles = vehicles,
                                 facilities = facilities,
@@ -497,6 +505,14 @@ class MainActivity : ComponentActivity() {
                                     SmartWasteApi.askPetugasAssistant(question, history)
                                 },
                                 onOpenPhoto = { openPhoto(it) },
+                                onArchiveTask = { report ->
+                                    SmartWasteApi.archiveWorkerTask(report.id)
+                                    refreshWorkspace()
+                                },
+                                onRestoreArchivedTask = { report ->
+                                    SmartWasteApi.restoreWorkerTask(report.id)
+                                    refreshWorkspace()
+                                },
                                 onAssignReport = { report, vehicleId, tpaId ->
                                     SmartWasteApi.assignReport(report.id, vehicleId, tpaId)
                                     refreshWorkspace()

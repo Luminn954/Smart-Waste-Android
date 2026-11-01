@@ -3097,6 +3097,7 @@ fun AdminOperationsScreen(
 @Composable
 fun PetugasTasksScreen(
     tasks: List<WasteRecord>,
+    archivedTasks: List<ArchivedWasteRecord>,
     incomingReports: List<WasteRecord>,
     vehicles: List<WasteVehicle>,
     facilities: List<WasteFacility>,
@@ -3104,6 +3105,8 @@ fun PetugasTasksScreen(
     account: UserAccount,
     onAskAssistant: suspend (String, List<PetugasAssistantTurn>) -> PetugasAssistantReply,
     onOpenPhoto: (String) -> Unit,
+    onArchiveTask: suspend (WasteRecord) -> Unit,
+    onRestoreArchivedTask: suspend (WasteRecord) -> Unit,
     onAssignReport: suspend (WasteRecord, Int, Int) -> Unit,
     onRejectReport: suspend (WasteRecord, String) -> Unit,
     onMarkTransported: suspend (WasteRecord) -> Unit,
@@ -3124,6 +3127,11 @@ fun PetugasTasksScreen(
     var historySearch by rememberSaveable(account.username) { mutableStateOf("") }
     var activeTaskFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
     var historyFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
+    var showingTaskArchive by rememberSaveable(account.username) { mutableStateOf(false) }
+    var archivingHistoryTask by remember { mutableStateOf<WasteRecord?>(null) }
+    var restoringHistoryTask by remember { mutableStateOf<WasteRecord?>(null) }
+    var archiveActionError by remember { mutableStateOf("") }
+    var archiveActionRunning by remember { mutableStateOf(false) }
     var showVehicleForm by remember { mutableStateOf(false) }
     var editingVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
     var showFacilityForm by remember { mutableStateOf(false) }
@@ -3289,6 +3297,7 @@ fun PetugasTasksScreen(
     val historyTasks = tasks
         .filter { it.status == WasteFlow.DONE || it.status == WasteFlow.REJECTED }
         .sortedByDescending { it.reportedAt }
+    val historyFilterRows = if (showingTaskArchive) archivedTasks.map { it.report } else historyTasks
     val newReports = incomingReports.sortedBy { it.reportedAt }
     val tasksNeedingRevision = activeTasks.filter {
         it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
@@ -3332,13 +3341,20 @@ fun PetugasTasksScreen(
             else -> true
         }
     }
+    val filteredArchivedHistory = archivedTasks.filter { archived ->
+        matchesTaskSearch(archived.report, historySearch) && when (historyFilter) {
+            "selesai" -> archived.report.status == WasteFlow.DONE
+            "ditolak" -> archived.report.status == WasteFlow.REJECTED
+            else -> true
+        }
+    }
 
     fun hasLoadError(label: String): Boolean =
         errorMessage.lineSequence().any { it.startsWith("$label:") }
 
     AdminPage(
         current = "tasks",
-        scrollKey = "$currentSection:$selectedWorkArea",
+        scrollKey = "$currentSection:$selectedWorkArea:$showingTaskArchive",
         account = account,
         onNavigate = {},
         onLogout = onLogout,
@@ -3666,23 +3682,53 @@ fun PetugasTasksScreen(
             "riwayat" -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Riwayat pekerjaan", color = AppText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
+                            if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
+                            color = AppText,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan" else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
                             color = AppTextMuted,
-                            fontSize = 12.sp
+                            fontSize = 11.sp
                         )
                     }
                     PetugasRefreshButton(isRefreshing, onRefresh)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    listOf(
+                        false to "Riwayat · ${historyTasks.size}",
+                        true to "Arsip · ${archivedTasks.size}"
+                    ).forEach { (archive, label) ->
+                        TextButton(
+                            onClick = {
+                                showingTaskArchive = archive
+                                historyFilter = "semua"
+                                archiveActionError = ""
+                            },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (showingTaskArchive == archive) LoginAccent else LoginMuted,
+                                containerColor = if (showingTaskArchive == archive) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text(label, fontSize = 11.sp, fontWeight = if (showingTaskArchive == archive) FontWeight.Bold else FontWeight.Medium)
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     listOf(
-                        Triple("semua", "Semua", historyTasks.size),
-                        Triple("selesai", "Selesai", completedTasks.size),
-                        Triple("ditolak", "Ditolak", rejectedTasks.size)
+                        Triple("semua", "Semua", historyFilterRows.size),
+                        Triple("selesai", "Selesai", historyFilterRows.count { it.status == WasteFlow.DONE }),
+                        Triple("ditolak", "Ditolak", historyFilterRows.count { it.status == WasteFlow.REJECTED })
                     ).forEach { (key, label, count) ->
                         val selected = historyFilter == key
                         TextButton(
@@ -3705,28 +3751,63 @@ fun PetugasTasksScreen(
                 PetugasQueueSearch(
                     query = historySearch,
                     onQueryChange = { historySearch = it.take(100) },
-                    placeholder = "Cari kode, lokasi, atau TPA"
+                    placeholder = if (showingTaskArchive) "Cari arsip kode, lokasi, atau TPA" else "Cari kode, lokasi, atau TPA"
                 )
-                if (isInitialLoading && historyTasks.isEmpty()) {
-                    PetugasLoadingState("Memuat riwayat", "Mengambil pekerjaan yang sudah selesai.")
-                } else if (historyTasks.isEmpty() && hasLoadError("Penugasan")) {
-                    PetugasLoadFailure("Riwayat belum dapat dimuat.", onRefresh)
-                } else if (historyTasks.isEmpty()) {
-                    PetugasEmptyState("Belum ada riwayat", "Tugas selesai dan laporan yang ditolak akan tersimpan di sini.")
-                } else if (filteredHistoryTasks.isEmpty()) {
-                    PetugasEmptyState(
-                        if (historySearch.isNotBlank()) "Riwayat tidak ditemukan" else "Belum ada hasil pada filter ini",
-                        "Ubah filter atau kata kunci untuk melihat catatan lain."
-                    )
-                    TextButton(
-                        onClick = { historyFilter = "semua"; historySearch = "" },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text("Tampilkan semua riwayat", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                if (archiveActionError.isNotBlank()) InlineError(archiveActionError)
+                if (showingTaskArchive) {
+                    when {
+                        isInitialLoading && archivedTasks.isEmpty() ->
+                            PetugasLoadingState("Memuat arsip", "Mengambil catatan yang tersimpan.")
+                        archivedTasks.isEmpty() && hasLoadError("Arsip Petugas") ->
+                            PetugasLoadFailure("Arsip belum dapat dimuat.", onRefresh)
+                        filteredArchivedHistory.isEmpty() && archivedTasks.isEmpty() ->
+                            PetugasEmptyState("Arsip masih kosong", "Arsipkan tugas selesai atau laporan ditolak dari riwayat.")
+                        filteredArchivedHistory.isEmpty() ->
+                            PetugasEmptyState("Arsip tidak ditemukan", "Coba kata kunci atau filter status yang lain.")
                     }
-                }
-                filteredHistoryTasks.forEach { task ->
-                    PetugasTaskCard(task, onOpenPhoto, compactHistory = true)
+                    filteredArchivedHistory.forEach { archived ->
+                        PetugasTaskCard(archived.report, onOpenPhoto, compactHistory = true)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Disimpan ${archived.archivedAt} · ${archived.archivedBy}",
+                                modifier = Modifier.weight(1f),
+                                color = AppTextMuted,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            TextButton(
+                                onClick = { restoringHistoryTask = archived.report },
+                                enabled = !archiveActionRunning,
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) { Text("Pulihkan", color = LoginAccent, fontSize = 11.sp) }
+                        }
+                    }
+                } else {
+                    when {
+                        isInitialLoading && historyTasks.isEmpty() ->
+                            PetugasLoadingState("Memuat riwayat", "Mengambil pekerjaan yang sudah selesai.")
+                        historyTasks.isEmpty() && hasLoadError("Penugasan") ->
+                            PetugasLoadFailure("Riwayat belum dapat dimuat.", onRefresh)
+                        historyTasks.isEmpty() ->
+                            PetugasEmptyState("Belum ada riwayat", "Tugas selesai dan laporan yang ditolak akan tersimpan di sini.")
+                        filteredHistoryTasks.isEmpty() ->
+                            PetugasEmptyState(
+                                if (historySearch.isNotBlank()) "Riwayat tidak ditemukan" else "Belum ada hasil pada filter ini",
+                                "Ubah filter atau kata kunci untuk melihat catatan lain."
+                            )
+                    }
+                    filteredHistoryTasks.forEach { task ->
+                        PetugasTaskCard(
+                            task,
+                            onOpenPhoto,
+                            compactHistory = true,
+                            onArchive = { archivingHistoryTask = task }
+                        )
+                    }
                 }
             }
 
@@ -3830,6 +3911,96 @@ fun PetugasTasksScreen(
                 TextButton(onClick = { confirmingTransportTask = null }, enabled = transportingTaskId == null) {
                     Text("Kembali", color = LoginMuted)
                 }
+            },
+            containerColor = AppSurface
+        )
+    }
+    archivingHistoryTask?.let { task ->
+        AlertDialog(
+            onDismissRequest = { if (!archiveActionRunning) archivingHistoryTask = null },
+            title = { Text("Arsipkan catatan tugas?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "${task.code} dan catatan pekerjaannya dipindahkan ke Arsip Petugas. Data tetap tersimpan dan bisa dipulihkan kapan saja.",
+                    color = AppTextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = {
+                        scope.launch {
+                            archiveActionRunning = true
+                            archiveActionError = ""
+                            try {
+                                onArchiveTask(task)
+                                archivingHistoryTask = null
+                                showingTaskArchive = true
+                                historyFilter = "semua"
+                                historySearch = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                archiveActionError = error.message ?: "Catatan tugas gagal diarsipkan."
+                            } finally {
+                                archiveActionRunning = false
+                            }
+                        }
+                    }
+                ) { Text(if (archiveActionRunning) "Menyimpan…" else "Arsipkan", color = LoginAccent) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { archivingHistoryTask = null },
+                    enabled = !archiveActionRunning
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
+    restoringHistoryTask?.let { task ->
+        AlertDialog(
+            onDismissRequest = { if (!archiveActionRunning) restoringHistoryTask = null },
+            title = { Text("Pulihkan catatan tugas?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "${task.code} akan kembali ke riwayat pekerjaan Petugas.",
+                    color = AppTextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = {
+                        scope.launch {
+                            archiveActionRunning = true
+                            archiveActionError = ""
+                            try {
+                                onRestoreArchivedTask(task)
+                                restoringHistoryTask = null
+                                showingTaskArchive = false
+                                historyFilter = "semua"
+                                historySearch = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                archiveActionError = error.message ?: "Catatan tugas gagal dipulihkan."
+                            } finally {
+                                archiveActionRunning = false
+                            }
+                        }
+                    }
+                ) { Text(if (archiveActionRunning) "Memulihkan…" else "Pulihkan", color = LoginAccent) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { restoringHistoryTask = null },
+                    enabled = !archiveActionRunning
+                ) { Text("Kembali", color = LoginMuted) }
             },
             containerColor = AppSurface
         )
@@ -4827,7 +4998,8 @@ private fun PetugasTaskCard(
     onMarkTransported: ((WasteRecord) -> Unit)? = null,
     isTransporting: Boolean = false,
     isActionEnabled: Boolean = true,
-    onComplete: ((WasteRecord) -> Unit)? = null
+    onComplete: ((WasteRecord) -> Unit)? = null,
+    onArchive: ((WasteRecord) -> Unit)? = null
 ) {
     val isComplete = report.status == WasteFlow.DONE
     val isRejected = report.status == WasteFlow.REJECTED
@@ -4959,6 +5131,15 @@ private fun PetugasTaskCard(
                     ) {
                         Text("Bukti petugas", color = if (isDark) Color(0xFF82C7B9) else WasteTeal, fontSize = 10.sp)
                     }
+                }
+            }
+            if (compactHistory && onArchive != null) {
+                TextButton(
+                    onClick = { onArchive(report) },
+                    modifier = Modifier.align(Alignment.End),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 1.dp)
+                ) {
+                    Text("Arsipkan", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             when {
