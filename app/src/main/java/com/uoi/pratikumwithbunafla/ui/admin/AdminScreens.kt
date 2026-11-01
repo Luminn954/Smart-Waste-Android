@@ -3373,7 +3373,7 @@ fun PetugasTasksScreen(
                 if (isInitialLoading) {
                     PetugasLoadingState("Menyiapkan ruang kerja", "Memuat laporan, tugas, dan armada.")
                 } else {
-                    PetugasOperationalOverview(tasks) { selectedSection = "tugas" }
+                    PetugasOperationalOverview(tasks)
                     when {
                         nextTask != null -> {
                             SectionTitle(
@@ -3979,8 +3979,8 @@ private fun PetugasAssistantEntry(onClick: () -> Unit) {
     ) {
         Icon(Icons.Filled.Search, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(19.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Asisten kerja", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text("Cari tugas dan langkah berikutnya", color = AppTextMuted, fontSize = 10.sp)
+            Text("Butuh arahan?", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Tanya tugas dan langkah berikutnya", color = AppTextMuted, fontSize = 10.sp)
         }
         Text("Buka  ›", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     }
@@ -4516,22 +4516,27 @@ private fun PetugasJourneyHero(
     val needsRevision = tasks.count { it.completionStatus.equals("perlu_perbaikan", ignoreCase = true) }
     val inRoute = (transported - waitingAdmin - needsRevision).coerceAtLeast(0)
     val completed = tasks.count { it.status == WasteFlow.DONE }
+    val needsAttention = waitingAdmin + needsRevision
     val total = tasks.count {
         it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED || it.status == WasteFlow.DONE
     }
     val active = assigned + transported
-    val heroColor = if (isDark) Color(0xFF244337) else Color(0xFF246548)
+    val heroColor = if (isDark) Color(0xFF263E33) else Color(0xFF2A7050)
     val heroText = Color(0xFFF5F4EA)
     val heroMuted = Color(0xFFD8E5D9)
     val progress = if (total == 0) 0 else (completed * 100 / total)
+    val displayName = name.trim().replaceFirstChar { it.uppercase() }.ifBlank { "Petugas" }
+    val readyTint = if (isDark) Color(0xFFB9D99A) else Color(0xFFC9E6A8)
+    val routeTint = if (isDark) Color(0xFF91CDBD) else Color(0xFF9ED8C9)
+    val attentionTint = if (isDark) Color(0xFFE4BE78) else Color(0xFFFFD58F)
     val workSummary = when {
         isInitialLoading -> "Memuat tugas dan laporan terbaru."
         needsRevision > 0 -> "$needsRevision bukti perlu diperbaiki. Dahulukan pemeriksaan ini."
         waitingAdmin > 0 && inRoute > 0 -> "$inRoute muatan dalam rute · $waitingAdmin bukti menunggu Admin."
         waitingAdmin > 0 -> "$waitingAdmin bukti menunggu pemeriksaan Admin."
         inRoute > 0 -> "$inRoute muatan sedang menuju TPA."
-        assigned > 0 -> "$assigned tugas siap untuk mulai diangkut."
-        else -> "Tidak ada penugasan aktif saat ini."
+        assigned > 0 -> "$assigned tugas siap dibawa. Pilih yang paling dekat untuk dimulai."
+        else -> "Belum ada tugas aktif. Cek antrean laporan saat ada waktu."
     }
 
     Box(
@@ -4545,14 +4550,14 @@ private fun PetugasJourneyHero(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        "RUANG OPERASIONAL",
+                        "RUANG KERJA PETUGAS",
                         color = heroMuted,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp
                     )
                     Text(
-                        "Halo, $name",
+                        "Halo, $displayName",
                         color = heroText,
                         fontSize = 20.sp,
                         lineHeight = 24.sp,
@@ -4590,13 +4595,22 @@ private fun PetugasJourneyHero(
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                PetugasHeroStat(assigned.toString(), "Siap angkut", readyTint, Modifier.weight(1f))
+                PetugasHeroStat(inRoute.toString(), "Dalam rute", routeTint, Modifier.weight(1f))
+                PetugasHeroStat(needsAttention.toString(), "Perlu dicek", attentionTint, Modifier.weight(1f))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (isInitialLoading) "Menyinkronkan data…"
-                    else "Siap $assigned  ·  Rute $inRoute  ·  Perlu cek $needsRevision",
+                    when {
+                        isInitialLoading -> "Sedang menyegarkan antrean…"
+                        total > 0 -> "$completed dari $total selesai · $progress%"
+                        else -> "Belum ada pekerjaan yang selesai."
+                    },
                     modifier = Modifier.weight(1f),
-                    color = heroMuted,
+                    color = heroMuted.copy(alpha = 0.88f),
                     fontSize = 10.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -4605,32 +4619,26 @@ private fun PetugasJourneyHero(
                     onClick = onOpenTasks,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 8.dp, end = 0.dp, top = 2.dp, bottom = 2.dp)
                 ) {
-                    Text(
-                        if (isInitialLoading) "Memuat…" else "Tugas  ›",
-                        color = heroText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text("Buka tugas  ›", color = heroText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
-            }
-            if (!isInitialLoading && total > 0) {
-                Text(
-                    "$completed dari $total pekerjaan selesai · progres $progress%",
-                    color = heroMuted.copy(alpha = 0.88f),
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }
 }
 
 @Composable
-private fun PetugasOperationalOverview(
-    tasks: List<WasteRecord>,
-    onOpenTasks: () -> Unit
-) {
+private fun PetugasHeroStat(value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, color = tint, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.size(6.dp).clip(CircleShape).background(tint))
+            Text(label, color = Color(0xFFE7EEE4), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun PetugasOperationalOverview(tasks: List<WasteRecord>) {
     val isDark = LocalSmartWasteAppearance.current.darkMode
     val activeTasks = tasks.filter {
         it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED
@@ -4646,16 +4654,14 @@ private fun PetugasOperationalOverview(
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(AppSurface)
-            .clickable(onClick = onOpenTasks)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text("RINGKASAN MUATAN", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
-                Text("Pekerjaan yang ditangani", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text("Ringkasan muatan", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Pekerjaan yang sedang kamu tangani", color = AppTextMuted, fontSize = 10.sp)
             }
-            Text("Lihat tugas  ›", color = accent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
         }
 
         Row(verticalAlignment = Alignment.Bottom) {
@@ -4663,13 +4669,20 @@ private fun PetugasOperationalOverview(
             Spacer(Modifier.width(5.dp))
             Text("kg muatan aktif", color = AppTextMuted, fontSize = 11.sp, modifier = Modifier.padding(bottom = 3.dp))
         }
-        Text(
-            "$activeTypes jenis sampah  ·  $specialHandling perlu perhatian khusus",
-            color = AppTextMuted,
-            fontSize = 11.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PetugasSummaryFact(
+                icon = Icons.Filled.Inbox,
+                text = "$activeTypes jenis sampah",
+                tint = if (isDark) Color(0xFF91CDBD) else Color(0xFF287B69),
+                modifier = Modifier.weight(1f)
+            )
+            PetugasSummaryFact(
+                icon = Icons.Filled.ReportProblem,
+                text = "$specialHandling perlu perhatian",
+                tint = if (isDark) Color(0xFFE4BE78) else Color(0xFFAA762F),
+                modifier = Modifier.weight(1f)
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(Icons.Filled.Place, contentDescription = null, tint = accent, modifier = Modifier.size(15.dp))
             Text("Tujuan", color = AppTextMuted, fontSize = 10.sp)
@@ -4683,6 +4696,18 @@ private fun PetugasOperationalOverview(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+@Composable
+private fun PetugasSummaryFact(icon: ImageVector, text: String, tint: Color, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
+        Text(text, color = AppTextMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
