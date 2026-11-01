@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -261,6 +262,7 @@ private fun AdminPage(
     account: UserAccount,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
+    scrollKey: String = current,
     isInitialLoading: Boolean = false,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {},
@@ -270,6 +272,7 @@ private fun AdminPage(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val pageScrollState = remember(current, scrollKey) { ScrollState(0) }
     val horizontalPadding = when {
         screenWidth < 350.dp -> 14.dp
         screenWidth >= 600.dp -> 28.dp
@@ -305,7 +308,7 @@ private fun AdminPage(
                         Column(
                             modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight().fillMaxWidth()
                                 .windowInsetsPadding(WindowInsets.statusBars)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(pageScrollState)
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxWidth()
@@ -475,14 +478,19 @@ private fun AdminTopBar(
             }
             DropdownMenu(
                 expanded = profileMenuExpanded,
-                onDismissRequest = { profileMenuExpanded = false }) {
+                onDismissRequest = { profileMenuExpanded = false },
+                shape = RoundedCornerShape(18.dp),
+                containerColor = AppSurface,
+                tonalElevation = 0.dp,
+                shadowElevation = 8.dp
+            ) {
                 Column(
                     modifier = Modifier.width(220.dp).padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     Text("Akun aktif", color = AppTextMuted, fontSize = 11.sp)
                     Text(
-                        account.name,
+                        account.name.displayPersonName(),
                         color = AppText,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
@@ -1414,13 +1422,17 @@ fun AdminVerificationScreen(
             onValueChange = { reportSearch = it.take(100) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Cari kode, jenis, lokasi, atau petugas") },
+            leadingIcon = {
+                Icon(Icons.Filled.Search, contentDescription = null, tint = AppTextMuted)
+            },
             singleLine = true,
+            shape = RoundedCornerShape(16.dp),
             textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = LoginAccent,
-                unfocusedBorderColor = AppBorder,
-                focusedContainerColor = AppSurface,
-                unfocusedContainerColor = AppSurface
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                focusedContainerColor = AppSurface.copy(alpha = 0.92f),
+                unfocusedContainerColor = AppSurface.copy(alpha = 0.82f)
             )
         )
 
@@ -2407,13 +2419,17 @@ fun AdminOperationsScreen(
                     onValueChange = { workerSearch = it.take(80) },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Cari nama, username, atau zona") },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = null, tint = AppTextMuted)
+                    },
                     singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
                     textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = LoginAccent,
-                        unfocusedBorderColor = AppBorder,
-                        focusedContainerColor = AppSurface,
-                        unfocusedContainerColor = AppSurface
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = AppSurface.copy(alpha = 0.92f),
+                        unfocusedContainerColor = AppSurface.copy(alpha = 0.82f)
                     )
                 )
                 Row(
@@ -3322,6 +3338,7 @@ fun PetugasTasksScreen(
 
     AdminPage(
         current = "tasks",
+        scrollKey = "$currentSection:$selectedWorkArea",
         account = account,
         onNavigate = {},
         onLogout = onLogout,
@@ -3333,9 +3350,7 @@ fun PetugasTasksScreen(
                 name = account.name,
                 tasks = tasks,
                 isInitialLoading = isInitialLoading,
-                isRefreshing = isRefreshing,
-                onOpenTasks = { selectedSection = "tugas" },
-                onRefresh = onRefresh
+                onOpenTasks = { selectedSection = "tugas" }
             )
         }
         if (currentSection != "profil") {
@@ -3710,7 +3725,9 @@ fun PetugasTasksScreen(
                         Text("Tampilkan semua riwayat", color = LoginAccent, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                filteredHistoryTasks.forEach { task -> PetugasTaskCard(task, onOpenPhoto) }
+                filteredHistoryTasks.forEach { task ->
+                    PetugasTaskCard(task, onOpenPhoto, compactHistory = true)
+                }
             }
 
             "profil" -> AccountProfileSettings(account, onLogout)
@@ -4503,9 +4520,7 @@ private fun PetugasJourneyHero(
     name: String,
     tasks: List<WasteRecord>,
     isInitialLoading: Boolean,
-    isRefreshing: Boolean,
-    onOpenTasks: () -> Unit,
-    onRefresh: () -> Unit
+    onOpenTasks: () -> Unit
 ) {
     val isDark = LocalSmartWasteAppearance.current.darkMode
     val assigned = tasks.count { it.status == WasteFlow.ASSIGNED }
@@ -4547,40 +4562,23 @@ private fun PetugasJourneyHero(
             .padding(horizontal = 18.dp, vertical = 17.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        "RUANG KERJA PETUGAS",
-                        color = heroMuted,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp
-                    )
-                    Text(
-                        "Halo, $displayName",
-                        color = heroText,
-                        fontSize = 20.sp,
-                        lineHeight = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                IconButton(
-                    onClick = onRefresh,
-                    enabled = !isRefreshing,
-                    modifier = Modifier.size(34.dp)
-                ) {
-                    if (isRefreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = heroMuted,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(Icons.Filled.Sync, contentDescription = "Perbarui data", tint = heroText.copy(alpha = 0.9f), modifier = Modifier.size(19.dp))
-                    }
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "RUANG KERJA PETUGAS",
+                    color = heroMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+                Text(
+                    "Halo, $displayName",
+                    color = heroText,
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -4733,18 +4731,13 @@ private fun AccountProfileSettings(account: UserAccount, onLogout: () -> Unit) {
         AdminSectionHeading(
             eyebrow = "AKUN DAN PREFERENSI",
             title = "Profil ${account.role.label.lowercase()}",
-            subtitle = "Kelola tampilan aplikasi dan lihat informasi akun yang sedang digunakan."
+            subtitle = "Informasi akun dan preferensi aplikasi."
         )
 
         Column(
             modifier = Modifier.fillMaxWidth()
                 .clip(cardShape)
-                .background(
-                    Brush.horizontalGradient(
-                        if (isDark) listOf(Color(0xFF213A36), Color(0xFF26363D))
-                        else listOf(Color(0xFFE5EEE1), Color(0xFFF1EBDD))
-                    )
-                )
+                .background(surface)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -4755,7 +4748,7 @@ private fun AccountProfileSettings(account: UserAccount, onLogout: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        account.name,
+                        account.name.displayPersonName(),
                         color = AppText,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
@@ -4830,6 +4823,7 @@ private fun ProfileInfoRow(label: String, value: String) {
 private fun PetugasTaskCard(
     report: WasteRecord,
     onOpenPhoto: (String) -> Unit,
+    compactHistory: Boolean = false,
     onMarkTransported: ((WasteRecord) -> Unit)? = null,
     isTransporting: Boolean = false,
     isActionEnabled: Boolean = true,
@@ -4874,8 +4868,11 @@ private fun PetugasTaskCard(
             .background(AppSurface)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 15.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            modifier = Modifier.padding(
+                horizontal = if (compactHistory) 13.dp else 15.dp,
+                vertical = if (compactHistory) 11.dp else 14.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 6.dp else 9.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
@@ -4916,16 +4913,31 @@ private fun PetugasTaskCard(
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(guidanceTitle, color = guidanceAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            if (compactHistory) {
+                val historyNote = when {
+                    isComplete -> "Bukti disetujui Admin"
+                    report.workerDecisionNote.isNotBlank() -> report.workerDecisionNote
+                    else -> "Laporan tidak diteruskan ke pengangkutan"
+                }
                 Text(
-                    guidanceMessage,
-                    color = AppTextMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    maxLines = 2,
+                    historyNote,
+                    color = if (isComplete) statusAccent else AppTextMuted,
+                    fontSize = 10.sp,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(guidanceTitle, color = guidanceAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        guidanceMessage,
+                        color = AppTextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -5036,8 +5048,8 @@ private fun PetugasQueueSearch(
         shape = RoundedCornerShape(16.dp),
         textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = LoginAccent.copy(alpha = 0.55f),
-            unfocusedBorderColor = AppBorder.copy(alpha = 0.55f),
+            focusedBorderColor = Color.Transparent,
+            unfocusedBorderColor = Color.Transparent,
             focusedContainerColor = AppSurface.copy(alpha = 0.92f),
             unfocusedContainerColor = AppSurface.copy(alpha = 0.82f)
         )
