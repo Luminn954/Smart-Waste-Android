@@ -102,6 +102,7 @@ class MainActivity : ComponentActivity() {
                 var adminNotes by remember { mutableStateOf(emptyList<AdminNoteRecord>()) }
                 var archivedAdminNotes by remember { mutableStateOf(emptyList<ArchivedAdminNote>()) }
                 var vehicles by remember { mutableStateOf(emptyList<WasteVehicle>()) }
+                var vehicleRepairs by remember { mutableStateOf(emptyList<VehicleRepair>()) }
                 var facilities by remember { mutableStateOf(emptyList<WasteFacility>()) }
                 var dailyReports by remember { mutableStateOf(emptyList<DailyReport>()) }
                 var dailyRangeDays by rememberSaveable { mutableIntStateOf(30) }
@@ -168,6 +169,11 @@ class MainActivity : ComponentActivity() {
                                 archivedAdminNotes,
                                 loadErrors
                             ) { SmartWasteApi.archivedAdminNotes() }
+                            vehicleRepairs = loadOrKeep(
+                                "Perbaikan armada",
+                                vehicleRepairs,
+                                loadErrors
+                            ) { SmartWasteApi.vehicleRepairs(admin = true) }
                             dailyReports = loadOrKeep("Aktivitas harian", dailyReports, loadErrors) {
                                 SmartWasteApi.dailyReports(from, to)
                             }
@@ -188,6 +194,11 @@ class MainActivity : ComponentActivity() {
                                 loadErrors
                             ) { SmartWasteApi.workerIncomingReports() }
                             vehicles = loadOrKeep("Armada", vehicles, loadErrors) { SmartWasteApi.vehicles() }
+                            vehicleRepairs = loadOrKeep(
+                                "Perbaikan armada",
+                                vehicleRepairs,
+                                loadErrors
+                            ) { SmartWasteApi.vehicleRepairs(admin = false) }
                             facilities = loadOrKeep("TPA", facilities, loadErrors) { SmartWasteApi.facilities() }
                         }
                         errorMessage = loadErrors.take(4).joinToString("\n") +
@@ -212,6 +223,7 @@ class MainActivity : ComponentActivity() {
                     adminNotes = emptyList()
                     archivedAdminNotes = emptyList()
                     vehicles = emptyList()
+                    vehicleRepairs = emptyList()
                     facilities = emptyList()
                     dailyReports = emptyList()
                     statistics = AdminStatistics()
@@ -396,6 +408,7 @@ class MainActivity : ComponentActivity() {
                             else AdminOperationsScreen(
                                 workers = workers,
                                 completionReviews = completionReviews,
+                                vehicleRepairs = vehicleRepairs,
                                 adminNotes = adminNotes,
                                 archivedAdminNotes = archivedAdminNotes,
                                 errorMessage = errorMessage,
@@ -422,6 +435,10 @@ class MainActivity : ComponentActivity() {
                                 onOpenPhoto = ::openPhoto,
                                 onReviewCompletion = { review, action, note ->
                                     SmartWasteApi.reviewCompletion(review.id, action, note)
+                                    refreshWorkspace()
+                                },
+                                onReviewVehicleRepair = { repair, action, note ->
+                                    SmartWasteApi.reviewVehicleRepair(repair.id, action, note)
                                     refreshWorkspace()
                                 },
                                 onAddAdminNote = { note, text ->
@@ -498,6 +515,7 @@ class MainActivity : ComponentActivity() {
                                 archivedTasks = archivedPetugasTasks,
                                 incomingReports = incomingReports,
                                 vehicles = vehicles,
+                                vehicleRepairs = vehicleRepairs,
                                 facilities = facilities,
                                 errorMessage = errorMessage,
                                 account = account,
@@ -541,6 +559,22 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onUpdateVehicle = { vehicle ->
                                     SmartWasteApi.updateVehicle(vehicle)
+                                    refreshWorkspace()
+                                },
+                                onReportVehicleDamage = { vehicle, cause, details ->
+                                    SmartWasteApi.reportVehicleDamage(vehicle.id, cause, details)
+                                    refreshWorkspace()
+                                },
+                                onStartVehicleRepair = { repair, note ->
+                                    SmartWasteApi.startVehicleRepair(repair.id, note)
+                                    refreshWorkspace()
+                                },
+                                onUpdateVehicleRepairProgress = { repair, note ->
+                                    SmartWasteApi.updateVehicleRepairProgress(repair.id, note)
+                                    refreshWorkspace()
+                                },
+                                onSubmitVehicleRepairForInspection = { repair, note ->
+                                    SmartWasteApi.submitVehicleRepairForInspection(repair.id, note)
                                     refreshWorkspace()
                                 },
                                 onCreateFacility = { name, address, capacity ->

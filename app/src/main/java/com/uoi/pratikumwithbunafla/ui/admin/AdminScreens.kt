@@ -2288,6 +2288,7 @@ fun AdminStatsScreen(
 fun AdminOperationsScreen(
     workers: List<AdminWorker>,
     completionReviews: List<TaskCompletionReview>,
+    vehicleRepairs: List<VehicleRepair>,
     adminNotes: List<AdminNoteRecord>,
     archivedAdminNotes: List<ArchivedAdminNote>,
     errorMessage: String,
@@ -2297,6 +2298,7 @@ fun AdminOperationsScreen(
     onDeleteWorker: suspend (AdminWorker, Int?) -> Unit,
     onOpenPhoto: (String) -> Unit,
     onReviewCompletion: suspend (TaskCompletionReview, String, String) -> Unit,
+    onReviewVehicleRepair: suspend (VehicleRepair, String, String) -> Unit,
     onAddAdminNote: suspend (AdminNoteRecord, String) -> Unit,
     onArchiveAdminNote: suspend (AdminNoteRecord) -> Unit,
     onRestoreAdminNote: suspend (ArchivedAdminNote) -> Unit,
@@ -2309,12 +2311,13 @@ fun AdminOperationsScreen(
     onRefresh: () -> Unit = {}
 ) {
     var tab by rememberSaveable(account.role, initialTab) {
-        mutableStateOf(initialTab.takeIf { it == "catatan" } ?: "petugas")
+        mutableStateOf(initialTab.takeIf { it in setOf("catatan", "armada") } ?: "petugas")
     }
     var adding by rememberSaveable { mutableStateOf(false) }
     var editingWorker by remember { mutableStateOf<AdminWorker?>(null) }
     var deletingWorker by remember { mutableStateOf<AdminWorker?>(null) }
     var revisionReview by remember { mutableStateOf<TaskCompletionReview?>(null) }
+    var vehicleRepairReview by remember { mutableStateOf<Pair<VehicleRepair, String>?>(null) }
     var revisionNote by rememberSaveable { mutableStateOf("") }
     var revisionError by remember { mutableStateOf("") }
     var revisionSending by remember { mutableStateOf(false) }
@@ -2368,12 +2371,27 @@ fun AdminOperationsScreen(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh
     ) {
-        val operationsTabs = listOf("petugas" to "Petugas", "catatan" to "Catatan Admin")
+        val operationsTabs = listOf(
+            "petugas" to "Petugas",
+            "armada" to "Perbaikan · ${vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }}",
+            "catatan" to "Catatan Admin"
+        )
         AdminSectionHeading(
-            if (tab == "catatan") "ADMIN • PEMANTAUAN" else "ADMIN • OPERASIONAL",
-            if (tab == "catatan") "Catatan Admin" else "Kelola petugas",
-            if (tab == "catatan") "Notifikasi bukti tugas dan catatan pekerjaan petugas."
-            else "Atur akun petugas dan pantau pembagian tugas."
+            when (tab) {
+                "catatan" -> "ADMIN • PEMANTAUAN"
+                "armada" -> "ADMIN • ARMADA"
+                else -> "ADMIN • OPERASIONAL"
+            },
+            when (tab) {
+                "catatan" -> "Catatan Admin"
+                "armada" -> "Perbaikan armada"
+                else -> "Kelola petugas"
+            },
+            when (tab) {
+                "catatan" -> "Notifikasi bukti tugas dan catatan pekerjaan petugas."
+                "armada" -> "Setujui perbaikan dan periksa kendaraan sebelum kembali beroperasi."
+                else -> "Atur akun petugas dan pantau pembagian tugas."
+            }
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
         if (actionError.isNotBlank()) InlineError(actionError)
@@ -2546,6 +2564,45 @@ fun AdminOperationsScreen(
                                             tint = WasteRed,
                                             modifier = Modifier.size(18.dp)
                                         )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            "armada" -> {
+                val waitingApproval = vehicleRepairs.count { it.status == "menunggu_persetujuan" }
+                val waitingInspection = vehicleRepairs.count { it.status == "menunggu_pemeriksaan" }
+                SectionTitle(
+                    "Perlu perhatian",
+                    "$waitingApproval menunggu keputusan · $waitingInspection menunggu pemeriksaan hasil"
+                )
+                if (vehicleRepairs.isEmpty() && isInitialLoading) {
+                    PetugasLoadingState("Memuat perbaikan", "Mengambil laporan kerusakan armada.")
+                } else if (vehicleRepairs.isEmpty() && errorMessage.contains("Perbaikan armada:")) {
+                    PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh)
+                } else if (vehicleRepairs.isEmpty()) {
+                    EmptyAdminState("Belum ada laporan kerusakan armada.")
+                } else {
+                    vehicleRepairs.forEach { repair ->
+                        VehicleRepairCard(repair = repair) {
+                            when (repair.status) {
+                                "menunggu_persetujuan" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = { vehicleRepairReview = repair to "tolak" }) {
+                                        Text("Tolak", color = WasteRed, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    TextButton(onClick = { vehicleRepairReview = repair to "setujui" }) {
+                                        Text("Setujui perbaikan", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                                "menunggu_pemeriksaan" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = { vehicleRepairReview = repair to "kembalikan" }) {
+                                        Text("Minta perbaikan lagi", color = WasteOrange, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    TextButton(onClick = { vehicleRepairReview = repair to "selesai" }) {
+                                        Text("Setujui hasil", color = LoginAccent, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -2943,6 +3000,17 @@ fun AdminOperationsScreen(
             containerColor = AppSurface
         )
     }
+    vehicleRepairReview?.let { (repair, action) ->
+        VehicleRepairReviewDialog(
+            repair = repair,
+            action = action,
+            onDismiss = { vehicleRepairReview = null },
+            onSubmit = { note ->
+                onReviewVehicleRepair(repair, action, note)
+                vehicleRepairReview = null
+            }
+        )
+    }
     writingAdminNote?.let { item ->
         val noteBytes = adminNoteDraft.toByteArray(Charsets.UTF_8).size
         AlertDialog(
@@ -3100,6 +3168,7 @@ fun PetugasTasksScreen(
     archivedTasks: List<ArchivedWasteRecord>,
     incomingReports: List<WasteRecord>,
     vehicles: List<WasteVehicle>,
+    vehicleRepairs: List<VehicleRepair>,
     facilities: List<WasteFacility>,
     errorMessage: String,
     account: UserAccount,
@@ -3113,6 +3182,10 @@ fun PetugasTasksScreen(
     onSubmitProof: suspend (WasteRecord, Uri, String) -> Unit,
     onCreateVehicle: suspend (String, Double, String, String) -> Unit,
     onUpdateVehicle: suspend (WasteVehicle) -> Unit,
+    onReportVehicleDamage: suspend (WasteVehicle, String, String) -> Unit,
+    onStartVehicleRepair: suspend (VehicleRepair, String) -> Unit,
+    onUpdateVehicleRepairProgress: suspend (VehicleRepair, String) -> Unit,
+    onSubmitVehicleRepairForInspection: suspend (VehicleRepair, String) -> Unit,
     onCreateFacility: suspend (String, String, Double) -> Unit,
     onUpdateFacility: suspend (WasteFacility) -> Unit,
     isInitialLoading: Boolean,
@@ -3134,6 +3207,8 @@ fun PetugasTasksScreen(
     var archiveActionRunning by remember { mutableStateOf(false) }
     var showVehicleForm by remember { mutableStateOf(false) }
     var editingVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
+    var reportingDamageVehicle by remember { mutableStateOf<WasteVehicle?>(null) }
+    var vehicleRepairAction by remember { mutableStateOf<Pair<VehicleRepair, String>?>(null) }
     var showFacilityForm by remember { mutableStateOf(false) }
     var editingFacility by remember { mutableStateOf<WasteFacility?>(null) }
     var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
@@ -3358,6 +3433,7 @@ fun PetugasTasksScreen(
             "laporan" -> hasLoadError("Laporan masuk")
             "aktif" -> hasLoadError("Penugasan")
             "armada" -> hasLoadError("Armada")
+            "perbaikan" -> hasLoadError("Perbaikan armada")
             "tpa" -> hasLoadError("TPA")
             else -> false
         }
@@ -3370,6 +3446,7 @@ fun PetugasTasksScreen(
             "laporan" -> newReports.isEmpty()
             "aktif" -> activeTasks.isEmpty()
             "armada" -> vehicles.isEmpty()
+            "perbaikan" -> vehicleRepairs.isEmpty()
             "tpa" -> facilities.isEmpty()
             else -> true
         }
@@ -3538,6 +3615,7 @@ fun PetugasTasksScreen(
                             Triple("laporan", "Masuk", newReports.size),
                             Triple("aktif", "Aktif", activeTasks.size),
                             Triple("armada", "Armada", vehicles.size),
+                            Triple("perbaikan", "Perbaikan", vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }),
                             Triple("tpa", "TPA", facilities.size)
                         ).forEach { (key, label, count) ->
                             val selected = selectedWorkArea == key
@@ -3658,6 +3736,44 @@ fun PetugasTasksScreen(
                         }
                     }
 
+                    "perbaikan" -> {
+                        val activeRepairs = vehicleRepairs.filter { it.status !in setOf("selesai", "ditolak") }
+                        SectionTitle(
+                            "Proses perbaikan",
+                            "Catat penyebab, tulis progres, lalu kirim hasil untuk diperiksa Admin."
+                        )
+                        if (isInitialLoading && vehicleRepairs.isEmpty()) {
+                            PetugasLoadingState("Memuat perbaikan", "Mengambil status laporan kerusakan.")
+                        } else if (vehicleRepairs.isEmpty() && hasLoadError("Perbaikan armada")) {
+                            PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh)
+                        } else if (vehicleRepairs.isEmpty()) {
+                            PetugasEmptyState("Belum ada proses perbaikan", "Laporkan kerusakan dari tab Armada untuk memulai alur persetujuan.")
+                        } else {
+                            if (activeRepairs.isNotEmpty()) {
+                                Text("Berjalan · ${activeRepairs.size}", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            vehicleRepairs.forEach { repair ->
+                                VehicleRepairCard(repair = repair) {
+                                    when (repair.status) {
+                                        "disetujui", "perlu_perbaikan" -> TextButton(
+                                            onClick = { vehicleRepairAction = repair to "mulai" }
+                                        ) { Text("Mulai / lanjutkan perbaikan", color = LoginAccent, fontWeight = FontWeight.SemiBold) }
+                                        "dalam_perbaikan" -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            TextButton(onClick = { vehicleRepairAction = repair to "progres" }) {
+                                                Text("Tambah progres", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                                            }
+                                            TextButton(onClick = { vehicleRepairAction = repair to "pemeriksaan" }) {
+                                                Text("Minta pemeriksaan", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
+                                        "menunggu_persetujuan" -> Text("Menunggu persetujuan Admin", color = AppTextMuted, fontSize = 11.sp)
+                                        "menunggu_pemeriksaan" -> Text("Hasil dikirim · menunggu pemeriksaan Admin", color = AppTextMuted, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     "armada" -> {
                         SectionTitle("Armada", "Periksa kapasitas dan kondisi sebelum menerima laporan.")
                         AppButton("＋ Tambah kendaraan", { showVehicleForm = true }, containerColor = LoginAccent)
@@ -3667,22 +3783,36 @@ fun PetugasTasksScreen(
                             PetugasLoadFailure("Data armada belum dapat dimuat.", onRefresh)
                         } else if (vehicles.isEmpty()) PetugasEmptyState("Belum ada armada", "Tambahkan kendaraan agar laporan bisa ditugaskan.")
                         vehicles.forEach { vehicle ->
+                            val openRepair = vehicleRepairs.firstOrNull {
+                                it.vehicleId == vehicle.id && it.status !in setOf("selesai", "ditolak")
+                            }
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(5.dp)
                                 ) {
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Text(vehicle.plate, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                        Text(
-                                            "${vehicle.loadKg.pretty()} / ${vehicle.capacityKg.pretty()} kg · ${vehicle.condition}",
-                                            color = AppTextMuted,
-                                            fontSize = 11.sp
-                                        )
-                                        Text("Rute: ${vehicle.route.ifBlank { "Belum ditentukan" }}", color = AppTextMuted, fontSize = 11.sp)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                            Text(vehicle.plate, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                "${vehicle.loadKg.pretty()} / ${vehicle.capacityKg.pretty()} kg · ${vehicle.condition}",
+                                                color = AppTextMuted,
+                                                fontSize = 11.sp
+                                            )
+                                            Text("Rute: ${vehicle.route.ifBlank { "Belum ditentukan" }}", color = AppTextMuted, fontSize = 11.sp)
+                                        }
+                                        TextButton(onClick = { editingVehicle = vehicle; showVehicleForm = true }) {
+                                            Text("Ubah", color = LoginAccent, fontSize = 11.sp)
+                                        }
                                     }
-                                    TextButton(onClick = { editingVehicle = vehicle; showVehicleForm = true }) {
-                                        Text("Ubah", color = LoginAccent, fontSize = 11.sp)
+                                    if (openRepair != null) {
+                                        TextButton(onClick = { selectedWorkArea = "perbaikan" }) {
+                                            Text("Lihat proses · ${openRepair.statusLabel}  ›", color = WasteOrange, fontSize = 11.sp)
+                                        }
+                                    } else if (vehicle.condition.equals("baik", true) || vehicle.condition.equals("rusak", true)) {
+                                        TextButton(onClick = { reportingDamageVehicle = vehicle }) {
+                                            Text("Laporkan kerusakan", color = WasteRed, fontSize = 11.sp)
+                                        }
                                     }
                                 }
                             }
@@ -4176,6 +4306,31 @@ fun PetugasTasksScreen(
                 }
             },
             containerColor = AppSurface
+        )
+    }
+    reportingDamageVehicle?.let { vehicle ->
+        VehicleDamageDialog(
+            vehicle = vehicle,
+            onDismiss = { reportingDamageVehicle = null },
+            onSubmit = { cause, details ->
+                onReportVehicleDamage(vehicle, cause, details)
+                reportingDamageVehicle = null
+            }
+        )
+    }
+    vehicleRepairAction?.let { (repair, action) ->
+        VehicleRepairProcessDialog(
+            repair = repair,
+            action = action,
+            onDismiss = { vehicleRepairAction = null },
+            onSubmit = { note ->
+                when (action) {
+                    "mulai" -> onStartVehicleRepair(repair, note)
+                    "progres" -> onUpdateVehicleRepairProgress(repair, note)
+                    else -> onSubmitVehicleRepairForInspection(repair, note)
+                }
+                vehicleRepairAction = null
+            }
         )
     }
     if (showVehicleForm) {
@@ -5457,6 +5612,296 @@ private fun StaffAccountFormDialog(
 }
 
 @Composable
+private fun vehicleRepairAccent(status: String): Color = when (status) {
+    "menunggu_persetujuan", "menunggu_pemeriksaan" -> WasteOrange
+    "dalam_perbaikan", "disetujui" -> LoginAccent
+    "perlu_perbaikan" -> WastePurple
+    "selesai" -> WasteGreen
+    else -> WasteRed
+}
+
+private fun vehicleRepairEventLabel(action: String): String = when (action) {
+    "dilaporkan" -> "Kerusakan dilaporkan"
+    "disetujui_admin" -> "Disetujui Admin"
+    "ditolak_admin" -> "Ditolak Admin"
+    "perbaikan_dimulai" -> "Perbaikan dimulai"
+    "progres_diperbarui" -> "Progres perbaikan"
+    "diajukan_untuk_pemeriksaan" -> "Diajukan untuk pemeriksaan"
+    "perlu_perbaikan" -> "Diminta perbaikan ulang"
+    "perbaikan_disahkan" -> "Kendaraan dinyatakan layak"
+    else -> action.replace('_', ' ').replaceFirstChar { it.uppercase() }
+}
+
+@Composable
+private fun VehicleRepairCard(
+    repair: VehicleRepair,
+    actions: @Composable (VehicleRepair) -> Unit
+) {
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = AppSurface,
+        accentColor = vehicleRepairAccent(repair.status)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(repair.plate, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Dilaporkan ${repair.reporterName.displayPersonName()} · ${repair.reportedAt}", color = AppTextMuted, fontSize = 10.sp)
+                }
+                Box(
+                    modifier = Modifier.clip(RoundedCornerShape(50.dp))
+                        .background(vehicleRepairAccent(repair.status).copy(alpha = 0.12f))
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                ) {
+                    Text(repair.statusLabel, color = vehicleRepairAccent(repair.status), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Text("Penyebab · ${repair.cause}", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(repair.details, color = AppTextMuted, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            if (repair.activeTaskCount > 0) {
+                Text(
+                    "Ada ${repair.activeTaskCount} tugas aktif terkait armada ini; cek penugasannya sebelum kendaraan dipakai lagi.",
+                    color = WasteRed,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp
+                )
+            }
+            repair.timeline.filter { it.action != "dilaporkan" }.takeLast(3).forEach { event ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "${vehicleRepairEventLabel(event.action)} · ${event.actorName.displayPersonName()}",
+                        color = AppText,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (event.note.isNotBlank()) {
+                        Text(event.note, color = AppTextMuted, fontSize = 10.sp, lineHeight = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+            if (repair.adminNote.isNotBlank() && repair.timeline.lastOrNull()?.note != repair.adminNote) {
+                Text("Catatan Admin · ${repair.adminNote}", color = WasteOrange, fontSize = 10.sp, lineHeight = 14.sp)
+            }
+            actions(repair)
+        }
+    }
+}
+
+@Composable
+private fun VehicleDamageDialog(
+    vehicle: WasteVehicle,
+    onDismiss: () -> Unit,
+    onSubmit: suspend (String, String) -> Unit
+) {
+    var cause by remember(vehicle.id) { mutableStateOf("") }
+    var details by remember(vehicle.id) { mutableStateOf("") }
+    var sending by remember(vehicle.id) { mutableStateOf(false) }
+    var error by remember(vehicle.id) { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = { if (!sending) onDismiss() },
+        title = { Text("Laporkan kerusakan", color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("${vehicle.plate} · kendaraan akan dikunci dari penugasan baru sampai Admin memeriksa perbaikannya.", color = AppTextMuted, fontSize = 11.sp, lineHeight = 16.sp)
+                OutlinedTextField(
+                    value = cause,
+                    onValueChange = { cause = it.take(180) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Penyebab yang diketahui") },
+                    placeholder = { Text("Contoh: ban bocor, rem, mesin") },
+                    singleLine = true,
+                    enabled = !sending
+                )
+                OutlinedTextField(
+                    value = details,
+                    onValueChange = { details = it.take(4000) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Gejala dan kronologi") },
+                    placeholder = { Text("Kapan terjadi, kondisi kendaraan, dan dampaknya") },
+                    minLines = 3,
+                    maxLines = 5,
+                    enabled = !sending
+                )
+                if (error.isNotBlank()) InlineError(error)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = cause.trim().length >= 3 && details.trim().length >= 8 && !sending,
+                onClick = {
+                    scope.launch {
+                        sending = true
+                        error = ""
+                        try {
+                            onSubmit(cause.trim(), details.trim())
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (failure: Exception) {
+                            error = failure.message ?: "Laporan kerusakan gagal dikirim."
+                        } finally {
+                            sending = false
+                        }
+                    }
+                }
+            ) { Text(if (sending) "Mengirim…" else "Kirim laporan", color = WasteRed) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !sending) { Text("Batal", color = LoginMuted) }
+        },
+        containerColor = AppSurface
+    )
+}
+
+@Composable
+private fun VehicleRepairProcessDialog(
+    repair: VehicleRepair,
+    action: String,
+    onDismiss: () -> Unit,
+    onSubmit: suspend (String) -> Unit
+) {
+    val isInspection = action == "pemeriksaan"
+    val isStarting = action == "mulai"
+    var note by remember(repair.id, action) { mutableStateOf("") }
+    var sending by remember(repair.id, action) { mutableStateOf(false) }
+    var error by remember(repair.id, action) { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val title = when {
+        isInspection -> "Minta pemeriksaan Admin"
+        isStarting -> "Mulai perbaikan"
+        else -> "Catat progres perbaikan"
+    }
+    AlertDialog(
+        onDismissRequest = { if (!sending) onDismiss() },
+        title = { Text(title, color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${repair.plate} · ${repair.cause}", color = AppTextMuted, fontSize = 11.sp)
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it.take(800) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(if (isInspection) "Hasil perbaikan" else "Catatan proses") },
+                    placeholder = {
+                        Text(
+                            when {
+                                isInspection -> "Sebutkan tindakan, hasil uji, dan kondisi akhir kendaraan"
+                                isStarting -> "Tuliskan langkah perbaikan pertama"
+                                else -> "Sebutkan tindakan atau komponen yang ditangani"
+                            }
+                        )
+                    },
+                    minLines = 3,
+                    maxLines = 5,
+                    enabled = !sending
+                )
+                if (error.isNotBlank()) InlineError(error)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = note.trim().length >= 5 && !sending,
+                onClick = {
+                    scope.launch {
+                        sending = true
+                        error = ""
+                        try {
+                            onSubmit(note.trim())
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (failure: Exception) {
+                            error = failure.message ?: "Proses perbaikan gagal disimpan."
+                        } finally {
+                            sending = false
+                        }
+                    }
+                }
+            ) { Text(if (sending) "Menyimpan…" else if (isInspection) "Kirim ke Admin" else "Simpan", color = LoginAccent) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !sending) { Text("Batal", color = LoginMuted) }
+        },
+        containerColor = AppSurface
+    )
+}
+
+@Composable
+private fun VehicleRepairReviewDialog(
+    repair: VehicleRepair,
+    action: String,
+    onDismiss: () -> Unit,
+    onSubmit: suspend (String) -> Unit
+) {
+    val requiresNote = action == "tolak" || action == "kembalikan"
+    var note by remember(repair.id, action) { mutableStateOf("") }
+    var sending by remember(repair.id, action) { mutableStateOf(false) }
+    var error by remember(repair.id, action) { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val title = when (action) {
+        "setujui" -> "Setujui perbaikan"
+        "tolak" -> "Tolak laporan kerusakan"
+        "kembalikan" -> "Minta perbaikan ulang"
+        else -> "Sahkan kendaraan"
+    }
+    val confirmation = when (action) {
+        "setujui" -> "Kendaraan tetap tidak tersedia sampai perbaikan selesai dan hasilnya disetujui Admin."
+        "selesai" -> "Setelah pemeriksaan ini disetujui, kondisi kendaraan akan kembali Baik dan bisa dipilih untuk penugasan."
+        "tolak" -> "Kendaraan akan tetap berstatus Rusak. Jelaskan alasan penolakan agar Petugas tahu tindak lanjutnya."
+        else -> "Kendaraan tetap tidak tersedia. Jelaskan bagian yang masih perlu diperbaiki."
+    }
+    AlertDialog(
+        onDismissRequest = { if (!sending) onDismiss() },
+        title = { Text(title, color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${repair.plate} · ${repair.reporterName.displayPersonName()}", color = AppTextMuted, fontSize = 11.sp)
+                Text(confirmation, color = AppText, fontSize = 12.sp, lineHeight = 17.sp)
+                if (action == "tolak" || action == "kembalikan" || action == "selesai") {
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = { note = it.take(800) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(if (action == "selesai") "Catatan pemeriksaan (opsional)" else "Catatan Admin") },
+                        placeholder = { Text("Tulis alasan atau hasil pemeriksaan") },
+                        minLines = 2,
+                        maxLines = 4,
+                        enabled = !sending
+                    )
+                }
+                if (error.isNotBlank()) InlineError(error)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = (!requiresNote || note.trim().length >= 5) && !sending,
+                onClick = {
+                    scope.launch {
+                        sending = true
+                        error = ""
+                        try {
+                            onSubmit(note.trim())
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (failure: Exception) {
+                            error = failure.message ?: "Keputusan Admin gagal disimpan."
+                        } finally {
+                            sending = false
+                        }
+                    }
+                }
+            ) { Text(if (sending) "Menyimpan…" else title, color = if (action == "tolak") WasteRed else LoginAccent) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !sending) { Text("Batal", color = LoginMuted) }
+        },
+        containerColor = AppSurface
+    )
+}
+
+@Composable
 private fun VehicleFormDialog(
     vehicle: WasteVehicle?,
     onDismiss: () -> Unit,
@@ -5486,11 +5931,13 @@ private fun VehicleFormDialog(
             ScrollableDialogContent {
                 FormField(plate, { plate = it }, "Nomor polisi")
                 FormField(capacity, { capacity = it }, "Kapasitas (kg)")
-                SelectionField(
-                    "Kondisi kendaraan",
-                    condition,
-                    listOf("Baik", "Servis"),
-                    { it }) { condition = it }
+                Text(
+                    if (vehicle == null) "Kendaraan baru tercatat Baik. Kerusakan dilaporkan melalui alur persetujuan Admin."
+                    else "Kondisi saat ini · ${vehicle.condition}. Perubahan kondisi mengikuti proses perbaikan Admin.",
+                    color = AppTextMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
                 FormField(route, { route = it }, "Rute")
                 if (vehicle != null) Text(
                     "Terpakai ${vehicle.loadKg.pretty()} kg · dicadangkan ${vehicle.reservedKg.pretty()} kg",
@@ -5504,10 +5951,6 @@ private fun VehicleFormDialog(
             val proposedCapacity = capacity.toDoubleOrNull() ?: 0.0
             val canFitCurrentLoad =
                 vehicle == null || proposedCapacity >= vehicle.loadKg + vehicle.reservedKg
-            val canChangeCondition = vehicle == null || condition.equals(
-                "baik",
-                true
-            ) || (vehicle.loadKg == 0.0 && vehicle.reservedKg == 0.0)
             TextButton(
                 onClick = {
                     if (!saving) scope.launch {
@@ -5524,7 +5967,7 @@ private fun VehicleFormDialog(
                         }
                     }
                 },
-                enabled = plate.isNotBlank() && proposedCapacity > 0 && canFitCurrentLoad && canChangeCondition && !saving
+                enabled = plate.isNotBlank() && proposedCapacity > 0 && canFitCurrentLoad && !saving
             ) { Text(if (saving) "Menyimpan…" else "Simpan", color = LoginAccent) }
         },
         dismissButton = {

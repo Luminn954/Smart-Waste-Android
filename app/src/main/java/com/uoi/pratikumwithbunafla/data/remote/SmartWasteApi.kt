@@ -374,6 +374,68 @@ object SmartWasteApi {
         request("DELETE", "/admin/petugas/$workerId$replacementQuery")
     }
 
+    suspend fun vehicleRepairs(admin: Boolean): List<VehicleRepair> {
+        val path = if (admin) "/admin/perbaikan" else "/petugas/perbaikan"
+        val data = request("GET", path).optJSONArray("repairs") ?: JSONArray()
+        return (0 until data.length()).mapNotNull { index ->
+            data.optJSONObject(index)?.let { item ->
+                val timelineJson = item.optJSONArray("timeline") ?: JSONArray()
+                val timeline = (0 until timelineJson.length()).mapNotNull { eventIndex ->
+                    timelineJson.optJSONObject(eventIndex)?.let { event ->
+                        VehicleRepairEvent(
+                            action = value(event, "action"),
+                            note = value(event, "note"),
+                            actorName = value(event, "actor_name"),
+                            actorRole = value(event, "actor_role"),
+                            createdAt = value(event, "created_at")
+                        )
+                    }
+                }
+                VehicleRepair(
+                    id = item.optInt("id"),
+                    vehicleId = item.optInt("vehicle_id"),
+                    plate = value(item, "plate"),
+                    reporterId = item.optInt("reporter_id"),
+                    reporterName = value(item, "reporter_name"),
+                    cause = value(item, "cause"),
+                    details = value(item, "details"),
+                    status = value(item, "status"),
+                    statusLabel = value(item, "status_label"),
+                    progressNote = value(item, "progress_note"),
+                    adminNote = value(item, "admin_note"),
+                    activeTaskCount = item.optInt("active_task_count"),
+                    reportedAt = value(item, "reported_at"),
+                    updatedAt = value(item, "updated_at"),
+                    timeline = timeline
+                )
+            }
+        }
+    }
+
+    suspend fun reportVehicleDamage(vehicleId: Int, cause: String, details: String) {
+        request(
+            "POST", "/petugas/kendaraan/$vehicleId/kerusakan",
+            JSONObject().put("cause", cause.trim()).put("details", details.trim())
+        )
+    }
+
+    suspend fun startVehicleRepair(repairId: Int, note: String) {
+        request("PATCH", "/petugas/perbaikan/$repairId/mulai", JSONObject().put("note", note.trim()))
+    }
+
+    suspend fun updateVehicleRepairProgress(repairId: Int, note: String) {
+        request("PATCH", "/petugas/perbaikan/$repairId/progres", JSONObject().put("note", note.trim()))
+    }
+
+    suspend fun submitVehicleRepairForInspection(repairId: Int, note: String) {
+        request("PATCH", "/petugas/perbaikan/$repairId/pemeriksaan", JSONObject().put("note", note.trim()))
+    }
+
+    suspend fun reviewVehicleRepair(repairId: Int, action: String, note: String = "") {
+        require(action in setOf("setujui", "tolak", "kembalikan", "selesai"))
+        request("PATCH", "/admin/perbaikan/$repairId/$action", JSONObject().put("note", note.trim()))
+    }
+
     suspend fun vehicles(): List<WasteVehicle> {
         val data = request("GET", "/petugas/kendaraan").optJSONArray("vehicles") ?: JSONArray()
         return (0 until data.length()).map { index ->
@@ -394,7 +456,7 @@ object SmartWasteApi {
         request(
             "POST", "/petugas/kendaraan", JSONObject()
                 .put("plate", plate).put("capacity_kg", capacityKg)
-                .put("condition", condition).put("route", route)
+                .put("route", route)
         )
     }
 
@@ -402,7 +464,7 @@ object SmartWasteApi {
         request(
             "PATCH", "/petugas/kendaraan/${vehicle.id}", JSONObject()
                 .put("plate", vehicle.plate).put("capacity_kg", vehicle.capacityKg)
-                .put("condition", vehicle.condition).put("route", vehicle.route)
+                .put("route", vehicle.route)
         )
     }
 

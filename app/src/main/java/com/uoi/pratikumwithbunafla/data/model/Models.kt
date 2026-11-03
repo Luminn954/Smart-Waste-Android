@@ -123,6 +123,32 @@ data class ArchivedAdminNote(
     val archivedBy: String = "Admin"
 )
 
+data class VehicleRepairEvent(
+    val action: String,
+    val note: String,
+    val actorName: String,
+    val actorRole: String,
+    val createdAt: String
+)
+
+data class VehicleRepair(
+    val id: Int,
+    val vehicleId: Int,
+    val plate: String,
+    val reporterId: Int,
+    val reporterName: String,
+    val cause: String,
+    val details: String,
+    val status: String,
+    val statusLabel: String,
+    val progressNote: String,
+    val adminNote: String,
+    val activeTaskCount: Int,
+    val reportedAt: String,
+    val updatedAt: String,
+    val timeline: List<VehicleRepairEvent> = emptyList()
+)
+
 data class WasteVehicle(
     val id: Int,
     val plate: String,
