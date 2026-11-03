@@ -416,14 +416,13 @@ class MainActivity : ComponentActivity() {
                                 archivedAdminNotes = archivedAdminNotes,
                                 errorMessage = errorMessage,
                                 account = account,
-                                onCreateWorker = { name, username, email, password, zone, role ->
+                                onCreateWorker = { name, username, email, password, zone ->
                                     SmartWasteApi.createStaffAccount(
                                         name,
                                         username,
                                         email,
                                         password,
-                                        zone,
-                                        role
+                                        zone
                                     )
                                     refreshWorkspace()
                                 },

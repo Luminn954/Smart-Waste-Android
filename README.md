@@ -38,6 +38,6 @@ app/src/main/java/com/uoi/pratikumwithbunafla/
 ## Konfigurasi akun dan server
 
 - Admin dan Petugas masuk memakai username dan kata sandi yang dibuat admin pertama. Website tetap memakai login user dengan username/email dan kata sandi.
-- PHP membaca `SMARTWASTE_FIRST_ADMIN_EMAIL` untuk alamat email profil admin pertama, serta `SMARTWASTE_DB_HOST`, `SMARTWASTE_DB_PORT`, `SMARTWASTE_DB_NAME`, `SMARTWASTE_DB_USER`, dan `SMARTWASTE_DB_PASSWORD`.
+- Untuk database baru, atur `SMARTWASTE_BOOTSTRAP_ADMIN_PASSWORD` (minimal 8 karakter) pada `Waste 2/backend-php/.env` sebelum setup. Akun `admin` hanya dibuat saat belum ada; akun lama tidak diubah. PHP membaca konfigurasi database XAMPP dari variabel `SMARTWASTE_DB_HOST`, `SMARTWASTE_DB_PORT`, `SMARTWASTE_DB_NAME`, `SMARTWASTE_DB_USER`, dan `SMARTWASTE_DB_PASSWORD`.
 - Nilai default database cocok untuk XAMPP lokal: `127.0.0.1:3306`, database `smart_waste`, user `root`, password kosong.
 - Detail API, role, dan alur perubahan ada di [docs/architecture.md](docs/architecture.md) dan README project web `Waste 2`.

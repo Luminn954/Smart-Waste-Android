@@ -2326,7 +2326,7 @@ fun AdminOperationsScreen(
     archivedAdminNotes: List<ArchivedAdminNote>,
     errorMessage: String,
     account: UserAccount,
-    onCreateWorker: suspend (String, String, String, String, String, String) -> Unit,
+    onCreateWorker: suspend (String, String, String, String, String) -> Unit,
     onUpdateWorker: suspend (AdminWorker, Boolean) -> Unit,
     onDeleteWorker: suspend (AdminWorker, Int?) -> Unit,
     onOpenPhoto: (String) -> Unit,
@@ -2982,10 +2982,9 @@ fun AdminOperationsScreen(
     }
     if (adding && tab == "petugas") {
         StaffAccountFormDialog(
-            allowAdminAccount = false,
             onDismiss = { adding = false },
-            onSave = { name, username, email, password, zone, role ->
-                onCreateWorker(name, username, email, password, zone, role)
+            onSave = { name, username, email, password, zone ->
+                onCreateWorker(name, username, email, password, zone)
                 adding = false
             }
         )
@@ -5622,16 +5621,14 @@ private fun PetugasEmptyState(title: String, message: String) {
 
 @Composable
 private fun StaffAccountFormDialog(
-    allowAdminAccount: Boolean,
     onDismiss: () -> Unit,
-    onSave: suspend (String, String, String, String, String, String) -> Unit
+    onSave: suspend (String, String, String, String, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var zone by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("petugas") }
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -5639,7 +5636,7 @@ private fun StaffAccountFormDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                if (allowAdminAccount) "Daftarkan akun staf" else "Tambah akun petugas",
+                "Tambah akun petugas",
                 color = LoginInk,
                 fontWeight = FontWeight.Bold
             )
@@ -5651,20 +5648,12 @@ private fun StaffAccountFormDialog(
                     color = LoginMuted,
                     fontSize = 11.sp
                 )
-                if (allowAdminAccount) {
-                    SelectionField(
-                        "Role akun",
-                        role,
-                        listOf("admin", "petugas"),
-                        { if (it == "admin") "Admin" else "Petugas" }) { role = it }
-                } else {
-                    Text("Role akun · Petugas", color = AppTextMuted, fontSize = 11.sp)
-                }
+                Text("Role akun · Petugas", color = AppTextMuted, fontSize = 11.sp)
                 FormField(name, { name = it }, "Nama lengkap")
                 FormField(username, { username = it }, "Username")
                 FormField(email, { email = it }, "Email akun")
-                FormField(password, { password = it }, "Password awal (minimal 5 karakter)")
-                if (role == "petugas") FormField(zone, { zone = it }, "Zona tugas")
+                FormField(password, { password = it }, "Password awal (minimal 8 karakter)")
+                FormField(zone, { zone = it }, "Zona tugas")
                 if (saveError.isNotBlank()) InlineError(saveError)
             }
         },
@@ -5680,8 +5669,7 @@ private fun StaffAccountFormDialog(
                                 username.trim(),
                                 email.trim(),
                                 password,
-                                zone.trim(),
-                                role
+                                zone.trim()
                             )
                         } catch (cancelled: CancellationException) {
                             throw cancelled
@@ -5695,8 +5683,8 @@ private fun StaffAccountFormDialog(
                 enabled = name.isNotBlank() &&
                         username.trim().length >= 3 &&
                         email.trim().matches(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) &&
-                        password.length >= 5 &&
-                        (role == "admin" || zone.isNotBlank()) &&
+                        password.length >= 8 &&
+                        zone.isNotBlank() &&
                         !saving
             ) { Text(if (saving) "Menyimpan…" else "Simpan", color = LoginAccent) }
         },

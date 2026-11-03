@@ -351,10 +351,8 @@ object SmartWasteApi {
         username: String,
         email: String,
         password: String,
-        zone: String,
-        role: String
+        zone: String
     ) {
-        require(role == "petugas") { "Admin hanya dapat menambahkan akun Petugas." }
         request(
             "POST", "/admin/petugas", JSONObject()
                 .put("nama", name).put("username", username).put("email", email)
