@@ -1,5 +1,6 @@
 package com.uoi.pratikumwithbunafla.ui.admin
 
+import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -555,7 +556,7 @@ private fun AdminNavigationBar(
     val destinations = listOf(
         Triple("dashboard", "Beranda", Icons.Filled.Home),
         Triple("reports", "Laporan", Icons.AutoMirrored.Filled.Assignment),
-        Triple("ops", "Petugas", Icons.Filled.Build),
+        Triple("ops", "Operasional", Icons.Filled.Build),
         Triple("stats", "Statistik", Icons.Filled.BarChart)
     )
     FloatingRoleNavigationBar(current, destinations, onNavigate)
@@ -1062,6 +1063,7 @@ fun AdminDashboardScreen(
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
     pendingProofCount: Int = 0,
+    pendingVehicleRepairActionCount: Int = 0,
     isInitialLoading: Boolean = false,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {}
@@ -1117,7 +1119,7 @@ fun AdminDashboardScreen(
         }
         AppCard(
             modifier = Modifier.fillMaxWidth(),
-            containerColor = Color.White,
+            containerColor = AppSurface,
             borderColor = AppBorder,
             accentColor = LoginAccent
         ) {
@@ -1146,7 +1148,7 @@ fun AdminDashboardScreen(
                     ) { onNavigate("ops:petugas") }
                 }
                 when {
-                    summary.hazardAlerts == 0 && pendingProofCount == 0 -> Text(
+                    summary.hazardAlerts == 0 && pendingProofCount == 0 && pendingVehicleRepairActionCount == 0 -> Text(
                         "Pantau progres tugas petugas dari bukti penyelesaian dan statistik.",
                         color = AppTextMuted,
                         fontSize = 11.sp,
@@ -1159,7 +1161,7 @@ fun AdminDashboardScreen(
                                 detail = "Periksa sebelum ditangani petugas",
                                 icon = Icons.Filled.ReportProblem,
                                 tint = WasteRed
-                            ) { onNavigate("status:semua") }
+                            ) { onNavigate("status:bahaya") }
                         }
                         if (pendingProofCount > 0) {
                             DashboardPriorityAction(
@@ -1167,7 +1169,15 @@ fun AdminDashboardScreen(
                                 detail = "Tinjau hasil kerja sebelum disetujui",
                                 icon = Icons.Filled.CheckCircle,
                                 tint = WasteGreenDark
-                            ) { onNavigate("ops:catatan") }
+                            ) { onNavigate("ops:catatan-bukti") }
+                        }
+                        if (pendingVehicleRepairActionCount > 0) {
+                            DashboardPriorityAction(
+                                title = "$pendingVehicleRepairActionCount proses armada menunggu",
+                                detail = "Tinjau persetujuan atau hasil perbaikan",
+                                icon = Icons.Filled.Build,
+                                tint = WasteOrange
+                            ) { onNavigate("ops:armada") }
                         }
                     }
                 }
@@ -1180,7 +1190,7 @@ fun AdminDashboardScreen(
         } else {
             AppCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = Color.White,
+                containerColor = AppSurface,
                 borderColor = AppBorder
             ) {
                 Column(
@@ -1308,6 +1318,7 @@ fun AdminVerificationScreen(
     val waitingReports = reports.filter { it.status == WasteFlow.WAITING }
     val activeFilter = if (showingArchive) "arsip" else when {
         !showAllReports || selectedStatus == WasteFlow.WAITING -> "baru"
+        selectedStatus == "bahaya" -> "bahaya"
         selectedStatus == null -> "semua"
         selectedStatus in setOf(WasteFlow.PROCESSING, WasteFlow.ASSIGNED, WasteFlow.TRANSPORTED) -> "proses"
         selectedStatus == WasteFlow.DONE -> "selesai"
@@ -1315,6 +1326,9 @@ fun AdminVerificationScreen(
     }
     val visibleReports = if (showingArchive) emptyList() else when {
         !showAllReports -> waitingReports
+        selectedStatus == "bahaya" -> reports.filter {
+            it.hazardLevel.isNotBlank() && !it.hazardLevel.equals("RENDAH", ignoreCase = true)
+        }
         selectedStatus == null -> reports
         selectedStatus in setOf(WasteFlow.PROCESSING, WasteFlow.ASSIGNED, WasteFlow.TRANSPORTED) ->
             reports.filter { WasteFlow.isInProgress(it.status) }
@@ -1332,9 +1346,12 @@ fun AdminVerificationScreen(
     ).any { it.lowercase().contains(searchQuery) }
     val filteredReports = visibleReports.filter(::matchesSearch)
     val filteredArchivedReports = archivedReports.filter { matchesSearch(it.report) }
+    val reportLoadFailed = errorMessage.lineSequence().any { it.startsWith("Laporan:") }
+    val archiveLoadFailed = errorMessage.lineSequence().any { it.startsWith("Arsip laporan:") }
     val reportFilters = listOf(
         "baru" to "Baru",
         "proses" to "Proses",
+        "bahaya" to "Risiko / B3",
         "selesai" to "Selesai",
         "ditolak" to "Ditolak",
         "semua" to "Semua"
@@ -1386,6 +1403,10 @@ fun AdminVerificationScreen(
                                 "proses" -> {
                                     onReportViewChange(true)
                                     onFilterChange(WasteFlow.PROCESSING)
+                                }
+                                "bahaya" -> {
+                                    onReportViewChange(true)
+                                    onFilterChange("bahaya")
                                 }
                                 "selesai" -> {
                                     onReportViewChange(true)
@@ -1441,6 +1462,7 @@ fun AdminVerificationScreen(
             else "${filteredReports.size} ${when (activeFilter) {
                     "baru" -> "laporan baru"
                     "proses" -> "laporan diproses"
+                    "bahaya" -> "laporan berisiko"
                     "selesai" -> "laporan selesai"
                     "ditolak" -> "laporan ditolak"
                     else -> "laporan"
@@ -1449,12 +1471,19 @@ fun AdminVerificationScreen(
             else when (activeFilter) {
                     "baru" -> "Laporan baru menunggu ditangani petugas."
                     "proses" -> "Mencakup laporan ditugaskan dan sedang diangkut."
+                    "bahaya" -> "Tinjau laporan berbahaya sebelum menentukan penanganan."
                     "selesai" -> "Laporan yang sudah selesai diterima di TPA."
                     "ditolak" -> "Laporan yang ditolak setelah ditinjau."
                     else -> "Pantau seluruh laporan warga."
                 }
         )
         when {
+            showingArchive && archivedReports.isEmpty() && isInitialLoading -> {
+                PetugasLoadingState("Memuat arsip", "Mengambil laporan tersimpan dari server.")
+            }
+            showingArchive && archivedReports.isEmpty() && archiveLoadFailed -> {
+                PetugasLoadFailure("Arsip laporan belum dapat dimuat.", onRefresh)
+            }
             showingArchive && filteredArchivedReports.isEmpty() && reportSearch.isBlank() -> {
                 EmptyAdminState("Arsip masih kosong.")
             }
@@ -1478,13 +1507,17 @@ fun AdminVerificationScreen(
                 }
             }
             filteredReports.isEmpty() -> {
-                EmptyAdminState(
-                    when {
-                        reportSearch.isNotBlank() -> "Tidak ada laporan yang cocok dengan pencarian."
-                        showAllReports -> "Belum ada laporan pada status ini."
-                        else -> "Semua laporan baru sudah ditinjau."
-                    }
-                )
+                if (reportLoadFailed) {
+                    PetugasLoadFailure("Daftar laporan belum dapat dimuat.", onRefresh)
+                } else {
+                    EmptyAdminState(
+                        when {
+                            reportSearch.isNotBlank() -> "Tidak ada laporan yang cocok dengan pencarian."
+                            showAllReports -> "Belum ada laporan pada status ini."
+                            else -> "Semua laporan baru sudah ditinjau."
+                        }
+                    )
+                }
             }
             else -> {
                 filteredReports.forEach { report ->
@@ -1615,7 +1648,7 @@ private fun AdminReportCard(
     }.joinToString("  ·  ")
     AppCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = if (petugasStyle) AppSurface else Color.White,
+        containerColor = AppSurface,
         accentColor = if (petugasStyle) null else accent,
         borderColor = AppBorder
     ) {
@@ -2103,7 +2136,7 @@ fun AdminStatsScreen(
         }
         AppCard(
             modifier = Modifier.fillMaxWidth(),
-            containerColor = Color.White,
+            containerColor = AppSurface,
             borderColor = AppBorder,
             accentColor = WasteTeal
         ) {
@@ -2152,7 +2185,7 @@ fun AdminStatsScreen(
         if (monthlyBars.isEmpty()) EmptyAdminState("Belum ada data bulanan.") else {
             AppCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = Color.White,
+                containerColor = AppSurface,
                 borderColor = AppBorder
             ) {
                 Column(
@@ -2210,14 +2243,14 @@ fun AdminStatsScreen(
         if (stats.byType.isEmpty()) EmptyAdminState("Belum ada data jenis sampah.") else {
             AppCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = Color.White,
+                containerColor = AppSurface,
                 borderColor = AppBorder
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    stats.byType.take(6).forEachIndexed { index, item ->
+                    stats.byType.sortedByDescending { it.weightKg }.take(6).forEachIndexed { index, item ->
                         val accent = chartColors[index % chartColors.size]
                         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2249,7 +2282,7 @@ fun AdminStatsScreen(
         } else {
             AppCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = Color.White,
+                containerColor = AppSurface,
                 borderColor = AppBorder
             ) {
                 Column(
@@ -2311,7 +2344,13 @@ fun AdminOperationsScreen(
     onRefresh: () -> Unit = {}
 ) {
     var tab by rememberSaveable(account.role, initialTab) {
-        mutableStateOf(initialTab.takeIf { it in setOf("catatan", "armada") } ?: "petugas")
+        mutableStateOf(
+            when (initialTab) {
+                "catatan", "catatan-bukti" -> "catatan"
+                "armada" -> "armada"
+                else -> "petugas"
+            }
+        )
     }
     var adding by rememberSaveable { mutableStateOf(false) }
     var editingWorker by remember { mutableStateOf<AdminWorker?>(null) }
@@ -2323,8 +2362,11 @@ fun AdminOperationsScreen(
     var revisionSending by remember { mutableStateOf(false) }
     var processingCompletionId by remember { mutableStateOf<Int?>(null) }
     var showingNoteArchive by rememberSaveable { mutableStateOf(false) }
+    var showingRepairHistory by rememberSaveable(account.role) { mutableStateOf(false) }
     var activeNoteSearch by rememberSaveable { mutableStateOf("") }
-    var activeNoteFilter by rememberSaveable { mutableStateOf("semua") }
+    var activeNoteFilter by rememberSaveable(initialTab) {
+        mutableStateOf(if (initialTab == "catatan-bukti") "tinjau" else "semua")
+    }
     var archiveSearch by rememberSaveable { mutableStateOf("") }
     var archivingAdminNote by remember { mutableStateOf<AdminNoteRecord?>(null) }
     var restoringAdminNote by remember { mutableStateOf<ArchivedAdminNote?>(null) }
@@ -2480,7 +2522,7 @@ fun AdminOperationsScreen(
                 visibleWorkers.forEach { item ->
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = Color.White,
+                        containerColor = AppSurface,
                         borderColor = AppBorder,
                         accentColor = if (item.active && item.hasAccount) LoginAccent else WasteRed
                     ) {
@@ -2575,18 +2617,38 @@ fun AdminOperationsScreen(
             "armada" -> {
                 val waitingApproval = vehicleRepairs.count { it.status == "menunggu_persetujuan" }
                 val waitingInspection = vehicleRepairs.count { it.status == "menunggu_pemeriksaan" }
+                val activeRepairs = vehicleRepairs.filter { it.status !in setOf("selesai", "ditolak") }
+                val repairHistory = vehicleRepairs.filter { it.status in setOf("selesai", "ditolak") }
+                val visibleRepairs = if (showingRepairHistory) repairHistory else activeRepairs
                 SectionTitle(
                     "Perlu perhatian",
                     "$waitingApproval menunggu keputusan · $waitingInspection menunggu pemeriksaan hasil"
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        false to "Berjalan · ${activeRepairs.size}",
+                        true to "Riwayat · ${repairHistory.size}"
+                    ).forEach { (history, label) ->
+                        TextButton(
+                            onClick = { showingRepairHistory = history },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (showingRepairHistory == history) LoginAccent else LoginMuted,
+                                containerColor = if (showingRepairHistory == history) WasteBlue else AppSurface
+                            ),
+                            shape = RoundedCornerShape(13.dp)
+                        ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                    }
+                }
                 if (vehicleRepairs.isEmpty() && isInitialLoading) {
                     PetugasLoadingState("Memuat perbaikan", "Mengambil laporan kerusakan armada.")
                 } else if (vehicleRepairs.isEmpty() && errorMessage.contains("Perbaikan armada:")) {
                     PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh)
                 } else if (vehicleRepairs.isEmpty()) {
                     EmptyAdminState("Belum ada laporan kerusakan armada.")
+                } else if (visibleRepairs.isEmpty()) {
+                    EmptyAdminState(if (showingRepairHistory) "Belum ada riwayat perbaikan." else "Tidak ada proses yang perlu ditinjau.")
                 } else {
-                    vehicleRepairs.forEach { repair ->
+                    visibleRepairs.forEach { repair ->
                         VehicleRepairCard(repair = repair) {
                             when (repair.status) {
                                 "menunggu_persetujuan" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2658,7 +2720,7 @@ fun AdminOperationsScreen(
                         val note = archived.note
                         AppCard(
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = Color.White,
+                            containerColor = AppSurface,
                             borderColor = AppBorder,
                             accentColor = reportAccent(note.report.status)
                         ) {
@@ -2874,7 +2936,7 @@ fun AdminOperationsScreen(
                             ?: report.description
                         AppCard(
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = Color.White,
+                            containerColor = AppSurface,
                             borderColor = AppBorder,
                             accentColor = reportAccent(report.status)
                         ) {
@@ -3180,7 +3242,7 @@ fun PetugasTasksScreen(
     onRejectReport: suspend (WasteRecord, String) -> Unit,
     onMarkTransported: suspend (WasteRecord) -> Unit,
     onSubmitProof: suspend (WasteRecord, Uri, String) -> Unit,
-    onCreateVehicle: suspend (String, Double, String, String) -> Unit,
+    onCreateVehicle: suspend (String, Double, String) -> Unit,
     onUpdateVehicle: suspend (WasteVehicle) -> Unit,
     onReportVehicleDamage: suspend (WasteVehicle, String, String) -> Unit,
     onStartVehicleRepair: suspend (VehicleRepair, String) -> Unit,
@@ -3201,6 +3263,7 @@ fun PetugasTasksScreen(
     var activeTaskFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
     var historyFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
     var showingTaskArchive by rememberSaveable(account.username) { mutableStateOf(false) }
+    var showingRepairHistory by rememberSaveable(account.username) { mutableStateOf(false) }
     var archivingHistoryTask by remember { mutableStateOf<WasteRecord?>(null) }
     var restoringHistoryTask by remember { mutableStateOf<WasteRecord?>(null) }
     var archiveActionError by remember { mutableStateOf("") }
@@ -3217,10 +3280,13 @@ fun PetugasTasksScreen(
     var reportActionError by remember { mutableStateOf("") }
     var processingReportAction by remember { mutableStateOf(false) }
     var transportingTaskId by remember { mutableStateOf<Int?>(null) }
-    var selectedCompletionTask by remember { mutableStateOf<WasteRecord?>(null) }
-    var selectedProofUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedCameraUri by remember { mutableStateOf<Uri?>(null) }
-    var cameraEvidenceFile by remember { mutableStateOf<File?>(null) }
+    var selectedCompletionTaskId by rememberSaveable(account.username) { mutableStateOf<Int?>(null) }
+    val selectedCompletionTask = tasks.firstOrNull { it.id == selectedCompletionTaskId }
+    var selectedProofUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
+    var selectedCameraUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
+    var galleryEvidenceUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
+    var cameraEvidencePath by rememberSaveable(account.username) { mutableStateOf<String?>(null) }
+    val cameraEvidenceFile = cameraEvidencePath?.let(::File)
     var showProofSourceDialog by remember { mutableStateOf(false) }
     var proofNote by rememberSaveable { mutableStateOf("") }
     var proofError by remember { mutableStateOf("") }
@@ -3235,16 +3301,25 @@ fun PetugasTasksScreen(
     }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
+        galleryEvidenceUri = uri
         selectedProofUri = uri
-        if (uri == null) selectedCompletionTask = null
+        if (uri == null) selectedCompletionTaskId = null
         showProofSourceDialog = false
     }
     val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
         selectedProofUri = if (captured) selectedCameraUri else null
         if (!captured) {
             cameraEvidenceFile?.delete()
-            cameraEvidenceFile = null
+            cameraEvidencePath = null
             selectedCameraUri = null
             proofError = "Foto belum diambil. Kamu bisa mencoba lagi atau memilih dari galeri."
             showProofSourceDialog = true
@@ -3252,17 +3327,27 @@ fun PetugasTasksScreen(
     }
     fun clearProofSelection() {
         cameraEvidenceFile?.delete()
-        cameraEvidenceFile = null
+        cameraEvidencePath = null
         selectedCameraUri = null
+        galleryEvidenceUri?.let { uri ->
+            runCatching {
+                context.contentResolver.releasePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
+        galleryEvidenceUri = null
         selectedProofUri = null
-        selectedCompletionTask = null
+        selectedCompletionTaskId = null
         showProofSourceDialog = false
     }
     fun requestCompletionProof(task: WasteRecord) {
         cameraEvidenceFile?.delete()
-        cameraEvidenceFile = null
+        cameraEvidencePath = null
         selectedCameraUri = null
-        selectedCompletionTask = task
+        galleryEvidenceUri = null
+        selectedCompletionTaskId = task.id
         selectedProofUri = null
         proofNote = ""
         proofError = ""
@@ -3278,13 +3363,13 @@ fun PetugasTasksScreen(
                 "${context.packageName}.fileprovider",
                 file
             )
-            cameraEvidenceFile = file
+            cameraEvidencePath = file.absolutePath
             selectedCameraUri = uri
             showProofSourceDialog = false
             cameraPicker.launch(uri)
         }.onFailure { error ->
             file.delete()
-            cameraEvidenceFile = null
+            cameraEvidencePath = null
             selectedCameraUri = null
             proofError = error.message ?: "Kamera tidak dapat dibuka. Pilih foto dari galeri."
         }
@@ -3738,21 +3823,37 @@ fun PetugasTasksScreen(
 
                     "perbaikan" -> {
                         val activeRepairs = vehicleRepairs.filter { it.status !in setOf("selesai", "ditolak") }
+                        val repairHistory = vehicleRepairs.filter { it.status in setOf("selesai", "ditolak") }
+                        val visibleRepairs = if (showingRepairHistory) repairHistory else activeRepairs
                         SectionTitle(
                             "Proses perbaikan",
                             "Catat penyebab, tulis progres, lalu kirim hasil untuk diperiksa Admin."
                         )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(
+                                false to "Berjalan · ${activeRepairs.size}",
+                                true to "Riwayat · ${repairHistory.size}"
+                            ).forEach { (history, label) ->
+                                TextButton(
+                                    onClick = { showingRepairHistory = history },
+                                    colors = ButtonDefaults.textButtonColors(
+                                        contentColor = if (showingRepairHistory == history) LoginAccent else LoginMuted,
+                                        containerColor = if (showingRepairHistory == history) WasteBlue else AppSurface
+                                    ),
+                                    shape = RoundedCornerShape(13.dp)
+                                ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                            }
+                        }
                         if (isInitialLoading && vehicleRepairs.isEmpty()) {
                             PetugasLoadingState("Memuat perbaikan", "Mengambil status laporan kerusakan.")
                         } else if (vehicleRepairs.isEmpty() && hasLoadError("Perbaikan armada")) {
                             PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh)
                         } else if (vehicleRepairs.isEmpty()) {
                             PetugasEmptyState("Belum ada proses perbaikan", "Laporkan kerusakan dari tab Armada untuk memulai alur persetujuan.")
+                        } else if (visibleRepairs.isEmpty()) {
+                            PetugasEmptyState(if (showingRepairHistory) "Belum ada riwayat perbaikan" else "Semua proses perbaikan sudah selesai.", "Pilih Riwayat untuk melihat pekerjaan yang sudah ditutup.")
                         } else {
-                            if (activeRepairs.isNotEmpty()) {
-                                Text("Berjalan · ${activeRepairs.size}", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                            vehicleRepairs.forEach { repair ->
+                            visibleRepairs.forEach { repair ->
                                 VehicleRepairCard(repair = repair) {
                                     when (repair.status) {
                                         "disetujui", "perlu_perbaikan" -> TextButton(
@@ -4202,10 +4303,10 @@ fun PetugasTasksScreen(
                     TextButton(
                         onClick = {
                             cameraEvidenceFile?.delete()
-                            cameraEvidenceFile = null
+                            cameraEvidencePath = null
                             selectedCameraUri = null
                             showProofSourceDialog = false
-                            proofPicker.launch("image/*")
+                            proofPicker.launch(arrayOf("image/*"))
                         }
                     ) { Text("Pilih galeri", color = LoginMuted) }
                     TextButton(onClick = ::launchEvidenceCamera) {
@@ -4337,10 +4438,10 @@ fun PetugasTasksScreen(
         VehicleFormDialog(
             vehicle = editingVehicle,
             onDismiss = { showVehicleForm = false; editingVehicle = null },
-            onSave = { plate, capacity, condition, route ->
+            onSave = { plate, capacity, route ->
                 val vehicle = editingVehicle
-                if (vehicle == null) onCreateVehicle(plate, capacity, condition, route)
-                else onUpdateVehicle(vehicle.copy(plate = plate, capacityKg = capacity, condition = condition, route = route))
+                if (vehicle == null) onCreateVehicle(plate, capacity, route)
+                else onUpdateVehicle(vehicle.copy(plate = plate, capacityKg = capacity, route = route))
                 showVehicleForm = false
                 editingVehicle = null
             }
@@ -5637,6 +5738,8 @@ private fun VehicleRepairCard(
     repair: VehicleRepair,
     actions: @Composable (VehicleRepair) -> Unit
 ) {
+    val timelineEvents = repair.timeline.filter { it.action != "dilaporkan" }
+    var showFullTimeline by rememberSaveable(repair.id) { mutableStateOf(false) }
     AppCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = AppSurface,
@@ -5669,17 +5772,36 @@ private fun VehicleRepairCard(
                     lineHeight = 14.sp
                 )
             }
-            repair.timeline.filter { it.action != "dilaporkan" }.takeLast(3).forEach { event ->
+            (if (showFullTimeline) timelineEvents else timelineEvents.takeLast(3)).forEach { event ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        "${vehicleRepairEventLabel(event.action)} · ${event.actorName.displayPersonName()}",
+                        vehicleRepairEventLabel(event.action),
                         color = AppText,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                    Text(
+                        listOf(event.actorName.displayPersonName(), event.actorRole, event.createdAt)
+                            .filter(String::isNotBlank)
+                            .joinToString(" · "),
+                        color = AppTextMuted,
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     if (event.note.isNotBlank()) {
                         Text(event.note, color = AppTextMuted, fontSize = 10.sp, lineHeight = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
+                }
+            }
+            if (timelineEvents.size > 3) {
+                TextButton(onClick = { showFullTimeline = !showFullTimeline }) {
+                    Text(
+                        if (showFullTimeline) "Ringkas riwayat" else "Lihat semua ${timelineEvents.size} langkah",
+                        color = LoginAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
             if (repair.adminNote.isNotBlank() && repair.timeline.lastOrNull()?.note != repair.adminNote) {
@@ -5905,7 +6027,7 @@ private fun VehicleRepairReviewDialog(
 private fun VehicleFormDialog(
     vehicle: WasteVehicle?,
     onDismiss: () -> Unit,
-    onSave: suspend (String, Double, String, String) -> Unit
+    onSave: suspend (String, Double, String) -> Unit
 ) {
     var plate by remember(vehicle?.id) { mutableStateOf(vehicle?.plate.orEmpty()) }
     var capacity by remember(vehicle?.id) {
@@ -5913,13 +6035,12 @@ private fun VehicleFormDialog(
             vehicle?.capacityKg?.toString().orEmpty()
         )
     }
-    var condition by remember(vehicle?.id) { mutableStateOf(vehicle?.condition ?: "Baik") }
     var route by remember(vehicle?.id) { mutableStateOf(vehicle?.route.orEmpty()) }
     var saving by remember(vehicle?.id) { mutableStateOf(false) }
     var saveError by remember(vehicle?.id) { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         title = {
             Text(
                 if (vehicle == null) "Tambah kendaraan" else "Ubah kendaraan",
@@ -5957,7 +6078,7 @@ private fun VehicleFormDialog(
                         saving = true
                         saveError = ""
                         try {
-                            onSave(plate.trim(), proposedCapacity, condition.trim(), route.trim())
+                            onSave(plate.trim(), proposedCapacity, route.trim())
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (error: Exception) {
@@ -5999,7 +6120,7 @@ private fun FacilityFormDialog(
     var saveError by remember(facility?.id) { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         title = {
             Text(
                 if (facility == null) "Tambah TPA" else "Ubah TPA",

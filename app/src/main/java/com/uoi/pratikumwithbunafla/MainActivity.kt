@@ -349,6 +349,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigate = ::navigateAdminRoute,
                                 onLogout = ::signOut,
                                 pendingProofCount = completionReviews.size,
+                                pendingVehicleRepairActionCount = vehicleRepairs.count {
+                                    it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"
+                                },
                                 isInitialLoading = !hasLoadedWorkspace,
                                 isRefreshing = isRefreshingWorkspace,
                                 onRefresh = { scope.launch { refreshWorkspace() } }
@@ -553,8 +556,8 @@ class MainActivity : ComponentActivity() {
                                     )
                                     refreshWorkspace()
                                 },
-                                onCreateVehicle = { plate, capacity, condition, route ->
-                                    SmartWasteApi.createVehicle(plate, capacity, condition, route)
+                                onCreateVehicle = { plate, capacity, route ->
+                                    SmartWasteApi.createVehicle(plate, capacity, route)
                                     refreshWorkspace()
                                 },
                                 onUpdateVehicle = { vehicle ->
@@ -705,7 +708,10 @@ class MainActivity : ComponentActivity() {
             output.toByteArray()
         } ?: throw IllegalStateException("Foto tidak dapat dibaca dari perangkat.")
 
-        if (original.size <= 4 * 1024 * 1024) return@withContext original
+        val sourceMime = contentResolver.getType(uri)?.lowercase()
+        if (original.size <= 4 * 1024 * 1024 && sourceMime in setOf("image/jpeg", "image/jpg")) {
+            return@withContext original
+        }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(original, 0, original.size, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {

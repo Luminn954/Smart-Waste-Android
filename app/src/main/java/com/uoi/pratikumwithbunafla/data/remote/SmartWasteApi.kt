@@ -395,17 +395,14 @@ object SmartWasteApi {
                     id = item.optInt("id"),
                     vehicleId = item.optInt("vehicle_id"),
                     plate = value(item, "plate"),
-                    reporterId = item.optInt("reporter_id"),
                     reporterName = value(item, "reporter_name"),
                     cause = value(item, "cause"),
                     details = value(item, "details"),
                     status = value(item, "status"),
                     statusLabel = value(item, "status_label"),
-                    progressNote = value(item, "progress_note"),
                     adminNote = value(item, "admin_note"),
                     activeTaskCount = item.optInt("active_task_count"),
                     reportedAt = value(item, "reported_at"),
-                    updatedAt = value(item, "updated_at"),
                     timeline = timeline
                 )
             }
@@ -452,7 +449,7 @@ object SmartWasteApi {
         }
     }
 
-    suspend fun createVehicle(plate: String, capacityKg: Double, condition: String, route: String) {
+    suspend fun createVehicle(plate: String, capacityKg: Double, route: String) {
         request(
             "POST", "/petugas/kendaraan", JSONObject()
                 .put("plate", plate).put("capacity_kg", capacityKg)
