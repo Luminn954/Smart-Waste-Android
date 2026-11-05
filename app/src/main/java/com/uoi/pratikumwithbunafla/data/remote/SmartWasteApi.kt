@@ -10,14 +10,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.DataOutputStream
+import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
 /** REST client Android untuk ruang Admin dan Petugas Smart Waste. */
 object SmartWasteApi {
-    // Host API diisi saat build: 10.0.2.2 untuk emulator, IP laptop untuk HP fisik.
-    private const val BASE_URL = BuildConfig.SMART_WASTE_API_URL
+    // Gunakan alamat build terlebih dahulu, lalu temukan ulang server jika IP laptop berubah.
+    private val configuredApiUrl = BuildConfig.SMART_WASTE_API_URL
 
     private var token: String? = null
 
@@ -30,7 +31,8 @@ object SmartWasteApi {
         readTimeoutMs: Int = 12_000
     ): JSONObject =
         withContext(Dispatchers.IO) {
-            val connection = (URL(BASE_URL + path).openConnection() as HttpURLConnection).apply {
+            val host = LanServerResolver.resolveHost(configuredApiUrl)
+            val connection = (URL(LanServerResolver.apiBaseUrl(host) + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 connectTimeout = connectTimeoutMs
                 readTimeout = readTimeoutMs
@@ -62,6 +64,9 @@ object SmartWasteApi {
                     throw IllegalStateException(message.ifBlank { "Server mengembalikan error ($code)." })
                 }
                 JSONObject(text)
+            } catch (error: IOException) {
+                LanServerResolver.markUnreachable(host)
+                throw error
             } finally {
                 connection.disconnect()
             }
@@ -128,9 +133,22 @@ object SmartWasteApi {
         imageBytes: ByteArray,
         fileName: String,
         note: String
+    ): JSONObject = uploadMultipart(
+        path = "/petugas/tugas/$reportId/konfirmasi-selesai",
+        fields = mapOf("catatan" to note),
+        imageBytes = imageBytes,
+        fileName = fileName
+    )
+
+    private suspend fun uploadMultipart(
+        path: String,
+        fields: Map<String, String>,
+        imageBytes: ByteArray,
+        fileName: String
     ): JSONObject = withContext(Dispatchers.IO) {
+        val host = LanServerResolver.resolveHost(configuredApiUrl)
         val boundary = "SmartWaste-${System.nanoTime()}"
-        val connection = (URL("$BASE_URL/petugas/tugas/$reportId/konfirmasi-selesai").openConnection() as HttpURLConnection).apply {
+        val connection = (URL("${LanServerResolver.apiBaseUrl(host)}$path").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 30_000
@@ -148,7 +166,7 @@ object SmartWasteApi {
                     output.write(value.toByteArray(Charsets.UTF_8))
                     output.writeBytes("\r\n")
                 }
-                field("catatan", note)
+                fields.forEach { (name, value) -> field(name, value) }
                 output.writeBytes("--$boundary\r\n")
                 output.writeBytes("Content-Disposition: form-data; name=\"foto\"; filename=\"$fileName\"\r\n")
                 output.writeBytes("Content-Type: image/jpeg\r\n\r\n")
@@ -166,6 +184,9 @@ object SmartWasteApi {
                 throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "Foto bukti gagal dikirim ($code).")
             }
             JSONObject(response)
+        } catch (error: IOException) {
+            LanServerResolver.markUnreachable(host)
+            throw error
         } finally {
             connection.disconnect()
         }
@@ -316,13 +337,25 @@ object SmartWasteApi {
         request("PATCH", "/admin/arsip-catatan-admin/$reportId/pulihkan", JSONObject())
     }
 
-    private fun mapAdminNote(item: JSONObject): AdminNoteRecord = AdminNoteRecord(
-        report = mapReport(item.optJSONObject("report") ?: JSONObject()),
-        statusNote = value(item, "status_note"),
-        workerNote = value(item, "worker_note"),
-        adminNote = value(item, "admin_note"),
-        updatedAt = value(item, "updated_at")
-    )
+    private fun mapAdminNote(item: JSONObject): AdminNoteRecord {
+        val history = item.optJSONArray("note_history") ?: JSONArray()
+        return AdminNoteRecord(
+            report = mapReport(item.optJSONObject("report") ?: JSONObject()),
+            statusNote = value(item, "status_note"),
+            workerNote = value(item, "worker_note"),
+            adminNote = value(item, "admin_note"),
+            updatedAt = value(item, "updated_at"),
+            noteHistory = (0 until history.length()).mapNotNull { index ->
+                history.optJSONObject(index)?.let { entry ->
+                    AdminNoteEntry(
+                        text = value(entry, "text"),
+                        author = value(entry, "author").ifBlank { "Admin" },
+                        createdAt = value(entry, "created_at")
+                    )
+                }
+            }
+        )
+    }
 
     suspend fun completionReviews(): List<TaskCompletionReview> {
         val data = request("GET", "/admin/konfirmasi-penyelesaian").optJSONArray("reviews") ?: JSONArray()
@@ -490,6 +523,55 @@ object SmartWasteApi {
             "PATCH", "/petugas/tpa/${facility.id}", JSONObject()
                 .put("name", facility.name).put("address", facility.address)
                 .put("capacity_ton", facility.capacityTon)
+        )
+    }
+
+    suspend fun capacityClearanceRequests(admin: Boolean): List<CapacityClearanceRequest> {
+        val path = if (admin) "/admin/pengosongan" else "/petugas/pengosongan"
+        val data = request("GET", path).optJSONArray("requests") ?: JSONArray()
+        return (0 until data.length()).mapNotNull { index ->
+            data.optJSONObject(index)?.let { item ->
+                CapacityClearanceRequest(
+                    id = item.optInt("id"),
+                    targetType = value(item, "target_type"),
+                    targetId = item.optInt("target_id"),
+                    targetName = value(item, "target_name"),
+                    requesterName = value(item, "requester_name"),
+                    reason = value(item, "reason"),
+                    evidencePhotoUrl = value(item, "evidence_photo"),
+                    status = value(item, "status"),
+                    adminNote = value(item, "admin_note"),
+                    createdAt = value(item, "created_at")
+                )
+            }
+        }
+    }
+
+    suspend fun requestCapacityClearance(
+        targetType: String,
+        targetId: Int,
+        imageBytes: ByteArray,
+        reason: String
+    ) {
+        require(targetType in setOf("kendaraan", "tpa"))
+        uploadMultipart(
+            path = "/petugas/pengosongan",
+            fields = mapOf(
+                "target_type" to targetType,
+                "target_id" to targetId.toString(),
+                "reason" to reason.trim()
+            ),
+            imageBytes = imageBytes,
+            fileName = "pengosongan-$targetType-$targetId.jpg"
+        )
+    }
+
+    suspend fun reviewCapacityClearance(requestId: Int, action: String, note: String = "") {
+        require(action in setOf("setujui", "tolak"))
+        request(
+            "PATCH",
+            "/admin/pengosongan/$requestId/$action",
+            JSONObject().put("note", note.trim())
         )
     }
 

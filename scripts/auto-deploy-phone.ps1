@@ -1,7 +1,8 @@
+param([switch]$Once)
+
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$adb = Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 $gradleWrapper = Join-Path $projectRoot 'gradlew.bat'
 $apk = Join-Path $projectRoot 'app\build\outputs\apk\debug\app-debug.apk'
 $packageName = 'com.uoi.pratikumwithbunafla'
@@ -15,9 +16,6 @@ $stateFolder = Join-Path $env:LOCALAPPDATA 'SmartWaste\AutoDeploy'
 $logPath = Join-Path $stateFolder 'auto-deploy.log'
 $pidPath = Join-Path $stateFolder 'auto-deploy.pid'
 
-if (-not (Test-Path -LiteralPath $adb)) {
-    throw "ADB tidak ditemukan: $adb"
-}
 if (-not (Test-Path -LiteralPath $gradleWrapper)) {
     throw "Gradle wrapper tidak ditemukan: $gradleWrapper"
 }
@@ -40,7 +38,6 @@ function Test-RelevantChange {
     }
 
     return $path -in @(
-        'app/lan.properties',
         'app/build.gradle.kts',
         'build.gradle.kts',
         'settings.gradle.kts',
@@ -160,26 +157,6 @@ function Publish-LanUpdate {
     Write-Log "Pembaruan LAN versi $VersionName diterbitkan ke folder web dan XAMPP: http://${ServerIp}:8080/Waste2/updates/latest.json."
 }
 
-function Get-ConnectedPhoneSerial {
-    $rows = & $adb devices -l 2>$null
-    $serials = @(
-        foreach ($row in ($rows | Select-Object -Skip 1)) {
-            $parts = ($row -split '\s+') | Where-Object { $_ }
-            if ($parts.Count -ge 2 -and $parts[1] -eq 'device' -and $parts[0] -notlike 'emulator-*') {
-                $parts[0]
-            }
-        }
-    )
-
-    if ($serials.Count -eq 1) {
-        return $serials[0]
-    }
-    if ($serials.Count -gt 1) {
-        Write-Log 'Ada lebih dari satu HP fisik terhubung; pemasangan ditunda agar tidak salah perangkat.'
-    }
-    return $null
-}
-
 function Build-DebugApk {
     $oldJavaHome = $env:JAVA_HOME
     $oldTemp = $env:TEMP
@@ -239,25 +216,11 @@ function Build-DebugApk {
     }
 }
 
-function Install-And-Launch {
-    param([string]$Serial)
-
-    Write-Log "Memasang APK ke HP $Serial."
-    & $adb -s $Serial install -r $apk *>> $logPath
-    if ($LASTEXITCODE -ne 0) {
-        Write-Log 'Pemasangan gagal; akan dicoba lagi saat perangkat siap.'
-        return $false
-    }
-
-    & $adb -s $Serial shell am force-stop $packageName *>> $logPath
-    & $adb -s $Serial shell am start -n "$packageName/.MainActivity" *>> $logPath
-    if ($LASTEXITCODE -ne 0) {
-        Write-Log 'APK terpasang, tetapi aplikasi tidak berhasil dibuka.'
-        return $false
-    }
-
-    Write-Log 'APK berhasil dipasang dan aplikasi dibuka di HP.'
-    return $true
+if ($Once) {
+    $published = Build-DebugApk
+    Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
+    if ($published) { exit 0 }
+    exit 1
 }
 
 $watcher = New-Object System.IO.FileSystemWatcher
@@ -268,12 +231,9 @@ $watcher.NotifyFilter = [IO.NotifyFilters]::LastWrite -bor [IO.NotifyFilters]::F
 $watcher.InternalBufferSize = 65536
 $watcher.EnableRaisingEvents = $true
 
-$pendingInstall = $false
 $pendingBuild = $false
 $nextBuildRetry = [datetime]::MinValue
-$lastNoPhoneLog = [datetime]::MinValue
-Write-Log 'Auto-update aktif. Hanya satu HP fisik yang diizinkan; emulator tidak akan dipakai.'
-Write-Log 'Aktifkan USB debugging dan setujui dialog otorisasi di HP saat pertama kali tersambung.'
+Write-Log 'Pembaruan otomatis Wi-Fi aktif. APK diterbitkan ke XAMPP; HP mengunduhnya melalui jaringan lokal.'
 
 try {
     if (Test-NeedsInitialBuild) {
@@ -286,24 +246,10 @@ try {
     while ($true) {
         if ($pendingBuild -and (Get-Date) -ge $nextBuildRetry) {
             if (Build-DebugApk) {
-                $pendingInstall = $true
                 $pendingBuild = $false
             } else {
                 $nextBuildRetry = (Get-Date).AddMinutes(1)
                 Write-Log 'Build belum berhasil; perubahan tetap antre dan akan dicoba lagi dalam 1 menit.'
-            }
-        }
-
-        if ($pendingInstall) {
-            $phoneSerial = Get-ConnectedPhoneSerial
-            if ($phoneSerial) {
-                if (Install-And-Launch -Serial $phoneSerial) {
-                    $pendingInstall = $false
-                }
-            }
-            elseif (((Get-Date) - $lastNoPhoneLog).TotalSeconds -ge 30) {
-                Write-Log 'Belum ada satu HP fisik yang siap; menunggu sambungan USB debugging. Emulator diabaikan.'
-                $lastNoPhoneLog = Get-Date
             }
         }
 

@@ -104,6 +104,7 @@ class MainActivity : ComponentActivity() {
                 var vehicles by remember { mutableStateOf(emptyList<WasteVehicle>()) }
                 var vehicleRepairs by remember { mutableStateOf(emptyList<VehicleRepair>()) }
                 var facilities by remember { mutableStateOf(emptyList<WasteFacility>()) }
+                var capacityClearanceRequests by remember { mutableStateOf(emptyList<CapacityClearanceRequest>()) }
                 var dailyReports by remember { mutableStateOf(emptyList<DailyReport>()) }
                 var dailyRangeDays by rememberSaveable { mutableIntStateOf(30) }
                 var statistics by remember { mutableStateOf(AdminStatistics()) }
@@ -174,6 +175,11 @@ class MainActivity : ComponentActivity() {
                                 vehicleRepairs,
                                 loadErrors
                             ) { SmartWasteApi.vehicleRepairs(admin = true) }
+                            capacityClearanceRequests = loadOrKeep(
+                                "Permintaan pengosongan",
+                                capacityClearanceRequests,
+                                loadErrors
+                            ) { SmartWasteApi.capacityClearanceRequests(admin = true) }
                             dailyReports = loadOrKeep("Aktivitas harian", dailyReports, loadErrors) {
                                 SmartWasteApi.dailyReports(from, to)
                             }
@@ -200,6 +206,11 @@ class MainActivity : ComponentActivity() {
                                 loadErrors
                             ) { SmartWasteApi.vehicleRepairs(admin = false) }
                             facilities = loadOrKeep("TPA", facilities, loadErrors) { SmartWasteApi.facilities() }
+                            capacityClearanceRequests = loadOrKeep(
+                                "Status pengosongan",
+                                capacityClearanceRequests,
+                                loadErrors
+                            ) { SmartWasteApi.capacityClearanceRequests(admin = false) }
                         }
                         errorMessage = loadErrors.take(4).joinToString("\n") +
                                 if (loadErrors.size > 4) "\n+ ${loadErrors.size - 4} data lain gagal dimuat" else ""
@@ -225,6 +236,7 @@ class MainActivity : ComponentActivity() {
                     vehicles = emptyList()
                     vehicleRepairs = emptyList()
                     facilities = emptyList()
+                    capacityClearanceRequests = emptyList()
                     dailyReports = emptyList()
                     statistics = AdminStatistics()
                     summary = AdminDashboardSummary()
@@ -412,6 +424,7 @@ class MainActivity : ComponentActivity() {
                                 workers = workers,
                                 completionReviews = completionReviews,
                                 vehicleRepairs = vehicleRepairs,
+                                capacityClearanceRequests = capacityClearanceRequests,
                                 adminNotes = adminNotes,
                                 archivedAdminNotes = archivedAdminNotes,
                                 errorMessage = errorMessage,
@@ -441,6 +454,10 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onReviewVehicleRepair = { repair, action, note ->
                                     SmartWasteApi.reviewVehicleRepair(repair.id, action, note)
+                                    refreshWorkspace()
+                                },
+                                onReviewCapacityClearance = { request, action, note ->
+                                    SmartWasteApi.reviewCapacityClearance(request.id, action, note)
                                     refreshWorkspace()
                                 },
                                 onAddAdminNote = { note, text ->
@@ -519,6 +536,7 @@ class MainActivity : ComponentActivity() {
                                 vehicles = vehicles,
                                 vehicleRepairs = vehicleRepairs,
                                 facilities = facilities,
+                                capacityClearanceRequests = capacityClearanceRequests,
                                 errorMessage = errorMessage,
                                 account = account,
                                 onAskAssistant = { question, history ->
@@ -585,6 +603,15 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onUpdateFacility = { facility ->
                                     SmartWasteApi.updateFacility(facility)
+                                    refreshWorkspace()
+                                },
+                                onRequestCapacityClearance = { targetType, targetId, photoUri, reason ->
+                                    SmartWasteApi.requestCapacityClearance(
+                                        targetType,
+                                        targetId,
+                                        compressEvidence(photoUri),
+                                        reason
+                                    )
                                     refreshWorkspace()
                                 },
                                 isInitialLoading = !hasLoadedWorkspace,

@@ -109,12 +109,19 @@ data class TaskCompletionReview(
     val submittedAt: String
 )
 
+data class AdminNoteEntry(
+    val text: String,
+    val author: String,
+    val createdAt: String
+)
+
 data class AdminNoteRecord(
     val report: WasteRecord,
     val statusNote: String,
     val workerNote: String,
     val adminNote: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val noteHistory: List<AdminNoteEntry> = emptyList()
 )
 
 data class ArchivedAdminNote(
@@ -167,6 +174,22 @@ data class WasteFacility(
     val reservedTon: Double = 0.0
 ) {
     val remainingTon: Double get() = (capacityTon - filledTon - reservedTon).coerceAtLeast(0.0)
+}
+
+data class CapacityClearanceRequest(
+    val id: Int,
+    val targetType: String,
+    val targetId: Int,
+    val targetName: String,
+    val requesterName: String,
+    val reason: String,
+    val evidencePhotoUrl: String,
+    val status: String,
+    val adminNote: String,
+    val createdAt: String
+) {
+    val isPending: Boolean get() = status.equals("menunggu", ignoreCase = true)
+    val targetLabel: String get() = if (targetType == "tpa") "TPA" else "Armada"
 }
 
 data class DailyReport(

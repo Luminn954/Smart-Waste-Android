@@ -22,7 +22,9 @@ data class LanAppUpdate(
 
 object LanAppUpdater {
     suspend fun check(context: Context): LanAppUpdate? = withContext(Dispatchers.IO) {
-        val connection = (URL(BuildConfig.SMART_WASTE_UPDATE_URL).openConnection() as HttpURLConnection)
+        val host = LanServerResolver.resolveHost(BuildConfig.SMART_WASTE_API_URL)
+        val manifestUrl = "http://$host:8080/Waste2/updates/latest.json"
+        val connection = (URL(manifestUrl).openConnection() as HttpURLConnection)
         try {
             connection.connectTimeout = 5_000
             connection.readTimeout = 8_000
@@ -33,7 +35,11 @@ object LanAppUpdater {
             if (json.optString("package_name") != context.packageName) return@withContext null
 
             val versionCode = json.optInt("version_code")
-            val apkUrl = json.optString("apk_url")
+            val expectedApkName = "SmartWaste-$versionCode.apk"
+            val manifestApkName = runCatching { URL(json.optString("apk_url")).path.substringAfterLast('/') }
+                .getOrNull()
+            if (manifestApkName != expectedApkName) return@withContext null
+            val apkUrl = "http://$host:8080/Waste2/updates/$expectedApkName"
             val hash = json.optString("sha256").lowercase()
             val currentInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             val installedVersion = if (android.os.Build.VERSION.SDK_INT >= 28) {

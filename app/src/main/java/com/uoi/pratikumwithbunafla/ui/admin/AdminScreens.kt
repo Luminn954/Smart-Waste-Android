@@ -93,12 +93,14 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -157,6 +159,7 @@ import com.uoi.pratikumwithbunafla.ui.theme.InterFont
 import com.uoi.pratikumwithbunafla.ui.theme.DarkSmartWastePalette
 import com.uoi.pratikumwithbunafla.ui.theme.LightSmartWastePalette
 import com.uoi.pratikumwithbunafla.ui.theme.LocalSmartWasteAppearance
+import com.uoi.pratikumwithbunafla.ui.theme.LocalSmartWastePalette
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -171,6 +174,61 @@ private val LoginMuted: Color
     @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 private val LoginAccent: Color
     @Composable get() = MaterialTheme.colorScheme.primary
+private val LocalIsAdminWorkspace = staticCompositionLocalOf { false }
+private val IsNightAdmin: Boolean
+    @Composable get() = LocalIsAdminWorkspace.current && LocalSmartWasteAppearance.current.darkMode
+private val RoleAccentSurface: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFF33443A) else WasteBlue
+private val RoleRed: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFFD89A93) else WasteRed
+private val RoleOrange: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFFD1B878) else WasteOrange
+private val RolePurple: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFFB5A8C2) else WastePurple
+private val RoleTeal: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFF8EB7A9) else WasteTeal
+private val RoleGreen: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFF9BC29C) else WasteGreen
+private val RoleGreenDark: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFF9BC29C) else WasteGreenDark
+private val RoleNavy: Color
+    @Composable get() = if (IsNightAdmin) Color(0xFFAAB8CC) else WasteNavy
+
+private val AdminNightPalette = DarkSmartWastePalette.copy(
+    background = Color(0xFF151C17),
+    surface = Color(0xFF202923),
+    surfaceMuted = Color(0xFF29342D),
+    border = Color(0xFF344239),
+    text = Color(0xFFE8EEE9),
+    textMuted = Color(0xFFADB9B0)
+)
+
+private val AdminNightColorScheme = darkColorScheme(
+    primary = Color(0xFF9DBDA4),
+    onPrimary = Color(0xFF17231A),
+    primaryContainer = Color(0xFF2A4032),
+    onPrimaryContainer = Color(0xFFD7E6DA),
+    secondary = Color(0xFF8FB5A5),
+    onSecondary = Color(0xFF17241D),
+    secondaryContainer = Color(0xFF293E34),
+    onSecondaryContainer = Color(0xFFD5E3DA),
+    tertiary = Color(0xFFC2AD79),
+    onTertiary = Color(0xFF282114),
+    tertiaryContainer = Color(0xFF443921),
+    onTertiaryContainer = Color(0xFFEBDDB8),
+    background = AdminNightPalette.background,
+    onBackground = AdminNightPalette.text,
+    surface = AdminNightPalette.surface,
+    onSurface = AdminNightPalette.text,
+    surfaceVariant = AdminNightPalette.surfaceMuted,
+    onSurfaceVariant = AdminNightPalette.textMuted,
+    outline = AdminNightPalette.border,
+    error = Color(0xFFE0A09A),
+    onError = Color(0xFF321B19),
+    errorContainer = Color(0xFF4B2A27),
+    onErrorContainer = Color(0xFFFFDAD5)
+)
+
 private val TaskAmber = Color(0xFFB86B1D)
 private val TaskBlue = Color(0xFF456FB5)
 private val TaskPurple = Color(0xFF7952A0)
@@ -205,7 +263,7 @@ private fun ScrollableDialogContent(
 private fun AnimatedAdminPageBackground() {
     val dark = LocalSmartWasteAppearance.current.darkMode
     val background by animateColorAsState(
-        targetValue = if (dark) DarkSmartWastePalette.background else LightSmartWastePalette.background,
+        targetValue = if (dark) AdminNightPalette.background else LightSmartWastePalette.background,
         animationSpec = tween(durationMillis = 820, easing = FastOutSlowInEasing),
         label = "admin-page-background"
     )
@@ -227,12 +285,12 @@ private fun AdminThemeTransitionWave() {
         if (waveStrength > 0.015f) {
             val center = Offset(size.width * 0.96f, size.height * 0.08f)
             val radius = size.maxDimension * (0.04f + waveProgress * 1.18f)
-            val tint = if (dark) Color(0xFFB8D2B9) else Color(0xFF789D7B)
+            val tint = if (dark) Color(0xFF8FAE96) else Color(0xFF789D7B)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        tint.copy(alpha = waveStrength * 0.19f),
-                        tint.copy(alpha = waveStrength * 0.07f),
+                        tint.copy(alpha = waveStrength * 0.14f),
+                        tint.copy(alpha = waveStrength * 0.045f),
                         Color.Transparent
                     ),
                     center = center,
@@ -242,13 +300,13 @@ private fun AdminThemeTransitionWave() {
                 center = center
             )
             drawCircle(
-                color = tint.copy(alpha = waveStrength * 0.30f),
+                color = tint.copy(alpha = waveStrength * 0.22f),
                 radius = radius * 0.82f,
                 center = center,
                 style = Stroke(width = 18.dp.toPx())
             )
             drawCircle(
-                color = tint.copy(alpha = waveStrength * 0.62f),
+                color = tint.copy(alpha = waveStrength * 0.46f),
                 radius = radius * 0.82f,
                 center = center,
                 style = Stroke(width = 1.6.dp.toPx())
@@ -279,68 +337,83 @@ private fun AdminPage(
         screenWidth >= 600.dp -> 28.dp
         else -> 20.dp
     }
-    Box(modifier = Modifier.fillMaxSize()) {
-        val isAdmin = account.role == UserRole.ADMIN
-        if (isAdmin) AnimatedAdminPageBackground()
-        backgroundContent()
-        if (isAdmin) AdminThemeTransitionWave()
-        CompositionLocalProvider(
-            LocalTextStyle provides LocalTextStyle.current.merge(
-                TextStyle(
-                    fontFamily = InterFont
-                )
-            )
+    val isAdmin = account.role == UserRole.ADMIN
+    val isNightAdmin = isAdmin && LocalSmartWasteAppearance.current.darkMode
+    val workspacePalette = if (isNightAdmin) AdminNightPalette else LocalSmartWastePalette.current
+    val workspaceColorScheme = if (isNightAdmin) AdminNightColorScheme else MaterialTheme.colorScheme
+
+    CompositionLocalProvider(
+        LocalIsAdminWorkspace provides isAdmin,
+        LocalSmartWastePalette provides workspacePalette
+    ) {
+        MaterialTheme(
+            colorScheme = workspaceColorScheme,
+            typography = MaterialTheme.typography,
+            shapes = MaterialTheme.shapes
         ) {
-            AnimatedVisibility(
-                visible = true,
-                modifier = Modifier.fillMaxSize(),
-                enter = fadeIn(tween(260)) + slideInVertically(
-                    initialOffsetY = { it / 36 },
-                    animationSpec = tween(260)
-                )
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (isAdmin) AnimatedAdminPageBackground()
+                backgroundContent()
+                if (isAdmin) AdminThemeTransitionWave()
+                CompositionLocalProvider(
+                    LocalTextStyle provides LocalTextStyle.current.merge(
+                        TextStyle(
+                            fontFamily = InterFont
+                        )
+                    )
                 ) {
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentAlignment = Alignment.TopCenter
+                    AnimatedVisibility(
+                        visible = true,
+                        modifier = Modifier.fillMaxSize(),
+                        enter = fadeIn(tween(260)) + slideInVertically(
+                            initialOffsetY = { it / 36 },
+                            animationSpec = tween(260)
+                        )
                     ) {
                         Column(
-                            modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight().fillMaxWidth()
-                                .windowInsetsPadding(WindowInsets.statusBars)
-                                .verticalScroll(pageScrollState)
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             Box(
-                                modifier = Modifier.fillMaxWidth()
-                                    .padding(horizontal = horizontalPadding, vertical = 11.dp)
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                contentAlignment = Alignment.TopCenter
                             ) {
-                                AdminTopBar(
-                                    account = account,
-                                    onLogout = onLogout,
-                                    onOpenProfile = { onNavigate("profile") },
-                                    isRefreshing = isRefreshing,
-                                    onRefresh = onRefresh
-                                )
-                            }
-                            if (isInitialLoading) {
-                                AdminLoadingState()
-                            } else {
-                                fullBleedContent?.invoke(this)
                                 Column(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .padding(horizontal = horizontalPadding)
-                                        .padding(top = 11.dp, bottom = 11.dp)
+                                    modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight().fillMaxWidth()
+                                        .windowInsetsPadding(WindowInsets.statusBars)
+                                        .verticalScroll(pageScrollState)
                                 ) {
-                                    content()
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .padding(horizontal = horizontalPadding, vertical = 11.dp)
+                                    ) {
+                                        AdminTopBar(
+                                            account = account,
+                                            onLogout = onLogout,
+                                            onOpenProfile = { onNavigate("profile") },
+                                            isRefreshing = isRefreshing,
+                                            onRefresh = onRefresh
+                                        )
+                                    }
+                                    if (isInitialLoading) {
+                                        AdminLoadingState()
+                                    } else {
+                                        fullBleedContent?.invoke(this)
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .padding(horizontal = horizontalPadding)
+                                                .padding(top = 11.dp, bottom = 11.dp)
+                                        ) {
+                                            content()
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                        }
+                                    }
                                 }
                             }
+                            when {
+                                bottomBar != null -> bottomBar()
+                                account.role == UserRole.ADMIN -> AdminNavigationBar(current, onNavigate)
+                            }
                         }
-                    }
-                    when {
-                        bottomBar != null -> bottomBar()
-                        account.role == UserRole.ADMIN -> AdminNavigationBar(current, onNavigate)
                     }
                 }
             }
@@ -571,16 +644,28 @@ private fun FloatingRoleNavigationBar(
     val darkMode = LocalSmartWasteAppearance.current.darkMode
     val selectedIndex = destinations.indexOfFirst { it.first == current }.coerceAtLeast(0)
     val barColor by animateColorAsState(
-        targetValue = if (darkMode) Color(0xFF14231B) else Color(0xFF244638),
+        targetValue = when {
+            IsNightAdmin -> Color(0xFF202923)
+            darkMode -> Color(0xFF14231B)
+            else -> Color(0xFF244638)
+        },
         animationSpec = tween(460, easing = FastOutSlowInEasing),
         label = "role-navbar-surface"
     )
     val activeColor by animateColorAsState(
-        targetValue = if (darkMode) Color(0xFF89C965) else Color(0xFFA5DA73),
+        targetValue = when {
+            IsNightAdmin -> Color(0xFF9DBDA4)
+            darkMode -> Color(0xFF89C965)
+            else -> Color(0xFFA5DA73)
+        },
         animationSpec = tween(460, easing = FastOutSlowInEasing),
         label = "role-navbar-active"
     )
-    val inactiveColor = if (darkMode) Color(0xFFB4C1B8) else Color(0xFFD5E0D8)
+    val inactiveColor = when {
+        IsNightAdmin -> Color(0xFFAAB6AC)
+        darkMode -> Color(0xFFB4C1B8)
+        else -> Color(0xFFD5E0D8)
+    }
     val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -688,7 +773,7 @@ private fun DashboardHeroBanner(
 ) {
     val darkMode = LocalSmartWasteAppearance.current.darkMode
     val bannerSky = if (darkMode) {
-        listOf(Color(0xFF173B31), Color(0xFF1D513C), Color(0xFF315F45))
+        listOf(Color(0xFF20372D), Color(0xFF294337), Color(0xFF334B3A))
     } else {
         listOf(Color(0xFF175A42), Color(0xFF21674A), Color(0xFF477E5B))
     }
@@ -706,7 +791,7 @@ private fun DashboardHeroBanner(
             focusDetail = "${summary.hazardAlerts} laporan B3 perlu perhatian"
             focusAction = "Tinjau laporan"
             focusIcon = Icons.Filled.ReportProblem
-            focusColor = Color(0xFFFFD28A)
+            focusColor = if (darkMode) RoleOrange else Color(0xFFFFD28A)
             focusRoute = "status:semua"
         }
         pendingProofCount > 0 -> {
@@ -714,7 +799,7 @@ private fun DashboardHeroBanner(
             focusDetail = "$pendingProofCount hasil kerja perlu diperiksa"
             focusAction = "Tinjau kinerja"
             focusIcon = Icons.Filled.CheckCircle
-            focusColor = Color(0xFFB9DED0)
+            focusColor = if (darkMode) RoleTeal else Color(0xFFB9DED0)
             focusRoute = "ops:catatan"
         }
         summary.waiting > 0 -> {
@@ -722,7 +807,7 @@ private fun DashboardHeroBanner(
             focusDetail = "${summary.waiting} laporan perlu diperiksa"
             focusAction = "Buka antrean"
             focusIcon = Icons.Filled.Inbox
-            focusColor = Color(0xFFFFD28A)
+            focusColor = if (darkMode) RoleOrange else Color(0xFFFFD28A)
             focusRoute = "reports"
         }
         summary.assigned > 0 -> {
@@ -730,7 +815,7 @@ private fun DashboardHeroBanner(
             focusDetail = "${summary.assigned} laporan ditangani petugas"
             focusAction = "Pantau penugasan"
             focusIcon = Icons.Filled.LocalShipping
-            focusColor = Color(0xFFB9DED0)
+            focusColor = if (darkMode) RoleTeal else Color(0xFFB9DED0)
             focusRoute = "ops:petugas"
         }
         summary.processing > 0 -> {
@@ -738,7 +823,7 @@ private fun DashboardHeroBanner(
             focusDetail = "${summary.processing} laporan sedang diproses"
             focusAction = "Lihat progres"
             focusIcon = Icons.Filled.Sync
-            focusColor = Color(0xFFB9DED0)
+            focusColor = if (darkMode) RoleTeal else Color(0xFFB9DED0)
             focusRoute = "reports"
         }
         summary.totalReports == 0 -> {
@@ -746,7 +831,7 @@ private fun DashboardHeroBanner(
             focusDetail = "Laporan warga akan tampil di sini"
             focusAction = "Buka laporan"
             focusIcon = Icons.Filled.Inbox
-            focusColor = Color(0xFFE2E9D9)
+            focusColor = if (darkMode) RoleGreen else Color(0xFFE2E9D9)
             focusRoute = "reports"
         }
         summary.completed > 0 -> {
@@ -754,7 +839,7 @@ private fun DashboardHeroBanner(
             focusDetail = "${summary.completed} laporan telah selesai"
             focusAction = "Lihat laporan selesai"
             focusIcon = Icons.Filled.CheckCircle
-            focusColor = Color(0xFFB9DED0)
+            focusColor = if (darkMode) RoleTeal else Color(0xFFB9DED0)
             focusRoute = "status:selesai"
         }
         else -> {
@@ -762,7 +847,7 @@ private fun DashboardHeroBanner(
             focusDetail = "${summary.totalReports} laporan tercatat"
             focusAction = "Buka seluruh laporan"
             focusIcon = Icons.Filled.Inbox
-            focusColor = Color(0xFFE2E9D9)
+            focusColor = if (darkMode) RoleGreen else Color(0xFFE2E9D9)
             focusRoute = "status:semua"
         }
     }
@@ -934,6 +1019,19 @@ private val HeroBottomCurveShape = androidx.compose.foundation.shape.GenericShap
 @Composable
 private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
     val dark = LocalSmartWasteAppearance.current.darkMode
+    val compact = LocalConfiguration.current.screenWidthDp < 600
+
+    if (compact) {
+        AdminDashboardBackdropScene(
+            modifier = modifier,
+            dark = dark,
+            compact = true,
+            breeze = 0f,
+            pulse = 0.5f
+        )
+        return
+    }
+
     val motion = rememberInfiniteTransition(label = "admin-dashboard-ambience")
     val breeze by motion.animateFloat(
         initialValue = -1f,
@@ -954,19 +1052,36 @@ private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
         label = "dashboard-light-pulse"
     )
 
+    AdminDashboardBackdropScene(
+        modifier = modifier,
+        dark = dark,
+        compact = false,
+        breeze = breeze,
+        pulse = 0.5f + 0.5f * sin(lightPulse * 2f * PI).toFloat()
+    )
+}
+
+@Composable
+private fun AdminDashboardBackdropScene(
+    modifier: Modifier,
+    dark: Boolean,
+    compact: Boolean,
+    breeze: Float,
+    pulse: Float
+) {
     Canvas(modifier) {
         val width = size.width
         val height = size.height
         val drift = breeze * 18.dp.toPx()
-        val pulse = 0.5f + 0.5f * sin(lightPulse * 2f * PI).toFloat()
-        val upperGlow = Offset(width * 0.88f + drift * 0.35f, height * 0.12f)
+        val decorationStrength = if (compact) 0.58f else 1f
+        val upperGlow = Offset(width * 0.88f + drift * 0.35f, height * if (compact) 0.06f else 0.12f)
         val upperColor = if (dark) Color(0xFF82B99A) else Color(0xFFE7D6A8)
         val upperRadius = width * 0.56f
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    upperColor.copy(alpha = (if (dark) 0.12f else 0.16f) + pulse * 0.025f),
-                    upperColor.copy(alpha = if (dark) 0.045f else 0.055f),
+                    upperColor.copy(alpha = ((if (dark) 0.12f else 0.16f) + pulse * 0.025f) * decorationStrength),
+                    upperColor.copy(alpha = (if (dark) 0.045f else 0.055f) * decorationStrength),
                     Color.Transparent
                 ),
                 center = upperGlow,
@@ -976,12 +1091,12 @@ private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
             center = upperGlow
         )
 
-        val lowerGlow = Offset(width * 0.10f - drift * 0.24f, height * 0.88f)
+        val lowerGlow = Offset(width * 0.10f - drift * 0.24f, height * if (compact) 0.93f else 0.88f)
         val lowerColor = if (dark) Color(0xFF4C8D78) else Color(0xFF74A889)
         val lowerRadius = width * 0.48f
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(lowerColor.copy(alpha = if (dark) 0.10f else 0.085f), Color.Transparent),
+                colors = listOf(lowerColor.copy(alpha = (if (dark) 0.10f else 0.085f) * decorationStrength), Color.Transparent),
                 center = lowerGlow,
                 radius = lowerRadius
             ),
@@ -990,14 +1105,23 @@ private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
         )
 
         val leafTint = if (dark) Color(0xFF8FB69A) else Color(0xFF4D8664)
-        val leaves = listOf(
-            Triple(0.07f, 0.27f, 0.72f),
-            Triple(0.91f, 0.39f, 0.55f),
-            Triple(0.13f, 0.70f, 0.62f),
-            Triple(0.86f, 0.77f, 0.48f)
-        )
+        val leaves = if (compact) {
+            listOf(
+                Triple(0.035f, 0.20f, 0.48f),
+                Triple(0.965f, 0.38f, 0.40f),
+                Triple(0.035f, 0.69f, 0.44f),
+                Triple(0.965f, 0.78f, 0.36f)
+            )
+        } else {
+            listOf(
+                Triple(0.07f, 0.27f, 0.72f),
+                Triple(0.91f, 0.39f, 0.55f),
+                Triple(0.13f, 0.70f, 0.62f),
+                Triple(0.86f, 0.77f, 0.48f)
+            )
+        }
         leaves.forEachIndexed { index, (xFraction, yFraction, scale) ->
-            val sway = sin(lightPulse * 2f * PI + index * 1.7f).toFloat()
+            val sway = sin(pulse * 2f * PI + index * 1.7f).toFloat()
             val center = Offset(
                 width * xFraction + drift * (if (index % 2 == 0) 0.28f else -0.24f),
                 height * yFraction + sway * 5.dp.toPx()
@@ -1018,7 +1142,7 @@ private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
                 )
                 close()
             }
-            val alpha = (if (dark) 0.10f else 0.095f) + pulse * 0.025f
+            val alpha = ((if (dark) 0.10f else 0.095f) + pulse * 0.025f) * decorationStrength
             drawPath(leaf, leafTint.copy(alpha = alpha))
             drawLine(
                 color = leafTint.copy(alpha = alpha * 0.78f),
@@ -1160,7 +1284,7 @@ fun AdminDashboardScreen(
                                 title = "${summary.hazardAlerts} laporan berisiko",
                                 detail = "Periksa sebelum ditangani petugas",
                                 icon = Icons.Filled.ReportProblem,
-                                tint = WasteRed
+                                tint = RoleRed
                             ) { onNavigate("status:bahaya") }
                         }
                         if (pendingProofCount > 0) {
@@ -1168,7 +1292,7 @@ fun AdminDashboardScreen(
                                 title = "$pendingProofCount bukti petugas menunggu",
                                 detail = "Tinjau hasil kerja sebelum disetujui",
                                 icon = Icons.Filled.CheckCircle,
-                                tint = WasteGreenDark
+                                tint = RoleGreenDark
                             ) { onNavigate("ops:catatan-bukti") }
                         }
                         if (pendingVehicleRepairActionCount > 0) {
@@ -1176,7 +1300,7 @@ fun AdminDashboardScreen(
                                 title = "$pendingVehicleRepairActionCount proses armada menunggu",
                                 detail = "Tinjau persetujuan atau hasil perbaikan",
                                 icon = Icons.Filled.Build,
-                                tint = WasteOrange
+                                tint = RoleOrange
                             ) { onNavigate("ops:armada") }
                         }
                     }
@@ -1258,6 +1382,20 @@ private fun AdminTaskTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val nightAdmin = IsNightAdmin
+    val iconTint = if (nightAdmin) when (accent) {
+        TaskAmber -> Color(0xFFD0B775)
+        TaskPurple -> Color(0xFFB3A2C0)
+        TaskIndigo -> Color(0xFFA6B2CE)
+        TaskTeal -> Color(0xFF89B9AA)
+        TaskGreen -> Color(0xFF9ABF96)
+        TaskBlue -> Color(0xFF91ADC4)
+        TaskCoral -> Color(0xFFD69A91)
+        TaskRose -> Color(0xFFC99AAD)
+        else -> Color(0xFF9DBDA4)
+    } else Color.White
+    val iconBackground = if (nightAdmin) iconTint.copy(alpha = 0.14f) else accent
+
     Column(
         modifier = modifier.height(78.dp)
             .clip(RoundedCornerShape(16.dp))
@@ -1268,12 +1406,12 @@ private fun AdminTaskTile(
     ) {
         Box(
             modifier = Modifier.size(32.dp)
-                .shadow(2.dp, CircleShape)
+                .shadow(if (nightAdmin) 0.dp else 2.dp, CircleShape)
                 .clip(CircleShape)
-                .background(accent),
+                .background(iconBackground),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(17.dp))
         }
         Text(
             label,
@@ -1428,7 +1566,7 @@ fun AdminVerificationScreen(
                         ),
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = if (active) LoginAccent else AppTextMuted,
-                            containerColor = if (active) WasteBlue else AppSurfaceMuted
+                            containerColor = if (active) RoleAccentSurface else AppSurfaceMuted
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -1712,12 +1850,12 @@ private fun AdminReportCard(
                         Icon(
                             Icons.Filled.ReportProblem,
                             contentDescription = null,
-                            tint = WasteRed,
+                            tint = RoleRed,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             "Bahaya ${report.hazardLevel}",
-                            color = WasteRed,
+                            color = RoleRed,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -1786,7 +1924,7 @@ private fun AdminReportCard(
                     if (onReject != null) {
                         TextButton(
                             onClick = onReject,
-                            colors = ButtonDefaults.textButtonColors(contentColor = WasteRed)
+                            colors = ButtonDefaults.textButtonColors(contentColor = RoleRed)
                         ) {
                             Text("Tolak", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
@@ -1879,7 +2017,7 @@ private fun AssignmentDialog(
                     }.joinToString(", ")
                     Text(
                         "Belum bisa ditugaskan: tidak ada $unavailable. Periksa menu Operasional.",
-                        color = WasteRed,
+                        color = RoleRed,
                         fontSize = 11.sp
                     )
                 }
@@ -1941,7 +2079,7 @@ private fun <T> SelectionField(
                 onClick = { expanded = true },
                 enabled = choices.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .background(WasteBlue.copy(alpha = 0.56f), RoundedCornerShape(12.dp))
+                    .background(RoleAccentSurface.copy(alpha = 0.56f), RoundedCornerShape(12.dp))
             ) {
                 Text(
                     selectedLabel ?: "Pilih $title",
@@ -2001,7 +2139,7 @@ private fun DeleteWorkerAccountDialog(
                     if (replacementWorkers.isEmpty()) {
                         Text(
                             "Belum ada petugas lain yang aktif. Aktifkan atau tambahkan akun petugas pengganti terlebih dahulu.",
-                            color = WasteRed,
+                            color = RoleRed,
                             fontSize = 11.sp
                         )
                     } else {
@@ -2053,7 +2191,7 @@ private fun DeleteWorkerAccountDialog(
                         }
                     }
                 },
-                colors = ButtonDefaults.textButtonColors(contentColor = WasteRed)
+                colors = ButtonDefaults.textButtonColors(contentColor = RoleRed)
             ) {
                 Text(if (deleting) "Menghapus…" else "Hapus akun", fontWeight = FontWeight.Bold)
             }
@@ -2088,7 +2226,7 @@ fun AdminStatsScreen(
     val maxMonthly = monthlyBars.maxOfOrNull { it.total }?.coerceAtLeast(1) ?: 1
     val maxTypeWeight = stats.byType.maxOfOrNull { it.weightKg }?.coerceAtLeast(1.0) ?: 1.0
     val chartColors =
-        listOf(LoginAccent, WasteTeal, WastePurple, WasteOrange, WasteGreenDark, WasteNavy)
+        listOf(LoginAccent, RoleTeal, RolePurple, RoleOrange, RoleGreenDark, RoleNavy)
 
     AdminPage(
         "stats", account, onNavigate, onLogout,
@@ -2109,7 +2247,7 @@ fun AdminStatsScreen(
                     onClick = { onDailyRange(days) },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = if (days == dailyRangeDays) LoginAccent else LoginMuted,
-                        containerColor = if (days == dailyRangeDays) WasteBlue else AppSurface
+                        containerColor = if (days == dailyRangeDays) RoleAccentSurface else AppSurface
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) { Text("$days hari", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
@@ -2122,7 +2260,7 @@ fun AdminStatsScreen(
             SummaryCard(
                 stats.completedReports.toString(),
                 "Selesai total",
-                WasteGreenDark,
+                RoleGreenDark,
                 Modifier.weight(1f),
                 icon = Icons.Filled.CheckCircle
             )
@@ -2138,7 +2276,7 @@ fun AdminStatsScreen(
             modifier = Modifier.fillMaxWidth(),
             containerColor = AppSurface,
             borderColor = AppBorder,
-            accentColor = WasteTeal
+            accentColor = RoleTeal
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -2166,14 +2304,14 @@ fun AdminStatsScreen(
                 if (periodB3 > 0) {
                     Text(
                         "$periodB3 laporan B3",
-                        color = WasteRed,
+                        color = RoleRed,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 } else {
                     Text(
                         "Aman",
-                        color = WasteGreenDark,
+                        color = RoleGreenDark,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -2305,7 +2443,7 @@ fun AdminStatsScreen(
                                     append("${item.totalWaste} laporan · ${item.weightKg.pretty()} kg")
                                     if (item.b3Alerts > 0) append(" · B3 ${item.b3Alerts}")
                                 },
-                                color = if (item.b3Alerts > 0) WasteRed else LoginAccent,
+                                color = if (item.b3Alerts > 0) RoleRed else LoginAccent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -2322,6 +2460,7 @@ fun AdminOperationsScreen(
     workers: List<AdminWorker>,
     completionReviews: List<TaskCompletionReview>,
     vehicleRepairs: List<VehicleRepair>,
+    capacityClearanceRequests: List<CapacityClearanceRequest>,
     adminNotes: List<AdminNoteRecord>,
     archivedAdminNotes: List<ArchivedAdminNote>,
     errorMessage: String,
@@ -2332,6 +2471,7 @@ fun AdminOperationsScreen(
     onOpenPhoto: (String) -> Unit,
     onReviewCompletion: suspend (TaskCompletionReview, String, String) -> Unit,
     onReviewVehicleRepair: suspend (VehicleRepair, String, String) -> Unit,
+    onReviewCapacityClearance: suspend (CapacityClearanceRequest, String, String) -> Unit,
     onAddAdminNote: suspend (AdminNoteRecord, String) -> Unit,
     onArchiveAdminNote: suspend (AdminNoteRecord) -> Unit,
     onRestoreAdminNote: suspend (ArchivedAdminNote) -> Unit,
@@ -2348,6 +2488,7 @@ fun AdminOperationsScreen(
             when (initialTab) {
                 "catatan", "catatan-bukti" -> "catatan"
                 "armada" -> "armada"
+                "pengosongan" -> "pengosongan"
                 else -> "petugas"
             }
         )
@@ -2357,6 +2498,11 @@ fun AdminOperationsScreen(
     var deletingWorker by remember { mutableStateOf<AdminWorker?>(null) }
     var revisionReview by remember { mutableStateOf<TaskCompletionReview?>(null) }
     var vehicleRepairReview by remember { mutableStateOf<Pair<VehicleRepair, String>?>(null) }
+    var capacityClearanceReview by remember { mutableStateOf<Pair<CapacityClearanceRequest, String>?>(null) }
+    var capacityReviewNote by rememberSaveable { mutableStateOf("") }
+    var capacityReviewError by remember { mutableStateOf("") }
+    var capacityReviewSending by remember { mutableStateOf(false) }
+    var showingClearanceHistory by rememberSaveable { mutableStateOf(false) }
     var revisionNote by rememberSaveable { mutableStateOf("") }
     var revisionError by remember { mutableStateOf("") }
     var revisionSending by remember { mutableStateOf(false) }
@@ -2374,6 +2520,9 @@ fun AdminOperationsScreen(
     var adminNoteDraft by rememberSaveable { mutableStateOf("") }
     var adminNoteError by remember { mutableStateOf("") }
     var adminNoteSending by remember { mutableStateOf(false) }
+    var choosingAdminNoteReport by remember { mutableStateOf(false) }
+    var adminNoteReportSearch by rememberSaveable { mutableStateOf("") }
+    var adminNoteSavedMessage by rememberSaveable { mutableStateOf("") }
     var noteArchiveInProgress by remember { mutableStateOf(false) }
     var actionError by rememberSaveable { mutableStateOf("") }
     var workerSearch by rememberSaveable { mutableStateOf("") }
@@ -2416,22 +2565,26 @@ fun AdminOperationsScreen(
         val operationsTabs = listOf(
             "petugas" to "Petugas",
             "armada" to "Perbaikan · ${vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }}",
+            "pengosongan" to "Kapasitas · ${capacityClearanceRequests.count { it.isPending }}",
             "catatan" to "Catatan Admin"
         )
         AdminSectionHeading(
             when (tab) {
                 "catatan" -> "ADMIN • PEMANTAUAN"
                 "armada" -> "ADMIN • ARMADA"
+                "pengosongan" -> "ADMIN • KAPASITAS"
                 else -> "ADMIN • OPERASIONAL"
             },
             when (tab) {
                 "catatan" -> "Catatan Admin"
                 "armada" -> "Perbaikan armada"
+                "pengosongan" -> "Pengosongan aset"
                 else -> "Kelola petugas"
             },
             when (tab) {
                 "catatan" -> "Notifikasi bukti tugas dan catatan pekerjaan petugas."
                 "armada" -> "Setujui perbaikan dan periksa kendaraan sebelum kembali beroperasi."
+                "pengosongan" -> "Tinjau bukti foto sebelum mengatur kapasitas aset kembali kosong."
                 else -> "Atur akun petugas dan pantau pembagian tugas."
             }
         )
@@ -2449,7 +2602,7 @@ fun AdminOperationsScreen(
                     },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = if (tab == key) LoginAccent else LoginMuted,
-                        containerColor = if (tab == key) WasteBlue else AppSurface
+                        containerColor = if (tab == key) RoleAccentSurface else AppSurface
                     ),
                     shape = RoundedCornerShape(13.dp)
                 ) {
@@ -2464,6 +2617,78 @@ fun AdminOperationsScreen(
             }
         }
         when (tab) {
+            "pengosongan" -> {
+                val visibleRequests = capacityClearanceRequests.filter { it.isPending != showingClearanceHistory }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        false to "Menunggu · ${capacityClearanceRequests.count { it.isPending }}",
+                        true to "Riwayat · ${capacityClearanceRequests.count { !it.isPending }}"
+                    ).forEach { (history, label) ->
+                        TextButton(
+                            onClick = { showingClearanceHistory = history },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (showingClearanceHistory == history) LoginAccent else LoginMuted,
+                                containerColor = if (showingClearanceHistory == history) RoleAccentSurface else Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(13.dp)
+                        ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                    }
+                }
+                if (visibleRequests.isEmpty()) {
+                    EmptyAdminState(
+                        if (showingClearanceHistory) "Belum ada keputusan pengosongan."
+                        else "Belum ada permintaan kapasitas yang perlu ditinjau."
+                    )
+                }
+                visibleRequests.forEach { request ->
+                    AppCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = AppSurface,
+                        accentColor = if (request.isPending) RoleOrange else LoginAccent
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(13.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text("${request.targetLabel} · ${request.targetName}", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text("${request.requesterName} · ${request.createdAt.toDisplayDateTime()}", color = AppTextMuted, fontSize = 10.sp)
+                                }
+                                StatusPill(
+                                    if (request.isPending) "menunggu" else request.status,
+                                    if (request.isPending) RoleOrange else LoginAccent
+                                )
+                            }
+                            Text(request.reason, color = AppText, fontSize = 11.sp, lineHeight = 16.sp)
+                            TextButton(
+                                onClick = { onOpenPhoto(request.evidencePhotoUrl) },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                            ) { Text("Lihat bukti foto", color = LoginAccent, fontSize = 11.sp) }
+                            if (request.adminNote.isNotBlank()) {
+                                Text("Catatan Admin: ${request.adminNote}", color = AppTextMuted, fontSize = 10.sp)
+                            }
+                            if (request.isPending) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = {
+                                        capacityReviewNote = ""
+                                        capacityReviewError = ""
+                                        capacityClearanceReview = request to "tolak"
+                                    }) { Text("Tolak", color = RoleRed, fontWeight = FontWeight.SemiBold) }
+                                    TextButton(onClick = {
+                                        capacityReviewNote = ""
+                                        capacityReviewError = ""
+                                        capacityClearanceReview = request to "setujui"
+                                    }) { Text("Setujui & kosongkan", color = LoginAccent, fontWeight = FontWeight.SemiBold) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             "petugas" -> {
                 SectionTitle(
                     "Data petugas",
@@ -2506,7 +2731,7 @@ fun AdminOperationsScreen(
                             ),
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = if (selected) LoginAccent else AppTextMuted,
-                                containerColor = if (selected) WasteBlue else AppSurfaceMuted
+                                containerColor = if (selected) RoleAccentSurface else AppSurfaceMuted
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
@@ -2524,7 +2749,7 @@ fun AdminOperationsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = AppSurface,
                         borderColor = AppBorder,
-                        accentColor = if (item.active && item.hasAccount) LoginAccent else WasteRed
+                        accentColor = if (item.active && item.hasAccount) LoginAccent else RoleRed
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -2542,7 +2767,7 @@ fun AdminOperationsScreen(
                                 Text(
                                     if (item.hasAccount) "@${item.username} · ${item.zone.ifBlank { "Tanpa zona" }}"
                                     else "Belum ada akun Android · ${item.zone.ifBlank { "Tanpa zona" }}",
-                                    color = if (item.hasAccount) AppTextMuted else WasteRed,
+                                    color = if (item.hasAccount) AppTextMuted else RoleRed,
                                     fontSize = 11.sp
                                 )
                                 Text(
@@ -2588,7 +2813,7 @@ fun AdminOperationsScreen(
                                                 item.active -> "Nonaktifkan"
                                                 else -> "Aktifkan"
                                             },
-                                            color = if (item.active) WasteRed else LoginAccent,
+                                            color = if (item.active) RoleRed else LoginAccent,
                                             fontSize = 11.sp
                                         )
                                     }
@@ -2603,7 +2828,7 @@ fun AdminOperationsScreen(
                                         Icon(
                                             Icons.Filled.Delete,
                                             contentDescription = "Hapus akun petugas",
-                                            tint = WasteRed,
+                                            tint = RoleRed,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -2633,7 +2858,7 @@ fun AdminOperationsScreen(
                             onClick = { showingRepairHistory = history },
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = if (showingRepairHistory == history) LoginAccent else LoginMuted,
-                                containerColor = if (showingRepairHistory == history) WasteBlue else AppSurface
+                                containerColor = if (showingRepairHistory == history) RoleAccentSurface else AppSurface
                             ),
                             shape = RoundedCornerShape(13.dp)
                         ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
@@ -2653,7 +2878,7 @@ fun AdminOperationsScreen(
                             when (repair.status) {
                                 "menunggu_persetujuan" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     TextButton(onClick = { vehicleRepairReview = repair to "tolak" }) {
-                                        Text("Tolak", color = WasteRed, fontWeight = FontWeight.SemiBold)
+                                        Text("Tolak", color = RoleRed, fontWeight = FontWeight.SemiBold)
                                     }
                                     TextButton(onClick = { vehicleRepairReview = repair to "setujui" }) {
                                         Text("Setujui perbaikan", color = LoginAccent, fontWeight = FontWeight.SemiBold)
@@ -2661,7 +2886,7 @@ fun AdminOperationsScreen(
                                 }
                                 "menunggu_pemeriksaan" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     TextButton(onClick = { vehicleRepairReview = repair to "kembalikan" }) {
-                                        Text("Minta perbaikan lagi", color = WasteOrange, fontWeight = FontWeight.SemiBold)
+                                        Text("Minta perbaikan lagi", color = RoleOrange, fontWeight = FontWeight.SemiBold)
                                     }
                                     TextButton(onClick = { vehicleRepairReview = repair to "selesai" }) {
                                         Text("Setujui hasil", color = LoginAccent, fontWeight = FontWeight.SemiBold)
@@ -2676,6 +2901,31 @@ fun AdminOperationsScreen(
             "catatan" -> {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text("Catat tindak lanjut", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Pilih laporan, tulis arahan, lalu simpan.", color = AppTextMuted, fontSize = 10.sp)
+                    }
+                    TextButton(
+                        enabled = adminNotes.isNotEmpty() && !isRefreshing,
+                        onClick = {
+                            adminNoteReportSearch = ""
+                            adminNoteSavedMessage = ""
+                            choosingAdminNoteReport = true
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
+                    ) { Text("＋ Tulis catatan", fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                }
+                if (adminNoteSavedMessage.isNotBlank()) {
+                    Text(adminNoteSavedMessage, color = RoleGreenDark, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     listOf(
@@ -2686,7 +2936,7 @@ fun AdminOperationsScreen(
                             onClick = { showingNoteArchive = archive },
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = if (showingNoteArchive == archive) LoginAccent else LoginMuted,
-                                containerColor = if (showingNoteArchive == archive) WasteBlue else AppSurface
+                                containerColor = if (showingNoteArchive == archive) RoleAccentSurface else AppSurface
                             ),
                             shape = RoundedCornerShape(13.dp)
                         ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
@@ -2710,7 +2960,9 @@ fun AdminOperationsScreen(
                             note.report.location, note.report.reportedBy, note.report.workerName,
                             note.report.description, note.statusNote, note.workerNote,
                             note.adminNote, archived.archivedAt, archived.archivedBy
-                        ).any { it.lowercase().contains(query) }
+                        ).plus(note.noteHistory.flatMap { entry ->
+                            listOf(entry.text, entry.author, entry.createdAt)
+                        }).any { it.lowercase().contains(query) }
                     }
                     SectionTitle("Arsip catatan", "Laporan tetap tersimpan dan dapat dipulihkan kapan saja")
                     if (filteredArchive.isEmpty()) {
@@ -2718,6 +2970,7 @@ fun AdminOperationsScreen(
                     }
                     filteredArchive.forEach { archived ->
                         val note = archived.note
+                        var showAllArchivedNotes by rememberSaveable(note.report.id) { mutableStateOf(false) }
                         AppCard(
                             modifier = Modifier.fillMaxWidth(),
                             containerColor = AppSurface,
@@ -2736,13 +2989,50 @@ fun AdminOperationsScreen(
                                     StatusPill(note.report.status, reportAccent(note.report.status))
                                 }
                                 Text(note.report.location, color = AppTextMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                val detail = note.statusNote.takeIf { it.startsWith("Catatan Admin:", true) }
-                                    ?: note.adminNote.takeIf { it.isNotBlank() }
+                                val detail = note.statusNote.takeIf {
+                                    it.isNotBlank() && !it.startsWith("Catatan Admin:", true)
+                                }
                                     ?: note.workerNote.takeIf { it.isNotBlank() }
-                                    ?: note.statusNote.takeIf { it.isNotBlank() }
-                                    ?: note.report.description
-                                if (detail.isNotBlank()) {
+                                    ?: note.report.description.takeIf { note.noteHistory.isEmpty() }
+                                if (!detail.isNullOrBlank()) {
                                     Text(detail, color = AppText, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                }
+                                if (note.noteHistory.isNotEmpty()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Catatan Admin · ${note.noteHistory.size}",
+                                            modifier = Modifier.weight(1f),
+                                            color = LoginAccent,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        if (note.noteHistory.size > 1) {
+                                            TextButton(onClick = { showAllArchivedNotes = !showAllArchivedNotes }) {
+                                                Text(
+                                                    if (showAllArchivedNotes) "Tutup riwayat" else "Lihat riwayat",
+                                                    color = LoginAccent,
+                                                    fontSize = 9.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                    (if (showAllArchivedNotes) note.noteHistory else note.noteHistory.takeLast(1))
+                                        .forEach { entry ->
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    entry.text,
+                                                    color = AppText,
+                                                    fontSize = 10.sp,
+                                                    maxLines = if (showAllArchivedNotes) 4 else 3,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    "${entry.author} · ${entry.createdAt.take(16).ifBlank { "Waktu tidak tersedia" }}",
+                                                    color = AppTextMuted,
+                                                    fontSize = 9.sp
+                                                )
+                                            }
+                                        }
                                 }
                                 Text("Diarsipkan ${archived.archivedAt} · ${archived.archivedBy}", color = AppTextMuted, fontSize = 9.sp)
                                 TextButton(
@@ -2777,7 +3067,7 @@ fun AdminOperationsScreen(
                                 onClick = { activeNoteFilter = key },
                                 colors = ButtonDefaults.textButtonColors(
                                     contentColor = if (activeNoteFilter == key) LoginAccent else LoginMuted,
-                                    containerColor = if (activeNoteFilter == key) WasteBlue else AppSurface
+                                    containerColor = if (activeNoteFilter == key) RoleAccentSurface else AppSurface
                                 ),
                                 shape = RoundedCornerShape(13.dp)
                             ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
@@ -2809,7 +3099,7 @@ fun AdminOperationsScreen(
                             AppCard(
                                 modifier = Modifier.fillMaxWidth(),
                                 containerColor = AppSurface,
-                                accentColor = WasteOrange
+                                accentColor = RoleOrange
                             ) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(13.dp),
@@ -2824,7 +3114,7 @@ fun AdminOperationsScreen(
                                                 fontSize = 10.sp
                                             )
                                         }
-                                        StatusPill("Menunggu tinjauan", WasteOrange)
+                                        StatusPill("Menunggu tinjauan", RoleOrange)
                                     }
                                     Text(
                                         "${report.location} · ${review.workerName.displayPersonName()}",
@@ -2861,7 +3151,7 @@ fun AdminOperationsScreen(
                                                 revisionError = ""
                                                 revisionReview = review
                                             }
-                                        ) { Text("Minta perbaikan", color = WasteOrange, fontSize = 10.sp) }
+                                        ) { Text("Minta perbaikan", color = RoleOrange, fontSize = 10.sp) }
                                         TextButton(
                                             modifier = Modifier.weight(1f),
                                             enabled = processingCompletionId == null && review.proofPhotoUrl.isNotBlank(),
@@ -2884,7 +3174,7 @@ fun AdminOperationsScreen(
                                         ) {
                                             Text(
                                                 if (processingCompletionId == review.id) "Menyetujui…" else "Setujui",
-                                                color = WasteGreen,
+                                                color = RoleGreen,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -2898,11 +3188,14 @@ fun AdminOperationsScreen(
                     val pendingReviewIds = visibleReviews.mapTo(mutableSetOf()) { it.report.id }
                     val filteredActiveNotes = adminNotes.filter { note ->
                         val report = note.report
-                        val matchesQuery = query.isBlank() || listOf(
+                        val searchableText = listOf(
                             report.code, report.type, report.location, report.reportedBy,
                             report.workerName, report.description, note.statusNote,
                             note.workerNote, note.adminNote, WasteFlow.label(report.status)
-                        ).any { it.lowercase().contains(query) }
+                        ) + note.noteHistory.flatMap { entry ->
+                            listOf(entry.text, entry.author, entry.createdAt)
+                        }
+                        val matchesQuery = query.isBlank() || searchableText.any { it.lowercase().contains(query) }
                         val matchesFilter = when (activeNoteFilter) {
                             "tinjau" -> false
                             "perbaikan" -> report.completionStatus.equals("perlu_perbaikan", true)
@@ -2929,11 +3222,13 @@ fun AdminOperationsScreen(
                     }
                     if (activeNoteFilter != "tinjau") filteredActiveNotes.forEach { note ->
                         val report = note.report
-                        val detail = note.statusNote.takeIf { it.startsWith("Catatan Admin:", true) }
-                            ?: note.adminNote.takeIf { it.isNotBlank() }
+                        val noteHistory = note.noteHistory
+                        var showAllAdminNotes by rememberSaveable(report.id) { mutableStateOf(false) }
+                        val detail = note.statusNote.takeIf {
+                            it.isNotBlank() && !it.startsWith("Catatan Admin:", true)
+                        }
                             ?: note.workerNote.takeIf { it.isNotBlank() }
-                            ?: note.statusNote.takeIf { it.isNotBlank() }
-                            ?: report.description
+                            ?: report.description.takeIf { noteHistory.isEmpty() }
                         AppCard(
                             modifier = Modifier.fillMaxWidth(),
                             containerColor = AppSurface,
@@ -2955,17 +3250,62 @@ fun AdminOperationsScreen(
                                 if (report.workerName.isNotBlank()) {
                                     Text("Petugas: ${report.workerName.displayPersonName()}", color = AppTextMuted, fontSize = 10.sp)
                                 }
-                                if (detail.isNotBlank()) {
+                                if (!detail.isNullOrBlank()) {
                                     Text(detail, color = AppText, fontSize = 10.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                }
+                                if (noteHistory.isNotEmpty()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Catatan Admin · ${noteHistory.size}",
+                                            modifier = Modifier.weight(1f),
+                                            color = LoginAccent,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        if (noteHistory.size > 1) {
+                                            TextButton(
+                                                onClick = { showAllAdminNotes = !showAllAdminNotes }
+                                            ) {
+                                                Text(
+                                                    if (showAllAdminNotes) "Tutup riwayat" else "Lihat riwayat",
+                                                    color = LoginAccent,
+                                                    fontSize = 9.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                    (if (showAllAdminNotes) noteHistory else noteHistory.takeLast(1)).forEach { entry ->
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(
+                                                entry.text,
+                                                color = AppText,
+                                                fontSize = 10.sp,
+                                                maxLines = if (showAllAdminNotes) 4 else 3,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                "${entry.author} · ${entry.createdAt.take(16).ifBlank { "Waktu tidak tersedia" }}",
+                                                color = AppTextMuted,
+                                                fontSize = 9.sp
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Text(
+                                        "Belum ada catatan Admin. Tambahkan catatan tindak lanjut bila diperlukan.",
+                                        color = AppTextMuted,
+                                        fontSize = 9.sp
+                                    )
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     TextButton(
                                         onClick = {
                                             adminNoteDraft = ""
                                             adminNoteError = ""
+                                            adminNoteSavedMessage = ""
                                             writingAdminNote = note
                                         }
-                                    ) { Text("Tambah catatan", color = LoginAccent, fontSize = 10.sp) }
+                                    ) { Text("Tulis catatan", color = LoginAccent, fontSize = 10.sp) }
                                     Spacer(Modifier.weight(1f))
                                     TextButton(
                                         enabled = !noteArchiveInProgress,
@@ -3072,6 +3412,157 @@ fun AdminOperationsScreen(
             }
         )
     }
+    capacityClearanceReview?.let { (request, action) ->
+        AlertDialog(
+            onDismissRequest = { if (!capacityReviewSending) capacityClearanceReview = null },
+            title = {
+                Text(
+                    if (action == "setujui") "Setujui pengosongan?" else "Tolak permintaan?",
+                    color = LoginInk,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${request.targetLabel} · ${request.targetName}", color = AppText, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (action == "setujui") {
+                            "Setelah disetujui, kapasitas aset direset ke kosong. Server akan menolak persetujuan jika masih ada tugas pengiriman aktif."
+                        } else {
+                            "Permintaan ditolak dan angka kapasitas tetap seperti semula."
+                        },
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                    if (action == "tolak") {
+                        OutlinedTextField(
+                            value = capacityReviewNote,
+                            onValueChange = { capacityReviewNote = it.take(500) },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Alasan penolakan") },
+                            minLines = 2,
+                            maxLines = 4,
+                            enabled = !capacityReviewSending
+                        )
+                    }
+                    if (capacityReviewError.isNotBlank()) InlineError(capacityReviewError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !capacityReviewSending && (action != "tolak" || capacityReviewNote.trim().length >= 5),
+                    onClick = {
+                        scope.launch {
+                            capacityReviewSending = true
+                            capacityReviewError = ""
+                            actionError = ""
+                            try {
+                                onReviewCapacityClearance(request, action, capacityReviewNote.trim())
+                                capacityClearanceReview = null
+                                capacityReviewNote = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                capacityReviewError = error.message ?: "Keputusan pengosongan gagal disimpan."
+                            } finally {
+                                capacityReviewSending = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(
+                        if (capacityReviewSending) "Menyimpan…" else if (action == "setujui") "Setujui & kosongkan" else "Tolak",
+                        color = if (action == "setujui") LoginAccent else RoleRed
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { capacityClearanceReview = null }, enabled = !capacityReviewSending) {
+                    Text("Kembali", color = LoginMuted)
+                }
+            },
+            containerColor = AppSurface
+        )
+    }
+    if (choosingAdminNoteReport) {
+        val query = adminNoteReportSearch.trim().lowercase()
+        val matchingReports = adminNotes.filter { note ->
+            listOf(
+                note.report.code,
+                note.report.type,
+                note.report.location,
+                note.report.reportedBy,
+                note.report.workerName,
+                note.report.status
+            ).any { it.lowercase().contains(query) }
+        }.take(50)
+        AlertDialog(
+            onDismissRequest = { choosingAdminNoteReport = false },
+            title = { Text("Pilih laporan", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    OutlinedTextField(
+                        value = adminNoteReportSearch,
+                        onValueChange = { adminNoteReportSearch = it.take(100) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Cari kode atau lokasi") },
+                        singleLine = true
+                    )
+                    if (matchingReports.isEmpty()) {
+                        Text(
+                            if (adminNotes.isEmpty()) "Belum ada laporan aktif untuk diberi catatan."
+                            else "Laporan yang cocok tidak ditemukan.",
+                            color = AppTextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+                    matchingReports.forEach { note ->
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                adminNoteDraft = ""
+                                adminNoteError = ""
+                                adminNoteSavedMessage = ""
+                                choosingAdminNoteReport = false
+                                writingAdminNote = note
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(note.report.code, color = AppText, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        "${note.report.type} · ${note.report.location}",
+                                        color = AppTextMuted,
+                                        fontSize = 9.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                StatusPill(note.report.status, reportAccent(note.report.status))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { choosingAdminNoteReport = false }) {
+                    Text("Batal", color = LoginMuted)
+                }
+            },
+            containerColor = AppSurface
+        )
+    }
     writingAdminNote?.let { item ->
         val noteBytes = adminNoteDraft.toByteArray(Charsets.UTF_8).size
         AlertDialog(
@@ -3110,6 +3601,7 @@ fun AdminOperationsScreen(
                             actionError = ""
                             try {
                                 onAddAdminNote(item, adminNoteDraft.trim())
+                                adminNoteSavedMessage = "Catatan untuk ${item.report.code} berhasil disimpan."
                                 writingAdminNote = null
                                 adminNoteDraft = ""
                             } catch (cancelled: CancellationException) {
@@ -3231,6 +3723,7 @@ fun PetugasTasksScreen(
     vehicles: List<WasteVehicle>,
     vehicleRepairs: List<VehicleRepair>,
     facilities: List<WasteFacility>,
+    capacityClearanceRequests: List<CapacityClearanceRequest>,
     errorMessage: String,
     account: UserAccount,
     onAskAssistant: suspend (String, List<PetugasAssistantTurn>) -> PetugasAssistantReply,
@@ -3249,6 +3742,7 @@ fun PetugasTasksScreen(
     onSubmitVehicleRepairForInspection: suspend (VehicleRepair, String) -> Unit,
     onCreateFacility: suspend (String, String, Double) -> Unit,
     onUpdateFacility: suspend (WasteFacility) -> Unit,
+    onRequestCapacityClearance: suspend (String, Int, Uri, String) -> Unit,
     isInitialLoading: Boolean,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
@@ -3273,6 +3767,11 @@ fun PetugasTasksScreen(
     var vehicleRepairAction by remember { mutableStateOf<Pair<VehicleRepair, String>?>(null) }
     var showFacilityForm by remember { mutableStateOf(false) }
     var editingFacility by remember { mutableStateOf<WasteFacility?>(null) }
+    var capacityClearanceTarget by remember { mutableStateOf<Triple<String, Int, String>?>(null) }
+    var capacityClearancePhoto by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
+    var capacityClearanceReason by rememberSaveable(account.username) { mutableStateOf("") }
+    var capacityClearanceError by remember { mutableStateOf("") }
+    var capacityClearanceSending by remember { mutableStateOf(false) }
     var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
     var rejectingReport by remember { mutableStateOf<WasteRecord?>(null) }
     var rejectionNote by rememberSaveable { mutableStateOf("") }
@@ -3313,6 +3812,17 @@ fun PetugasTasksScreen(
         selectedProofUri = uri
         if (uri == null) selectedCompletionTaskId = null
         showProofSourceDialog = false
+    }
+    val capacityClearancePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
+        capacityClearancePhoto = uri
     }
     val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
         selectedProofUri = if (captured) selectedCameraUri else null
@@ -3837,7 +4347,7 @@ fun PetugasTasksScreen(
                                     onClick = { showingRepairHistory = history },
                                     colors = ButtonDefaults.textButtonColors(
                                         contentColor = if (showingRepairHistory == history) LoginAccent else LoginMuted,
-                                        containerColor = if (showingRepairHistory == history) WasteBlue else AppSurface
+                                        containerColor = if (showingRepairHistory == history) RoleAccentSurface else AppSurface
                                     ),
                                     shape = RoundedCornerShape(13.dp)
                                 ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
@@ -3886,6 +4396,10 @@ fun PetugasTasksScreen(
                             val openRepair = vehicleRepairs.firstOrNull {
                                 it.vehicleId == vehicle.id && it.status !in setOf("selesai", "ditolak")
                             }
+                            val isFull = vehicle.capacityKg > 0 && vehicle.availableKg <= 0.01
+                            val emptyingRequest = capacityClearanceRequests.firstOrNull {
+                                it.targetType == "kendaraan" && it.targetId == vehicle.id
+                            }
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -3895,9 +4409,9 @@ fun PetugasTasksScreen(
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                             Text(vehicle.plate, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                             Text(
-                                                "${vehicle.loadKg.pretty()} / ${vehicle.capacityKg.pretty()} kg · ${vehicle.condition}",
+                                                "${vehicle.loadKg.pretty()} kg terisi · ${vehicle.reservedKg.pretty()} kg dipesan dari ${vehicle.capacityKg.pretty()} kg · ${vehicle.condition}",
                                                 color = AppTextMuted,
-                                                fontSize = 11.sp
+                                                fontSize = 10.sp
                                             )
                                             Text("Rute: ${vehicle.route.ifBlank { "Belum ditentukan" }}", color = AppTextMuted, fontSize = 11.sp)
                                         }
@@ -3905,13 +4419,27 @@ fun PetugasTasksScreen(
                                             Text("Ubah", color = LoginAccent, fontSize = 11.sp)
                                         }
                                     }
+                                    if (isFull) {
+                                        CapacityLimitNotice(
+                                            title = "Kapasitas penuh · penugasan baru diblokir",
+                                            detail = "Kosongkan muatan di TPA, lampirkan foto, lalu ajukan persetujuan Admin.",
+                                            status = emptyingRequest?.let { clearanceStatusText(it) },
+                                            actionLabel = if (emptyingRequest?.isPending == true) null else "Ajukan pengosongan",
+                                            onAction = {
+                                                capacityClearanceError = ""
+                                                capacityClearancePhoto = null
+                                                capacityClearanceReason = ""
+                                                capacityClearanceTarget = Triple("kendaraan", vehicle.id, vehicle.plate)
+                                            }
+                                        )
+                                    }
                                     if (openRepair != null) {
                                         TextButton(onClick = { selectedWorkArea = "perbaikan" }) {
-                                            Text("Lihat proses · ${openRepair.statusLabel}  ›", color = WasteOrange, fontSize = 11.sp)
+                                            Text("Lihat proses · ${openRepair.statusLabel}  ›", color = RoleOrange, fontSize = 11.sp)
                                         }
                                     } else if (vehicle.condition.equals("baik", true) || vehicle.condition.equals("rusak", true)) {
                                         TextButton(onClick = { reportingDamageVehicle = vehicle }) {
-                                            Text("Laporkan kerusakan", color = WasteRed, fontSize = 11.sp)
+                                            Text("Laporkan kerusakan", color = RoleRed, fontSize = 11.sp)
                                         }
                                     }
                                 }
@@ -3928,6 +4456,10 @@ fun PetugasTasksScreen(
                             PetugasLoadFailure("Data TPA belum dapat dimuat.", onRefresh)
                         } else if (facilities.isEmpty()) PetugasEmptyState("Belum ada TPA", "Tambahkan TPA agar laporan bisa ditugaskan.")
                         facilities.forEach { facility ->
+                            val isFull = facility.capacityTon > 0 && facility.remainingTon <= 0.001
+                            val emptyingRequest = capacityClearanceRequests.firstOrNull {
+                                it.targetType == "tpa" && it.targetId == facility.id
+                            }
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -3952,6 +4484,20 @@ fun PetugasTasksScreen(
                                             ((facility.filledTon + facility.reservedTon) / facility.capacityTon).toFloat()
                                         } else 0f
                                     )
+                                    if (isFull) {
+                                        CapacityLimitNotice(
+                                            title = "TPA penuh · tidak menerima sampah baru",
+                                            detail = "Setelah area dikosongkan, kirim foto dan alasan. Admin akan memeriksa sebelum kapasitas direset.",
+                                            status = emptyingRequest?.let { clearanceStatusText(it) },
+                                            actionLabel = if (emptyingRequest?.isPending == true) null else "Ajukan pengosongan",
+                                            onAction = {
+                                                capacityClearanceError = ""
+                                                capacityClearancePhoto = null
+                                                capacityClearanceReason = ""
+                                                capacityClearanceTarget = Triple("tpa", facility.id, facility.name)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -4096,6 +4642,80 @@ fun PetugasTasksScreen(
             }
         }
     }
+    capacityClearanceTarget?.let { target ->
+        val targetLabel = if (target.first == "tpa") "TPA" else "armada"
+        AlertDialog(
+            onDismissRequest = { if (!capacityClearanceSending) capacityClearanceTarget = null },
+            title = { Text("Ajukan pengosongan $targetLabel", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(target.third, color = AppText, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Pastikan aset benar-benar sudah dikosongkan. Kapasitas tetap terkunci sampai Admin memeriksa foto dan menyetujui permintaan.",
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                    TextButton(
+                        enabled = !capacityClearanceSending,
+                        onClick = { capacityClearancePicker.launch(arrayOf("image/*")) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                    ) {
+                        Text(
+                            if (capacityClearancePhoto == null) "Pilih foto kondisi kosong" else "Ganti foto bukti",
+                            color = LoginAccent,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    if (capacityClearancePhoto != null) {
+                        Text("Foto bukti sudah dipilih", color = LoginAccent, fontSize = 11.sp)
+                    }
+                    OutlinedTextField(
+                        value = capacityClearanceReason,
+                        onValueChange = { capacityClearanceReason = it.take(500) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Catatan proses pengosongan") },
+                        placeholder = { Text("Jelaskan pemindahan muatan dan lokasi tujuan") },
+                        minLines = 2,
+                        maxLines = 4,
+                        enabled = !capacityClearanceSending
+                    )
+                    if (capacityClearanceError.isNotBlank()) InlineError(capacityClearanceError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = capacityClearancePhoto != null && capacityClearanceReason.trim().length >= 8 && !capacityClearanceSending,
+                    onClick = {
+                        val photo = capacityClearancePhoto ?: return@TextButton
+                        scope.launch {
+                            capacityClearanceSending = true
+                            capacityClearanceError = ""
+                            try {
+                                onRequestCapacityClearance(target.first, target.second, photo, capacityClearanceReason.trim())
+                                capacityClearanceTarget = null
+                                capacityClearancePhoto = null
+                                capacityClearanceReason = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                capacityClearanceError = error.message ?: "Permintaan pengosongan gagal dikirim."
+                            } finally {
+                                capacityClearanceSending = false
+                            }
+                        }
+                    }
+                ) { Text(if (capacityClearanceSending) "Mengirim…" else "Kirim ke Admin", color = LoginAccent) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { capacityClearanceTarget = null },
+                    enabled = !capacityClearanceSending
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
     assigningReport?.let { report ->
         PetugasAssignmentDialog(
             report = report,
@@ -4152,7 +4772,7 @@ fun PetugasTasksScreen(
                             }
                         }
                     }
-                ) { Text(if (processingReportAction) "Menyimpan…" else "Tolak laporan", color = WasteRed) }
+                ) { Text(if (processingReportAction) "Menyimpan…" else "Tolak laporan", color = RoleRed) }
             },
             dismissButton = {
                 TextButton(onClick = { rejectingReport = null }, enabled = !processingReportAction) {
@@ -4605,6 +5225,43 @@ private fun PetugasAssistantDialog(
 }
 
 @Composable
+private fun CapacityLimitNotice(
+    title: String,
+    detail: String,
+    status: String?,
+    actionLabel: String?,
+    onAction: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(13.dp))
+            .background(RoleOrange.copy(alpha = 0.11f))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(title, color = RoleOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(detail, color = AppTextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+        if (!status.isNullOrBlank()) {
+            Text(status, color = AppText, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+        }
+        if (actionLabel != null) {
+            TextButton(
+                onClick = onAction,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+            ) { Text(actionLabel, color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+        }
+    }
+}
+
+private fun clearanceStatusText(request: CapacityClearanceRequest): String = when (request.status.lowercase()) {
+    "menunggu" -> "Menunggu pemeriksaan Admin"
+    "disetujui" -> "Disetujui · kapasitas sudah dikosongkan"
+    "ditolak" -> "Ditolak${request.adminNote.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()}"
+    else -> request.status.replace('_', ' ').replaceFirstChar { it.uppercase() }
+}
+
+@Composable
 private fun PetugasAssignmentDialog(
     report: WasteRecord,
     vehicles: List<WasteVehicle>,
@@ -4650,7 +5307,7 @@ private fun PetugasAssignmentDialog(
                         if (eligibleVehicles.isEmpty()) add("kendaraan sehat dengan kapasitas cukup")
                         if (eligibleFacilities.isEmpty()) add("TPA yang kapasitasnya cukup")
                     }.joinToString(" dan ")
-                    Text("Belum dapat diterima: tidak tersedia $unavailable.", color = WasteRed, fontSize = 10.sp)
+                    Text("Belum dapat diterima: tidak tersedia $unavailable.", color = RoleRed, fontSize = 10.sp)
                 }
                 if (saveError.isNotBlank()) InlineError(saveError)
             }
@@ -4687,6 +5344,7 @@ private fun PetugasAssignmentDialog(
 @Composable
 private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
     val darkMode = LocalSmartWasteAppearance.current.darkMode
+    val compact = LocalConfiguration.current.screenWidthDp < 600
     // Keep the full-screen canvas still between theme changes to avoid continuous GPU work.
     val ambientPhase = 0f
     val nightProgress by animateFloatAsState(
@@ -4700,6 +5358,7 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
             val height = size.height
             val breeze = sin(ambientPhase.toDouble()).toFloat()
             val drift = breeze * 12.dp.toPx()
+            val mobileSceneShift = if (compact) 0.025f else 0f
             val dayProgress = 1f - nightProgress
             val sky = listOf(
                 lerp(Color(0xFFC5DDE5), Color(0xFF111C2A), nightProgress),
@@ -4711,13 +5370,16 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
 
             run {
                 val glowPulse = 0.5f + 0.5f * sin(nightPhase.toDouble()).toFloat()
-                val moon = Offset(width * 0.81f + drift * 0.12f, height * 0.17f)
-                val glowRadius = width * (0.34f + glowPulse * 0.03f)
+                val moon = Offset(
+                    width * (if (compact) 0.94f else 0.81f) + if (compact) 0f else drift * 0.12f,
+                    height * (if (compact) 0.11f else 0.17f)
+                )
+                val glowRadius = width * if (compact) 0.25f else (0.34f + glowPulse * 0.03f)
                 drawCircle(
                     Brush.radialGradient(
                         listOf(
-                            Color(0xFFDDE8C9).copy(alpha = (0.22f + glowPulse * 0.06f) * nightProgress),
-                            Color(0xFF8EB9A7).copy(alpha = 0.10f * nightProgress),
+                            Color(0xFFDDE8C9).copy(alpha = (if (compact) 0.12f else 0.22f + glowPulse * 0.06f) * nightProgress),
+                            Color(0xFF8EB9A7).copy(alpha = (if (compact) 0.045f else 0.10f) * nightProgress),
                             Color.Transparent
                         ),
                         center = moon,
@@ -4726,6 +5388,7 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                     radius = glowRadius,
                     center = moon
                 )
+                if (!compact) {
                 val moonRadius = width * 0.068f
                 val crescent = Path().apply {
                     moveTo(moon.x + moonRadius * 0.72f, moon.y - moonRadius * 0.68f)
@@ -4776,6 +5439,7 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                     )
                     drawCircle(Color(0xFFE5EEDC).copy(alpha = twinkle * nightProgress), (1.2f + index % 2 * 0.45f).dp.toPx(), star)
                 }
+                }
                 val horizonHaze = Brush.verticalGradient(
                     colors = listOf(
                         Color.Transparent,
@@ -4788,17 +5452,22 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                 drawRect(horizonHaze, topLeft = Offset(0f, height * 0.43f), size = Size(width, height * 0.39f))
             }
             run {
-                val morningGlow = Offset(width * 0.78f + drift * 0.12f, height * 0.22f)
+                val morningGlow = Offset(
+                    width * (if (compact) 0.94f else 0.78f) + if (compact) 0f else drift * 0.12f,
+                    height * (if (compact) 0.10f else 0.22f)
+                )
+                val morningGlowRadius = width * if (compact) 0.24f else 0.36f
                 drawCircle(
                     Brush.radialGradient(
-                        listOf(Color(0xFFF1E6CA).copy(alpha = 0.36f * dayProgress), Color.Transparent),
+                        listOf(Color(0xFFF1E6CA).copy(alpha = (if (compact) 0.20f else 0.36f) * dayProgress), Color.Transparent),
                         center = morningGlow,
-                        radius = width * 0.36f
+                        radius = morningGlowRadius
                     ),
-                    radius = width * 0.36f,
+                    radius = morningGlowRadius,
                     center = morningGlow
                 )
                 // Soft morning clouds and a quiet breeze echo the login screen's light theme.
+                if (!compact) {
                 val cloud = Path().apply {
                     moveTo(-width * 0.05f + drift, height * 0.21f)
                     cubicTo(width * 0.12f + drift, height * 0.14f, width * 0.25f + drift, height * 0.27f, width * 0.40f + drift, height * 0.19f)
@@ -4808,14 +5477,15 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                     close()
                 }
                 drawPath(cloud, Color(0xFFF5F4E8).copy(alpha = 0.28f * dayProgress))
+                }
             }
 
             // Wetland plants and a narrow stream keep the lower scene environmental
             // without repeating the hills and tree silhouettes from the login screen.
             val bank = Path().apply {
-                moveTo(0f, height * 0.81f)
-                cubicTo(width * 0.20f, height * 0.79f, width * 0.31f, height * 0.83f, width * 0.49f, height * 0.81f)
-                cubicTo(width * 0.67f, height * 0.79f, width * 0.84f, height * 0.83f, width, height * 0.80f)
+                moveTo(0f, height * (0.81f + mobileSceneShift))
+                cubicTo(width * 0.20f, height * (0.79f + mobileSceneShift), width * 0.31f, height * (0.83f + mobileSceneShift), width * 0.49f, height * (0.81f + mobileSceneShift))
+                cubicTo(width * 0.67f, height * (0.79f + mobileSceneShift), width * 0.84f, height * (0.83f + mobileSceneShift), width, height * (0.80f + mobileSceneShift))
                 lineTo(width, height)
                 lineTo(0f, height)
                 close()
@@ -4830,9 +5500,9 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
             )
 
             val water = Path().apply {
-                moveTo(0f, height * 0.88f)
-                cubicTo(width * 0.18f, height * 0.83f, width * 0.33f, height * 0.92f, width * 0.51f, height * 0.87f)
-                cubicTo(width * 0.70f, height * 0.82f, width * 0.84f, height * 0.90f, width, height * 0.85f)
+                moveTo(0f, height * (0.88f + mobileSceneShift))
+                cubicTo(width * 0.18f, height * (0.83f + mobileSceneShift), width * 0.33f, height * (0.92f + mobileSceneShift), width * 0.51f, height * (0.87f + mobileSceneShift))
+                cubicTo(width * 0.70f, height * (0.82f + mobileSceneShift), width * 0.84f, height * (0.90f + mobileSceneShift), width, height * (0.85f + mobileSceneShift))
                 lineTo(width, height)
                 lineTo(0f, height)
                 close()
@@ -4841,11 +5511,11 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                 lerp(Color(0xFFB4D2CF).copy(alpha = 0.66f), Color(0xFF2B5551).copy(alpha = 0.84f), nightProgress),
                 lerp(Color(0xFF8FB8B5).copy(alpha = 0.60f), Color(0xFF142B2B).copy(alpha = 0.94f), nightProgress)
             )
-            drawPath(water, Brush.verticalGradient(waterColors, startY = height * 0.83f, endY = height))
+            drawPath(water, Brush.verticalGradient(waterColors, startY = height * (0.83f + mobileSceneShift), endY = height))
             val waterEdge = Path().apply {
-                moveTo(0f, height * 0.88f)
-                cubicTo(width * 0.18f, height * 0.83f, width * 0.33f, height * 0.92f, width * 0.51f, height * 0.87f)
-                cubicTo(width * 0.70f, height * 0.82f, width * 0.84f, height * 0.90f, width, height * 0.85f)
+                moveTo(0f, height * (0.88f + mobileSceneShift))
+                cubicTo(width * 0.18f, height * (0.83f + mobileSceneShift), width * 0.33f, height * (0.92f + mobileSceneShift), width * 0.51f, height * (0.87f + mobileSceneShift))
+                cubicTo(width * 0.70f, height * (0.82f + mobileSceneShift), width * 0.84f, height * (0.90f + mobileSceneShift), width, height * (0.85f + mobileSceneShift))
             }
             drawPath(
                 waterEdge,
@@ -4861,10 +5531,10 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
             val reflectionPulse = 0.5f + 0.5f * sin(waterPhase.toDouble()).toFloat()
             val reflectionAlpha = 0.12f + (0.05f + 0.02f * nightProgress) * reflectionPulse
             listOf(
-                Triple(0.67f, 0.875f, 0.09f),
-                Triple(0.76f, 0.91f, 0.12f),
-                Triple(0.62f, 0.94f, 0.10f),
-                Triple(0.82f, 0.96f, 0.07f)
+                Triple(0.67f, 0.875f + mobileSceneShift, 0.09f),
+                Triple(0.76f, 0.91f + mobileSceneShift, 0.12f),
+                Triple(0.62f, 0.94f + mobileSceneShift, 0.10f),
+                Triple(0.82f, 0.96f + mobileSceneShift, 0.07f)
             ).forEachIndexed { index, (x, y, length) ->
                 val rippleShift = sin((waterPhase + index * 1.6f).toDouble()).toFloat() * 0.018f
                 val rippleX = (x + rippleShift).coerceIn(0.02f, 0.96f - length)
@@ -4895,10 +5565,10 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                 nightProgress
             )
             val lilyPads = listOf(
-                Triple(0.16f, 0.862f, 0.76f),
-                Triple(0.39f, 0.878f, 1.00f),
-                Triple(0.65f, 0.847f, 0.88f),
-                Triple(0.85f, 0.862f, 0.70f)
+                Triple(0.16f, 0.862f + mobileSceneShift, 0.76f),
+                Triple(0.39f, 0.878f + mobileSceneShift, 1.00f),
+                Triple(0.65f, 0.847f + mobileSceneShift, 0.88f),
+                Triple(0.85f, 0.862f + mobileSceneShift, 0.70f)
             )
             lilyPads.forEachIndexed { index, (xFraction, yFraction, scale) ->
                 val gentleBob = sin((waterPhase + index * 1.15f).toDouble()).toFloat() * 2.2.dp.toPx()
@@ -4949,7 +5619,10 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                 Color(0xFFC2AE7D).copy(alpha = 0.82f),
                 nightProgress
             )
-            listOf(0.28f to 0.851f, 0.73f to 0.842f).forEachIndexed { index, (xFraction, yFraction) ->
+            listOf(
+                0.28f to (0.851f + mobileSceneShift),
+                0.73f to (0.842f + mobileSceneShift)
+            ).forEachIndexed { index, (xFraction, yFraction) ->
                 val flowerBob = sin((waterPhase + index * 1.8f).toDouble()).toFloat() * 1.5.dp.toPx()
                 val flower = Offset(width * xFraction, height * yFraction + flowerBob)
                 val petalRadius = 4.dp.toPx()
@@ -5296,9 +5969,9 @@ private fun AccountProfileSettings(account: UserAccount, onLogout: () -> Unit) {
                 .background(if (isDark) Color(0xFF3A2927) else Color(0xFFF3E8E3))
                 .padding(vertical = 5.dp)
         ) {
-            Icon(Icons.Filled.SwitchAccount, contentDescription = null, tint = WasteRed)
+            Icon(Icons.Filled.SwitchAccount, contentDescription = null, tint = RoleRed)
             Spacer(Modifier.width(8.dp))
-            Text("Keluar dari akun", color = WasteRed, fontWeight = FontWeight.Bold)
+            Text("Keluar dari akun", color = RoleRed, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -5332,14 +6005,14 @@ private fun PetugasTaskCard(
     val needsRevision = report.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
     val waitingForAdmin = report.completionStatus.equals("menunggu", ignoreCase = true)
     val statusAccent = when (report.status) {
-        WasteFlow.DONE -> if (isDark) Color(0xFF91C59B) else WasteGreen
-        WasteFlow.REJECTED -> if (isDark) Color(0xFFE3A19A) else WasteRed
-        WasteFlow.TRANSPORTED -> if (isDark) Color(0xFF82C7B9) else WasteTeal
+        WasteFlow.DONE -> if (isDark) Color(0xFF91C59B) else RoleGreen
+        WasteFlow.REJECTED -> if (isDark) Color(0xFFE3A19A) else RoleRed
+        WasteFlow.TRANSPORTED -> if (isDark) Color(0xFF82C7B9) else RoleTeal
         else -> if (isDark) Color(0xFFC2CF91) else LoginAccent
     }
     val guidanceAccent = when {
-        needsRevision -> if (isDark) Color(0xFFE3A19A) else WasteRed
-        waitingForAdmin -> if (isDark) Color(0xFFE0BB76) else WasteOrange
+        needsRevision -> if (isDark) Color(0xFFE3A19A) else RoleRed
+        waitingForAdmin -> if (isDark) Color(0xFFE0BB76) else RoleOrange
         else -> statusAccent
     }
     val guidanceTitle = when {
@@ -5405,8 +6078,8 @@ private fun PetugasTaskCard(
             if (!isComplete && !isRejected) {
                 if (!report.hazardLevel.equals("RENDAH", true)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Icon(Icons.Filled.ReportProblem, contentDescription = null, tint = WasteRed, modifier = Modifier.size(14.dp))
-                        Text("Perhatian khusus · ${report.hazardLevel}", color = if (isDark) Color(0xFFE3A19A) else WasteRed, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Filled.ReportProblem, contentDescription = null, tint = RoleRed, modifier = Modifier.size(14.dp))
+                        Text("Perhatian khusus · ${report.hazardLevel}", color = if (isDark) Color(0xFFE3A19A) else RoleRed, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -5454,7 +6127,7 @@ private fun PetugasTaskCard(
                         onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)
                     ) {
-                        Text("Bukti petugas", color = if (isDark) Color(0xFF82C7B9) else WasteTeal, fontSize = 11.sp)
+                        Text("Bukti petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 11.sp)
                     }
                 }
             }
@@ -5492,7 +6165,7 @@ private fun PetugasTaskCard(
                         modifier = Modifier.fillMaxWidth().height(46.dp),
                         enabled = isActionEnabled,
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = WasteGreenDark)
+                        colors = ButtonDefaults.buttonColors(containerColor = RoleGreenDark)
                     ) {
                         Text(
                             if (needsRevision) "Kirim ulang bukti TPA" else "Konfirmasi tiba di TPA",
@@ -5586,7 +6259,7 @@ private fun PetugasLoadFailure(message: String, onRefresh: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(WasteRed.copy(alpha = 0.08f))
+            .background(RoleRed.copy(alpha = 0.08f))
             .padding(start = 12.dp, end = 7.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -5702,11 +6375,11 @@ private fun StaffAccountFormDialog(
 
 @Composable
 private fun vehicleRepairAccent(status: String): Color = when (status) {
-    "menunggu_persetujuan", "menunggu_pemeriksaan" -> WasteOrange
+    "menunggu_persetujuan", "menunggu_pemeriksaan" -> RoleOrange
     "dalam_perbaikan", "disetujui" -> LoginAccent
-    "perlu_perbaikan" -> WastePurple
-    "selesai" -> WasteGreen
-    else -> WasteRed
+    "perlu_perbaikan" -> RolePurple
+    "selesai" -> RoleGreen
+    else -> RoleRed
 }
 
 private fun vehicleRepairEventLabel(action: String): String = when (action) {
@@ -5755,7 +6428,7 @@ private fun VehicleRepairCard(
             if (repair.activeTaskCount > 0) {
                 Text(
                     "Ada ${repair.activeTaskCount} tugas aktif terkait armada ini; cek penugasannya sebelum kendaraan dipakai lagi.",
-                    color = WasteRed,
+                    color = RoleRed,
                     fontSize = 10.sp,
                     lineHeight = 14.sp
                 )
@@ -5793,7 +6466,7 @@ private fun VehicleRepairCard(
                 }
             }
             if (repair.adminNote.isNotBlank() && repair.timeline.lastOrNull()?.note != repair.adminNote) {
-                Text("Catatan Admin · ${repair.adminNote}", color = WasteOrange, fontSize = 10.sp, lineHeight = 14.sp)
+                Text("Catatan Admin · ${repair.adminNote}", color = RoleOrange, fontSize = 10.sp, lineHeight = 14.sp)
             }
             actions(repair)
         }
@@ -5857,7 +6530,7 @@ private fun VehicleDamageDialog(
                         }
                     }
                 }
-            ) { Text(if (sending) "Mengirim…" else "Kirim laporan", color = WasteRed) }
+            ) { Text(if (sending) "Mengirim…" else "Kirim laporan", color = RoleRed) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !sending) { Text("Batal", color = LoginMuted) }
@@ -6002,7 +6675,7 @@ private fun VehicleRepairReviewDialog(
                         }
                     }
                 }
-            ) { Text(if (sending) "Menyimpan…" else title, color = if (action == "tolak") WasteRed else LoginAccent) }
+            ) { Text(if (sending) "Menyimpan…" else title, color = if (action == "tolak") RoleRed else LoginAccent) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !sending) { Text("Batal", color = LoginMuted) }
@@ -6258,13 +6931,14 @@ private fun StatusPill(status: String, color: Color) {
     }
 }
 
+@Composable
 private fun reportAccent(status: String): Color = when (status) {
-    WasteFlow.WAITING -> WasteOrange
-    WasteFlow.ASSIGNED -> WastePurple
-    WasteFlow.TRANSPORTED -> WasteTeal
-    WasteFlow.PROCESSING -> WasteNavy
-    WasteFlow.DONE -> WasteGreen
-    else -> WasteRed
+    WasteFlow.WAITING -> RoleOrange
+    WasteFlow.ASSIGNED -> RolePurple
+    WasteFlow.TRANSPORTED -> RoleTeal
+    WasteFlow.PROCESSING -> RoleNavy
+    WasteFlow.DONE -> RoleGreen
+    else -> RoleRed
 }
 
 @Composable
@@ -6284,7 +6958,7 @@ private fun SectionTitle(title: String, subtitle: String) {
 private fun SoftProgress(progress: Float) {
     Box(
         modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50.dp))
-            .background(WasteBlue)
+            .background(RoleAccentSurface)
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(8.dp)
@@ -6297,7 +6971,7 @@ private fun SoftProgress(progress: Float) {
 private fun DataProgress(progress: Float, accent: Color) {
     Box(
         modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50.dp))
-            .background(WasteBlue)
+            .background(RoleAccentSurface)
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(8.dp)
@@ -6311,14 +6985,14 @@ private fun DataProgress(progress: Float, accent: Color) {
 private fun InlineError(message: String) {
     AppCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = WasteRed.copy(alpha = 0.08f),
-        borderColor = WasteRed.copy(alpha = 0.24f),
-        accentColor = WasteRed
+        containerColor = RoleRed.copy(alpha = 0.08f),
+        borderColor = RoleRed.copy(alpha = 0.24f),
+        accentColor = RoleRed
     ) {
         Text(
             message,
             modifier = Modifier.padding(12.dp),
-            color = WasteRed,
+            color = RoleRed,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
