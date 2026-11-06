@@ -27,7 +27,6 @@ data class WasteRecord(
     val description: String = "",
     val photoUrl: String? = null,
     val reportedAt: String = "",
-    val hazardLevel: String = "RENDAH",
     val workerId: Int? = null,
     val workerName: String = "",
     val vehicleId: Int? = null,
@@ -63,8 +62,7 @@ data class AdminDashboardSummary(
     val tpaCapacityTon: Double = 0.0,
     val tpaUsedTon: Double = 0.0,
     val tpaReservedTon: Double = 0.0,
-    val tpaUtilizationPercent: Double = 0.0,
-    val hazardAlerts: Int = 0
+    val tpaUtilizationPercent: Double = 0.0
 )
 
 data class AdminWorker(
@@ -107,27 +105,6 @@ data class TaskCompletionReview(
     val proofPhotoUrl: String,
     val workerNote: String,
     val submittedAt: String
-)
-
-data class AdminNoteEntry(
-    val text: String,
-    val author: String,
-    val createdAt: String
-)
-
-data class AdminNoteRecord(
-    val report: WasteRecord,
-    val statusNote: String,
-    val workerNote: String,
-    val adminNote: String,
-    val updatedAt: String,
-    val noteHistory: List<AdminNoteEntry> = emptyList()
-)
-
-data class ArchivedAdminNote(
-    val note: AdminNoteRecord,
-    val archivedAt: String,
-    val archivedBy: String = "Admin"
 )
 
 data class VehicleRepairEvent(
@@ -195,8 +172,7 @@ data class CapacityClearanceRequest(
 data class DailyReport(
     val date: String,
     val totalWaste: Int,
-    val weightKg: Double,
-    val b3Alerts: Int
+    val weightKg: Double
 )
 
 data class MonthlyStat(

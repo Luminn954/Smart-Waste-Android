@@ -113,7 +113,6 @@ object SmartWasteApi {
             description = value(json, "description", "deskripsi"),
             photoUrl = value(json, "photo", "foto").ifBlank { null },
             reportedAt = value(json, "report_date", "tanggal_lapor", "created_at"),
-            hazardLevel = value(json, "hazard_level", "tingkat_bahaya").ifBlank { "RENDAH" },
             workerId = json.optInt("worker_id").takeIf { it > 0 },
             workerName = value(json, "worker_name"),
             vehicleId = json.optInt("vehicle_id").takeIf { it > 0 },
@@ -238,8 +237,7 @@ object SmartWasteApi {
             tpaCapacityTon = data.optDouble("tpa_capacity_ton", 0.0),
             tpaUsedTon = data.optDouble("tpa_used_ton", 0.0),
             tpaReservedTon = data.optDouble("tpa_reserved_ton", 0.0),
-            tpaUtilizationPercent = data.optDouble("tpa_utilization_percent", 0.0),
-            hazardAlerts = data.optInt("hazard_alerts", 0)
+            tpaUtilizationPercent = data.optDouble("tpa_utilization_percent", 0.0)
         )
     }
 
@@ -302,59 +300,6 @@ object SmartWasteApi {
                 completedWeightKg = item.optDouble("completed_weight_kg", 0.0)
             )
         }
-    }
-
-    suspend fun adminNotes(): List<AdminNoteRecord> {
-        val data = request("GET", "/admin/catatan-admin").optJSONArray("notes") ?: JSONArray()
-        return (0 until data.length()).map { index -> mapAdminNote(data.getJSONObject(index)) }
-    }
-
-    suspend fun archivedAdminNotes(): List<ArchivedAdminNote> {
-        val data = request("GET", "/admin/arsip-catatan-admin")
-            .optJSONArray("archived_notes") ?: JSONArray()
-        return (0 until data.length()).map { index ->
-            val item = data.getJSONObject(index)
-            ArchivedAdminNote(
-                note = mapAdminNote(item.optJSONObject("note") ?: JSONObject()),
-                archivedAt = value(item, "archived_at"),
-                archivedBy = value(item, "archived_by").ifBlank { "Admin" }
-            )
-        }
-    }
-
-    suspend fun archiveAdminNote(reportId: Int) {
-        request("POST", "/admin/catatan-admin/$reportId/arsip", JSONObject())
-    }
-
-    suspend fun addAdminNote(reportId: Int, note: String) {
-        request(
-            "POST", "/admin/catatan-admin/$reportId/catatan",
-            JSONObject().put("catatan", note.trim())
-        )
-    }
-
-    suspend fun restoreAdminNote(reportId: Int) {
-        request("PATCH", "/admin/arsip-catatan-admin/$reportId/pulihkan", JSONObject())
-    }
-
-    private fun mapAdminNote(item: JSONObject): AdminNoteRecord {
-        val history = item.optJSONArray("note_history") ?: JSONArray()
-        return AdminNoteRecord(
-            report = mapReport(item.optJSONObject("report") ?: JSONObject()),
-            statusNote = value(item, "status_note"),
-            workerNote = value(item, "worker_note"),
-            adminNote = value(item, "admin_note"),
-            updatedAt = value(item, "updated_at"),
-            noteHistory = (0 until history.length()).mapNotNull { index ->
-                history.optJSONObject(index)?.let { entry ->
-                    AdminNoteEntry(
-                        text = value(entry, "text"),
-                        author = value(entry, "author").ifBlank { "Admin" },
-                        createdAt = value(entry, "created_at")
-                    )
-                }
-            }
-        )
     }
 
     suspend fun completionReviews(): List<TaskCompletionReview> {
@@ -662,8 +607,7 @@ object SmartWasteApi {
             DailyReport(
                 value(item, "date"),
                 item.optInt("total_waste"),
-                item.optDouble("weight_kg"),
-                item.optInt("b3_alerts")
+                item.optDouble("weight_kg")
             )
         }
     }

@@ -30,6 +30,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.uoi.pratikumwithbunafla.data.model.*
 import com.uoi.pratikumwithbunafla.data.remote.LanAppUpdate
@@ -75,12 +76,6 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(appearancePreferences.getBoolean("dark_mode", false))
             }
             var activeAccount by remember { mutableStateOf<UserAccount?>(null) }
-            SideEffect {
-                WindowCompat.getInsetsController(window, window.decorView).apply {
-                    isAppearanceLightStatusBars = !isDarkMode
-                    isAppearanceLightNavigationBars = activeAccount == null && !isDarkMode
-                }
-            }
             SmartWasteTheme(
                 darkTheme = isDarkMode,
                 onToggleTheme = {
@@ -89,6 +84,15 @@ class MainActivity : ComponentActivity() {
                 }
             ) {
                 val navController = rememberNavController()
+                val currentBackStackEntry by navController.currentBackStackEntryAsState()
+                val isAdminDashboard = activeAccount?.role == UserRole.ADMIN &&
+                    currentBackStackEntry?.destination?.route == "dashboard"
+                SideEffect {
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = !isDarkMode && !isAdminDashboard
+                        isAppearanceLightNavigationBars = activeAccount == null && !isDarkMode
+                    }
+                }
                 val scope = rememberCoroutineScope()
                 var showSplash by rememberSaveable { mutableStateOf(true) }
                 var summary by remember { mutableStateOf(AdminDashboardSummary()) }
@@ -99,8 +103,6 @@ class MainActivity : ComponentActivity() {
                 var archivedPetugasTasks by remember { mutableStateOf(emptyList<ArchivedWasteRecord>()) }
                 var workers by remember { mutableStateOf(emptyList<AdminWorker>()) }
                 var completionReviews by remember { mutableStateOf(emptyList<TaskCompletionReview>()) }
-                var adminNotes by remember { mutableStateOf(emptyList<AdminNoteRecord>()) }
-                var archivedAdminNotes by remember { mutableStateOf(emptyList<ArchivedAdminNote>()) }
                 var vehicles by remember { mutableStateOf(emptyList<WasteVehicle>()) }
                 var vehicleRepairs by remember { mutableStateOf(emptyList<VehicleRepair>()) }
                 var facilities by remember { mutableStateOf(emptyList<WasteFacility>()) }
@@ -160,16 +162,6 @@ class MainActivity : ComponentActivity() {
                                 completionReviews,
                                 loadErrors
                             ) { SmartWasteApi.completionReviews() }
-                            adminNotes = loadOrKeep(
-                                "Catatan Admin",
-                                adminNotes,
-                                loadErrors
-                            ) { SmartWasteApi.adminNotes() }
-                            archivedAdminNotes = loadOrKeep(
-                                "Arsip catatan",
-                                archivedAdminNotes,
-                                loadErrors
-                            ) { SmartWasteApi.archivedAdminNotes() }
                             vehicleRepairs = loadOrKeep(
                                 "Perbaikan armada",
                                 vehicleRepairs,
@@ -231,8 +223,6 @@ class MainActivity : ComponentActivity() {
                     archivedPetugasTasks = emptyList()
                     workers = emptyList()
                     completionReviews = emptyList()
-                    adminNotes = emptyList()
-                    archivedAdminNotes = emptyList()
                     vehicles = emptyList()
                     vehicleRepairs = emptyList()
                     facilities = emptyList()
@@ -425,8 +415,6 @@ class MainActivity : ComponentActivity() {
                                 completionReviews = completionReviews,
                                 vehicleRepairs = vehicleRepairs,
                                 capacityClearanceRequests = capacityClearanceRequests,
-                                adminNotes = adminNotes,
-                                archivedAdminNotes = archivedAdminNotes,
                                 errorMessage = errorMessage,
                                 account = account,
                                 onCreateWorker = { name, username, email, password, zone ->
@@ -458,18 +446,6 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onReviewCapacityClearance = { request, action, note ->
                                     SmartWasteApi.reviewCapacityClearance(request.id, action, note)
-                                    refreshWorkspace()
-                                },
-                                onAddAdminNote = { note, text ->
-                                    SmartWasteApi.addAdminNote(note.report.id, text)
-                                    refreshWorkspace()
-                                },
-                                onArchiveAdminNote = { note ->
-                                    SmartWasteApi.archiveAdminNote(note.report.id)
-                                    refreshWorkspace()
-                                },
-                                onRestoreAdminNote = { note ->
-                                    SmartWasteApi.restoreAdminNote(note.note.report.id)
                                     refreshWorkspace()
                                 },
                                 onNavigate = ::navigateAdminRoute,
