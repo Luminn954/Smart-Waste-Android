@@ -53,7 +53,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
@@ -99,6 +98,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -107,24 +107,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -196,12 +189,12 @@ private val RoleNavy: Color
     @Composable get() = if (IsNightAdmin) Color(0xFFAAB8CC) else WasteNavy
 
 private val AdminNightPalette = DarkSmartWastePalette.copy(
-    background = Color(0xFF151C17),
-    surface = Color(0xFF202923),
-    surfaceMuted = Color(0xFF29342D),
-    border = Color(0xFF344239),
-    text = Color(0xFFE8EEE9),
-    textMuted = Color(0xFFADB9B0)
+    background = Color(0xFF14241C),
+    surface = Color(0xFF1D3025),
+    surfaceMuted = Color(0xFF293D31),
+    border = Color(0xFF3B5645),
+    text = Color(0xFFE7EEE8),
+    textMuted = Color(0xFFB3C1B6)
 )
 
 private val AdminNightColorScheme = darkColorScheme(
@@ -272,51 +265,6 @@ private fun AnimatedAdminPageBackground() {
 }
 
 @Composable
-private fun AdminThemeTransitionWave() {
-    val dark = LocalSmartWasteAppearance.current.darkMode
-    val modeProgress by animateFloatAsState(
-        targetValue = if (dark) 1f else 0f,
-        animationSpec = tween(durationMillis = 860, easing = FastOutSlowInEasing),
-        label = "admin-theme-wave"
-    )
-    val waveProgress = if (dark) modeProgress else 1f - modeProgress
-
-    Canvas(Modifier.fillMaxSize()) {
-        val waveStrength = sin(waveProgress * PI).toFloat().coerceIn(0f, 1f)
-        if (waveStrength > 0.015f) {
-            val center = Offset(size.width * 0.96f, size.height * 0.08f)
-            val radius = size.maxDimension * (0.04f + waveProgress * 1.18f)
-            val tint = if (dark) Color(0xFF8FAE96) else Color(0xFF789D7B)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        tint.copy(alpha = waveStrength * 0.14f),
-                        tint.copy(alpha = waveStrength * 0.045f),
-                        Color.Transparent
-                    ),
-                    center = center,
-                    radius = radius
-                ),
-                radius = radius,
-                center = center
-            )
-            drawCircle(
-                color = tint.copy(alpha = waveStrength * 0.22f),
-                radius = radius * 0.82f,
-                center = center,
-                style = Stroke(width = 18.dp.toPx())
-            )
-            drawCircle(
-                color = tint.copy(alpha = waveStrength * 0.46f),
-                radius = radius * 0.82f,
-                center = center,
-                style = Stroke(width = 1.6.dp.toPx())
-            )
-        }
-    }
-}
-
-@Composable
 private fun AdminPage(
     current: String,
     account: UserAccount,
@@ -356,7 +304,6 @@ private fun AdminPage(
             Box(modifier = Modifier.fillMaxSize()) {
                 if (isAdmin) AnimatedAdminPageBackground()
                 backgroundContent()
-                if (isAdmin) AdminThemeTransitionWave()
                 CompositionLocalProvider(
                     LocalTextStyle provides LocalTextStyle.current.merge(
                         TextStyle(
@@ -797,11 +744,6 @@ private fun DashboardHeroBanner(
     val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val heroHeaderHeight = statusBarInset + 64.dp
     val heroHeight = 340.dp + heroHeaderHeight
-    val bannerSky = if (darkMode) {
-        listOf(Color(0xFF20372D), Color(0xFF294337), Color(0xFF334B3A))
-    } else {
-        listOf(Color(0xFF175A42), Color(0xFF21674A), Color(0xFF477E5B))
-    }
     val bannerText = Color(0xFFF5F4E8)
     val bannerMuted = Color(0xFFE2E9D9)
     val reportCountSize = when {
@@ -878,43 +820,9 @@ private fun DashboardHeroBanner(
         modifier = Modifier.fillMaxWidth()
             .height(heroHeight)
             .clip(HeroBottomCurveShape)
-            .background(Brush.horizontalGradient(bannerSky))
+            .background(if (darkMode) Color(0xFF1C3025) else Color(0xFF286B4D))
             .clickable { onClick(focusRoute) }
     ) {
-        val illustration = Modifier.align(Alignment.BottomEnd)
-        .height(heroHeight)
-            .aspectRatio(260f / 280f)
-    val illustrationBitmap = ImageBitmap.imageResource(R.drawable.hero_recycling_crew)
-    val illustrationPainter = remember(illustrationBitmap) {
-        BitmapPainter(illustrationBitmap, filterQuality = FilterQuality.High)
-    }
-    Image(
-        painter = illustrationPainter,
-            contentDescription = null,
-            contentScale = ContentScale.FillBounds,
-        modifier = illustration
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            .drawWithContent {
-                drawContent()
-                drawRect(
-                    brush = Brush.horizontalGradient(*heroFadeStops(0f, 0.28f)),
-                    blendMode = BlendMode.DstIn
-                )
-            }
-        )
-
-    val textSideShade = if (darkMode) Color(0xFF17271E) else Color(0xFF103F30)
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.horizontalGradient(
-                0f to textSideShade.copy(alpha = 0.82f),
-                0.48f to textSideShade.copy(alpha = 0.60f),
-                0.76f to Color.Transparent,
-                1f to Color.Transparent
-            )
-        )
-    )
-
         Box(
             modifier = Modifier.fillMaxWidth()
                 .align(Alignment.TopCenter)
@@ -1049,153 +957,6 @@ private val HeroBottomCurveShape = androidx.compose.foundation.shape.GenericShap
     close()
 }
 
-private fun heroFadeStops(start: Float, end: Float): Array<Pair<Float, Color>> =
-    (0..32).map { step ->
-        val position = step / 32f
-        val progress = ((position - start) / (end - start)).coerceIn(0f, 1f)
-        val smoothAlpha = progress * progress * (3f - 2f * progress)
-        position to Color.White.copy(alpha = smoothAlpha)
-    }.toTypedArray()
-
-@Composable
-private fun AdminDashboardBackdrop(modifier: Modifier = Modifier) {
-    val dark = LocalSmartWasteAppearance.current.darkMode
-    val compact = LocalConfiguration.current.screenWidthDp < 600
-
-    if (compact) {
-        AdminDashboardBackdropScene(
-            modifier = modifier,
-            dark = dark,
-            compact = true,
-            breeze = 0f,
-            pulse = 0.5f
-        )
-        return
-    }
-
-    val motion = rememberInfiniteTransition(label = "admin-dashboard-ambience")
-    val breeze by motion.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 18000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "dashboard-breeze"
-    )
-    val lightPulse by motion.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 7600, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "dashboard-light-pulse"
-    )
-
-    AdminDashboardBackdropScene(
-        modifier = modifier,
-        dark = dark,
-        compact = false,
-        breeze = breeze,
-        pulse = 0.5f + 0.5f * sin(lightPulse * 2f * PI).toFloat()
-    )
-}
-
-@Composable
-private fun AdminDashboardBackdropScene(
-    modifier: Modifier,
-    dark: Boolean,
-    compact: Boolean,
-    breeze: Float,
-    pulse: Float
-) {
-    Canvas(modifier) {
-        val width = size.width
-        val height = size.height
-        val drift = breeze * 18.dp.toPx()
-        val decorationStrength = if (compact) 0.58f else 1f
-        val upperGlow = Offset(width * 0.88f + drift * 0.35f, height * if (compact) 0.06f else 0.12f)
-        val upperColor = if (dark) Color(0xFF82B99A) else Color(0xFFE7D6A8)
-        val upperRadius = width * 0.56f
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    upperColor.copy(alpha = ((if (dark) 0.12f else 0.16f) + pulse * 0.025f) * decorationStrength),
-                    upperColor.copy(alpha = (if (dark) 0.045f else 0.055f) * decorationStrength),
-                    Color.Transparent
-                ),
-                center = upperGlow,
-                radius = upperRadius
-            ),
-            radius = upperRadius,
-            center = upperGlow
-        )
-
-        val lowerGlow = Offset(width * 0.10f - drift * 0.24f, height * if (compact) 0.93f else 0.88f)
-        val lowerColor = if (dark) Color(0xFF4C8D78) else Color(0xFF74A889)
-        val lowerRadius = width * 0.48f
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(lowerColor.copy(alpha = (if (dark) 0.10f else 0.085f) * decorationStrength), Color.Transparent),
-                center = lowerGlow,
-                radius = lowerRadius
-            ),
-            radius = lowerRadius,
-            center = lowerGlow
-        )
-
-        val leafTint = if (dark) Color(0xFF8FB69A) else Color(0xFF4D8664)
-        val leaves = if (compact) {
-            listOf(
-                Triple(0.035f, 0.20f, 0.48f),
-                Triple(0.965f, 0.38f, 0.40f),
-                Triple(0.035f, 0.69f, 0.44f),
-                Triple(0.965f, 0.78f, 0.36f)
-            )
-        } else {
-            listOf(
-                Triple(0.07f, 0.27f, 0.72f),
-                Triple(0.91f, 0.39f, 0.55f),
-                Triple(0.13f, 0.70f, 0.62f),
-                Triple(0.86f, 0.77f, 0.48f)
-            )
-        }
-        leaves.forEachIndexed { index, (xFraction, yFraction, scale) ->
-            val sway = sin(pulse * 2f * PI + index * 1.7f).toFloat()
-            val center = Offset(
-                width * xFraction + drift * (if (index % 2 == 0) 0.28f else -0.24f),
-                height * yFraction + sway * 5.dp.toPx()
-            )
-            val leafLength = 17.dp.toPx() * scale
-            val leafHeight = 7.dp.toPx() * scale
-            val leaf = Path().apply {
-                moveTo(center.x - leafLength * 0.52f, center.y)
-                cubicTo(
-                    center.x - leafLength * 0.16f, center.y - leafHeight,
-                    center.x + leafLength * 0.30f, center.y - leafHeight * 0.72f,
-                    center.x + leafLength * 0.52f, center.y - leafHeight * 0.08f
-                )
-                cubicTo(
-                    center.x + leafLength * 0.24f, center.y + leafHeight * 0.80f,
-                    center.x - leafLength * 0.25f, center.y + leafHeight * 0.68f,
-                    center.x - leafLength * 0.52f, center.y
-                )
-                close()
-            }
-            val alpha = ((if (dark) 0.10f else 0.095f) + pulse * 0.025f) * decorationStrength
-            drawPath(leaf, leafTint.copy(alpha = alpha))
-            drawLine(
-                color = leafTint.copy(alpha = alpha * 0.78f),
-                start = Offset(center.x - leafLength * 0.38f, center.y),
-                end = Offset(center.x + leafLength * 0.38f, center.y - leafHeight * 0.04f),
-                strokeWidth = 0.8.dp.toPx(),
-                cap = StrokeCap.Round
-            )
-        }
-    }
-}
-
 @Composable
 fun AdminProfileScreen(
     account: UserAccount,
@@ -1213,7 +974,6 @@ fun AdminProfileScreen(
         isInitialLoading = isInitialLoading,
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
-        backgroundContent = { AdminDashboardBackdrop(Modifier.fillMaxSize()) }
     ) {
         AccountProfileSettings(account, onLogout)
     }
@@ -1233,6 +993,11 @@ fun AdminDashboardScreen(
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {}
 ) {
+    val shortcutScrollState = rememberScrollState()
+    val showShortcutFade by remember(shortcutScrollState) {
+        derivedStateOf { shortcutScrollState.value < shortcutScrollState.maxValue }
+    }
+
     AdminPage(
         current = "dashboard",
         account = account,
@@ -1242,7 +1007,6 @@ fun AdminDashboardScreen(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
         showTopBar = false,
-        backgroundContent = { AdminDashboardBackdrop(Modifier.fillMaxSize()) },
         fullBleedContent = {
             DashboardHeroBanner(
                 summary = summary,
@@ -1272,21 +1036,37 @@ fun AdminDashboardScreen(
             )
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
-            ) {
-                AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.weight(1f)) {
-                    onNavigate("reports")
+            Box(modifier = Modifier.fillMaxWidth().height(78.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxHeight().horizontalScroll(shortcutScrollState),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.width(96.dp)) {
+                        onNavigate("reports")
+                    }
+                    AdminTaskTile("Petugas", Icons.Filled.AdminPanelSettings, TaskPurple, Modifier.width(96.dp)) {
+                        onNavigate("ops:petugas")
+                    }
+                    AdminTaskTile("Statistik", Icons.Filled.BarChart, TaskIndigo, Modifier.width(96.dp)) {
+                        onNavigate("stats")
+                    }
+                    AdminTaskTile("Bukti kerja", Icons.Filled.CheckCircle, TaskTeal, Modifier.width(96.dp)) {
+                        onNavigate("ops:bukti")
+                    }
                 }
-                AdminTaskTile("Petugas", Icons.Filled.AdminPanelSettings, TaskPurple, Modifier.weight(1f)) {
-                    onNavigate("ops:petugas")
-                }
-                AdminTaskTile("Statistik", Icons.Filled.BarChart, TaskIndigo, Modifier.weight(1f)) {
-                    onNavigate("stats")
-                }
-                AdminTaskTile("Bukti kerja", Icons.Filled.CheckCircle, TaskTeal, Modifier.weight(1f)) {
-                    onNavigate("ops:bukti")
+                if (showShortcutFade) {
+                    Box(
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                            .width(16.dp).fillMaxHeight()
+                            .blur(4.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    0f to Color.Transparent,
+                                    0.55f to AppBackground.copy(alpha = 0.10f),
+                                    1f to AppBackground.copy(alpha = 0.30f)
+                                )
+                            )
+                    )
                 }
             }
         }
