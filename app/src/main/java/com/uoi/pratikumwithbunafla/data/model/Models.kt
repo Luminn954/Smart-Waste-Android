@@ -13,7 +13,8 @@ data class UserAccount(
     val username: String,
     val password: String,
     val role: UserRole,
-    val isSuperAdmin: Boolean = false
+    val isSuperAdmin: Boolean = false,
+    val profilePhotoUrl: String? = null
 )
 
 data class WasteRecord(
@@ -76,7 +77,8 @@ data class AdminWorker(
     val completedTasks: Int = totalPickups,
     val activeTasks: Int = 0,
     val pendingConfirmations: Int = 0,
-    val completedWeightKg: Double = 0.0
+    val completedWeightKg: Double = 0.0,
+    val profilePhotoUrl: String? = null
 )
 
 data class PetugasAssistantLink(

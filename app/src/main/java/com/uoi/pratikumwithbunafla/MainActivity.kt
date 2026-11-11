@@ -129,6 +129,10 @@ class MainActivity : ComponentActivity() {
                     isRefreshingWorkspace = true
                     val loadErrors = mutableListOf<String>()
                     try {
+                        runCatching { SmartWasteApi.currentAccount() }
+                            .getOrNull()
+                            ?.takeIf { activeAccount?.username == account.username }
+                            ?.let { activeAccount = it }
                         if (account.role == UserRole.ADMIN) {
                             val calendar = Calendar.getInstance()
                                 .apply { add(Calendar.DAY_OF_YEAR, -(dailyRangeDays - 1)) }
@@ -255,6 +259,12 @@ class MainActivity : ComponentActivity() {
                             selectedStatus = null
                             selectedReportView = "verify"
                             navController.navigate("reports") { launchSingleTop = true }
+                        }
+
+                        route == "dashboard" -> {
+                            if (!navController.popBackStack("dashboard", inclusive = false)) {
+                                navController.navigate("dashboard") { launchSingleTop = true }
+                            }
                         }
 
                         else -> {
@@ -435,6 +445,13 @@ class MainActivity : ComponentActivity() {
                                     SmartWasteApi.deleteWorkerAccount(worker.id, replacementWorkerId)
                                     refreshWorkspace()
                                 },
+                                onUploadWorkerPhoto = { worker, photoUri ->
+                                    SmartWasteApi.uploadWorkerProfilePhoto(
+                                        worker.id,
+                                        compressEvidence(photoUri)
+                                    )
+                                    refreshWorkspace()
+                                },
                                 onOpenPhoto = ::openPhoto,
                                 onReviewCompletion = { review, action, note ->
                                     SmartWasteApi.reviewCompletion(review.id, action, note)
@@ -490,6 +507,19 @@ class MainActivity : ComponentActivity() {
                             }
                             else AdminProfileScreen(
                                 account = account,
+                                onUpdateProfile = { name ->
+                                    val updated = SmartWasteApi.updateMyProfile(name)
+                                    activeAccount = updated
+                                    refreshWorkspace()
+                                    updated
+                                },
+                                onUpdateProfilePhoto = { uri ->
+                                    val photoBytes = compressEvidence(uri)
+                                    val updated = SmartWasteApi.updateMyProfilePhoto(photoBytes)
+                                    activeAccount = updated
+                                    refreshWorkspace()
+                                    updated
+                                },
                                 onNavigate = ::navigateAdminRoute,
                                 onLogout = ::signOut,
                                 isInitialLoading = !hasLoadedWorkspace,
@@ -515,6 +545,12 @@ class MainActivity : ComponentActivity() {
                                 capacityClearanceRequests = capacityClearanceRequests,
                                 errorMessage = errorMessage,
                                 account = account,
+                                onUpdateProfile = { name ->
+                                    val updated = SmartWasteApi.updateMyProfile(name)
+                                    activeAccount = updated
+                                    refreshWorkspace()
+                                    updated
+                                },
                                 onAskAssistant = { question, history ->
                                     SmartWasteApi.askPetugasAssistant(question, history)
                                 },

@@ -1,5 +1,7 @@
 package com.uoi.pratikumwithbunafla.ui.components
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -47,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +57,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Path
@@ -73,8 +77,12 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 import com.uoi.pratikumwithbunafla.R
 import com.uoi.pratikumwithbunafla.ui.theme.AppBackground
 import com.uoi.pratikumwithbunafla.ui.theme.AppBorder
@@ -199,11 +207,11 @@ fun SmartWasteSplash() {
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color(0xFFD9B19C),
-                            Color(0xFFE5C2A2),
-                            Color(0xFFE9D2B0),
-                            Color(0xFFD8C8AA),
-                            Color(0xFFBEC7AB)
+                            Color(0xFFD6E8DB),
+                            Color(0xFFE1EDDE),
+                            Color(0xFFF0F0E3),
+                            Color(0xFFD8E7D3),
+                            Color(0xFFBBD3BF)
                         )
                     )
                 )
@@ -542,9 +550,40 @@ fun AppButton(
 @Composable
 fun UserAvatar(
     name: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    photoUrl: String? = null
 ) {
     val initial = name.trim().firstOrNull()?.uppercase() ?: "A"
+    val photo by produceState<Bitmap?>(initialValue = null, key1 = photoUrl) {
+        value = photoUrl?.let { url ->
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 4_000
+                        readTimeout = 5_000
+                        instanceFollowRedirects = true
+                    }
+                    try {
+                        connection.inputStream.use { input ->
+                            val bytes = input.readBytes()
+                            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                            var sample = 1
+                            while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 512) sample *= 2
+                            BitmapFactory.decodeByteArray(
+                                bytes,
+                                0,
+                                bytes.size,
+                                BitmapFactory.Options().apply { inSampleSize = sample }
+                            )
+                        }
+                    } finally {
+                        connection.disconnect()
+                    }
+                }.getOrNull()
+            }
+        }
+    }
     Box(
         modifier = modifier
             .size(42.dp)
@@ -552,12 +591,21 @@ fun UserAvatar(
             .background(WasteGreenDark),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = initial,
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
+        if (photo != null) {
+            Image(
+                bitmap = photo!!.asImageBitmap(),
+                contentDescription = "Foto profil $name",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                text = initial,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -569,6 +617,8 @@ fun SummaryCard(
     modifier: Modifier = Modifier,
     containerColor: Color = Color.White,
     icon: ImageVector,
+    iconBackgroundColor: Color = accent.copy(alpha = 0.15f),
+    iconBackgroundEndColor: Color = iconBackgroundColor,
     onClick: (() -> Unit)? = null
 ) {
     AppCard(
@@ -593,7 +643,14 @@ fun SummaryCard(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(accent.copy(alpha = 0.15f)),
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    iconBackgroundColor,
+                                    iconBackgroundEndColor
+                                )
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

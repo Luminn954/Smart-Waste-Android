@@ -3,6 +3,7 @@ package com.uoi.pratikumwithbunafla.ui.admin
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -61,6 +62,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
@@ -69,6 +71,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.filled.LocalShipping
@@ -98,7 +101,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -109,17 +111,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -158,7 +169,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import kotlin.math.PI
+import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 import kotlin.math.sin
 import java.io.File
 
@@ -432,14 +447,17 @@ private fun OperationalMetric(
     onClick: () -> Unit
 ) {
     Column(
-        modifier = modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
-            .padding(horizontal = 7.dp, vertical = 5.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        modifier = modifier
+            .clip(RoundedCornerShape(15.dp))
+            .background(AppSurface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 9.dp, vertical = 11.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Text(
             label,
             color = AppTextMuted,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1
         )
@@ -512,7 +530,11 @@ private fun AdminTopBar(
         )
         Box {
             IconButton(onClick = { profileMenuExpanded = true }, modifier = Modifier.size(if (compact) 38.dp else 42.dp)) {
-                UserAvatar(account.name, modifier = Modifier.size(if (compact) 30.dp else 34.dp))
+                UserAvatar(
+                    account.name,
+                    modifier = Modifier.size(if (compact) 30.dp else 34.dp),
+                    photoUrl = account.profilePhotoUrl
+                )
             }
             DropdownMenu(
                 expanded = profileMenuExpanded,
@@ -746,6 +768,7 @@ private fun DashboardHeroBanner(
     val heroHeight = 340.dp + heroHeaderHeight
     val bannerText = Color(0xFFF5F4E8)
     val bannerMuted = Color(0xFFE2E9D9)
+    val heroGlassSurface = Color(0xFF102D22).copy(alpha = if (darkMode) 0.30f else 0.22f)
     val reportCountSize = when {
         summary.totalReports >= 1000 -> 36.sp
         summary.totalReports >= 100 -> 42.sp
@@ -823,6 +846,39 @@ private fun DashboardHeroBanner(
             .background(if (darkMode) Color(0xFF1C3025) else Color(0xFF286B4D))
             .clickable { onClick(focusRoute) }
     ) {
+        val illustrationBitmap = ImageBitmap.imageResource(R.drawable.hero_recycling_crew)
+        val illustrationPainter = remember(illustrationBitmap) {
+            BitmapPainter(illustrationBitmap, filterQuality = FilterQuality.High)
+        }
+        Image(
+            painter = illustrationPainter,
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.align(Alignment.BottomEnd)
+                .height(heroHeight)
+                .aspectRatio(260f / 280f)
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.horizontalGradient(*heroFadeStops(0f, 0.28f)),
+                        blendMode = BlendMode.DstIn
+                    )
+                }
+        )
+
+        val textSideShade = if (darkMode) Color(0xFF17271E) else Color(0xFF103F30)
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(
+                    0f to textSideShade.copy(alpha = 0.82f),
+                    0.48f to textSideShade.copy(alpha = 0.60f),
+                    0.76f to Color.Transparent,
+                    1f to Color.Transparent
+                )
+            )
+        )
+
         Box(
             modifier = Modifier.fillMaxWidth()
                 .align(Alignment.TopCenter)
@@ -843,71 +899,72 @@ private fun DashboardHeroBanner(
             modifier = Modifier.fillMaxWidth(0.60f)
                 .align(Alignment.TopStart)
                 .padding(start = 20.dp, top = heroHeaderHeight + 14.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                modifier = Modifier.clip(RoundedCornerShape(50.dp))
-                    .background(Color.White.copy(alpha = 0.14f))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(heroGlassSurface)
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                Icon(Icons.Filled.Inbox, contentDescription = null, tint = bannerText, modifier = Modifier.size(14.dp))
-                Text(
-                    "RINGKASAN LAPORAN",
-                    color = bannerText,
-                    fontSize = 9.sp,
-                    letterSpacing = 0.8.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text(
-                    summary.totalReports.toString(),
-                    color = bannerText,
-                    fontSize = reportCountSize,
-                    lineHeight = when {
-                        summary.totalReports >= 1000 -> 40.sp
-                        summary.totalReports >= 100 -> 46.sp
-                        else -> 52.sp
-                    },
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    softWrap = false
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text("laporan", color = bannerText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text("terpantau", color = bannerMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Filled.Inbox, contentDescription = null, tint = bannerText, modifier = Modifier.size(13.dp))
+                    Text(
+                        "Ringkasan laporan",
+                        color = bannerText,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                modifier = Modifier.clip(RoundedCornerShape(50.dp))
-                    .background(Color.White.copy(alpha = 0.13f))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    Icons.Filled.LocalShipping,
-                    contentDescription = null,
-                    tint = Color(0xFFD8E7C8),
-                    modifier = Modifier.size(15.dp)
-                )
-                Text(
-                    "${summary.totalWeightKg.pretty()} kg total tercatat",
-                    color = bannerText,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        summary.totalReports.toString(),
+                        color = bannerText,
+                        fontSize = reportCountSize,
+                        lineHeight = when {
+                            summary.totalReports >= 1000 -> 40.sp
+                            summary.totalReports >= 100 -> 46.sp
+                            else -> 52.sp
+                        },
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text("laporan", color = bannerText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("terpantau", color = bannerMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.LocalShipping,
+                        contentDescription = null,
+                        tint = Color(0xFFD8E7C8),
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        "${summary.totalWeightKg.pretty()} kg total tercatat",
+                        color = bannerText,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(17.dp))
-                    .background(Color(0xFF103F30).copy(alpha = 0.72f))
+                    .background(heroGlassSurface.copy(alpha = heroGlassSurface.alpha * 0.82f))
                     .clickable { onClick(focusRoute) }
-                    .padding(horizontal = 9.dp, vertical = 7.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -957,15 +1014,27 @@ private val HeroBottomCurveShape = androidx.compose.foundation.shape.GenericShap
     close()
 }
 
+private fun heroFadeStops(start: Float, end: Float): Array<Pair<Float, Color>> =
+    (0..32).map { step ->
+        val position = step / 32f
+        val progress = ((position - start) / (end - start)).coerceIn(0f, 1f)
+        val smoothAlpha = progress * progress * (3f - 2f * progress)
+        position to Color.White.copy(alpha = smoothAlpha)
+    }.toTypedArray()
+
 @Composable
 fun AdminProfileScreen(
     account: UserAccount,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
+    onUpdateProfile: suspend (String) -> UserAccount,
+    onUpdateProfilePhoto: suspend (Uri) -> UserAccount,
     isInitialLoading: Boolean = false,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {}
 ) {
+    BackHandler { onNavigate("dashboard") }
+
     AdminPage(
         current = "profile",
         account = account,
@@ -975,7 +1044,18 @@ fun AdminProfileScreen(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
     ) {
-        AccountProfileSettings(account, onLogout)
+        IconButton(
+            onClick = { onNavigate("dashboard") },
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Kembali ke Beranda",
+                tint = LoginAccent,
+                modifier = Modifier.size(21.dp)
+            )
+        }
+        AccountProfileSettings(account, onLogout, onUpdateProfile, onUpdateProfilePhoto)
     }
 }
 
@@ -993,11 +1073,6 @@ fun AdminDashboardScreen(
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {}
 ) {
-    val shortcutScrollState = rememberScrollState()
-    val showShortcutFade by remember(shortcutScrollState) {
-        derivedStateOf { shortcutScrollState.value < shortcutScrollState.maxValue }
-    }
-
     AdminPage(
         current = "dashboard",
         account = account,
@@ -1024,7 +1099,13 @@ fun AdminDashboardScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text("Ruang kerja Admin", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Text("Laporan, petugas, dan pemantauan kinerja", color = AppTextMuted, fontSize = 11.sp)
+                Text(
+                    "Laporan, petugas, dan pemantauan kinerja",
+                    color = if (LocalSmartWasteAppearance.current.darkMode) AppTextMuted else Color(0xFF26382D),
+                    fontFamily = InterFont,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal
+                )
             }
             Text(
                 "Semua laporan →",
@@ -1036,53 +1117,35 @@ fun AdminDashboardScreen(
             )
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(modifier = Modifier.fillMaxWidth().height(78.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxHeight().horizontalScroll(shortcutScrollState),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.width(96.dp)) {
-                        onNavigate("reports")
-                    }
-                    AdminTaskTile("Petugas", Icons.Filled.AdminPanelSettings, TaskPurple, Modifier.width(96.dp)) {
-                        onNavigate("ops:petugas")
-                    }
-                    AdminTaskTile("Statistik", Icons.Filled.BarChart, TaskIndigo, Modifier.width(96.dp)) {
-                        onNavigate("stats")
-                    }
-                    AdminTaskTile("Bukti kerja", Icons.Filled.CheckCircle, TaskTeal, Modifier.width(96.dp)) {
-                        onNavigate("ops:bukti")
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth().height(78.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.weight(1f)) {
+                    onNavigate("reports")
                 }
-                if (showShortcutFade) {
-                    Box(
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                            .width(16.dp).fillMaxHeight()
-                            .blur(4.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    0f to Color.Transparent,
-                                    0.55f to AppBackground.copy(alpha = 0.10f),
-                                    1f to AppBackground.copy(alpha = 0.30f)
-                                )
-                            )
-                    )
+                AdminTaskTile("Petugas", Icons.Filled.AdminPanelSettings, TaskPurple, Modifier.weight(1f)) {
+                    onNavigate("ops:petugas")
+                }
+                AdminTaskTile("Statistik", Icons.Filled.BarChart, TaskIndigo, Modifier.weight(1f)) {
+                    onNavigate("stats")
+                }
+                AdminTaskTile("Bukti kerja", Icons.Filled.CheckCircle, TaskTeal, Modifier.weight(1f)) {
+                    onNavigate("ops:bukti")
                 }
             }
         }
         AppCard(
             modifier = Modifier.fillMaxWidth(),
-            containerColor = AppSurface,
-            borderColor = AppBorder,
-            accentColor = LoginAccent
+            containerColor = AppSurfaceMuted
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OperationalMetric(
                         "Total laporan",
@@ -1103,6 +1166,7 @@ fun AdminDashboardScreen(
                 when {
                     pendingProofCount == 0 && pendingVehicleRepairActionCount == 0 -> Text(
                         "Pantau progres tugas petugas dari bukti penyelesaian dan statistik.",
+                        modifier = Modifier.padding(horizontal = 3.dp),
                         color = AppTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 16.sp
@@ -2014,7 +2078,6 @@ fun AdminStatsScreen(
     val periodCount = dailyReports.sumOf { it.totalWaste }
     val periodWeight = dailyReports.sumOf { it.weightKg }
     val monthlyBars = stats.monthly.take(6).reversed()
-    val maxMonthly = monthlyBars.maxOfOrNull { it.total }?.coerceAtLeast(1) ?: 1
     val maxTypeWeight = stats.byType.maxOfOrNull { it.weightKg }?.coerceAtLeast(1.0) ?: 1.0
     val chartColors =
         listOf(LoginAccent, RoleTeal, RolePurple, RoleOrange, RoleGreenDark, RoleNavy)
@@ -2026,12 +2089,13 @@ fun AdminStatsScreen(
         onRefresh = onRefresh
     ) {
         AdminSectionHeading(
-            "ADMIN • STATISTIK",
-            "Ringkasan dampak",
-            "Lihat tren laporan, jenis sampah, dan pekerjaan yang selesai."
+            "STATISTIK",
+            "Ringkasan laporan",
+            "Jumlah, jenis, dan status laporan."
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
-        SectionTitle("Rentang laporan selesai", "Pilih periode yang ingin dibandingkan")
+        Spacer(modifier = Modifier.height(18.dp))
+        SectionTitle("Laporan selesai", "Pilih rentang waktu")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(7, 30, 90).forEach { days ->
                 TextButton(
@@ -2053,14 +2117,18 @@ fun AdminStatsScreen(
                 "Selesai total",
                 RoleGreenDark,
                 Modifier.weight(1f),
-                icon = Icons.Filled.CheckCircle
+                icon = Icons.Filled.CheckCircle,
+                iconBackgroundColor = if (IsNightAdmin) Color(0xFF354A3A) else Color(0xFFE5EAD6),
+                iconBackgroundEndColor = if (IsNightAdmin) Color(0xFF435642) else Color(0xFFCDDDBB)
             )
             SummaryCard(
                 periodCount.toString(),
                 "Selesai $dailyRangeDays hari",
                 LoginAccent,
                 Modifier.weight(1f),
-                icon = Icons.AutoMirrored.Filled.Assignment
+                icon = Icons.AutoMirrored.Filled.Assignment,
+                iconBackgroundColor = if (IsNightAdmin) Color(0xFF334843) else Color(0xFFDDEBE4),
+                iconBackgroundEndColor = if (IsNightAdmin) Color(0xFF425C55) else Color(0xFFC7DDD3)
             )
         }
         AppCard(
@@ -2097,60 +2165,7 @@ fun AdminStatsScreen(
 
         SectionTitle("Laporan per bulan", "Perbandingan enam bulan terakhir")
         if (monthlyBars.isEmpty()) EmptyAdminState("Belum ada data bulanan.") else {
-            AppCard(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = AppSurface,
-                borderColor = AppBorder
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 13.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(
-                        "Jumlah laporan",
-                        color = AppTextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(138.dp),
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        monthlyBars.forEachIndexed { index, item ->
-                            val ratio = item.total.toFloat() / maxMonthly
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom
-                            ) {
-                                Text(
-                                    item.total.toString(),
-                                    color = AppTextMuted,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.58f)
-                                        .height((22f + ratio * 67f).dp)
-                                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                                        .background(chartColors[index % chartColors.size])
-                                )
-                                Spacer(modifier = Modifier.height(5.dp))
-                                Text(
-                                    shortMonth(item.period),
-                                    color = AppTextMuted,
-                                    fontSize = 11.sp,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            MonthlyReportsChart(monthlyBars)
         }
 
         SectionTitle("Komposisi jenis sampah", "Perbandingan berdasarkan berat tercatat")
@@ -2241,6 +2256,7 @@ fun AdminOperationsScreen(
     onCreateWorker: suspend (String, String, String, String, String) -> Unit,
     onUpdateWorker: suspend (AdminWorker, Boolean) -> Unit,
     onDeleteWorker: suspend (AdminWorker, Int?) -> Unit,
+    onUploadWorkerPhoto: suspend (AdminWorker, Uri) -> Unit,
     onOpenPhoto: (String) -> Unit,
     onReviewCompletion: suspend (TaskCompletionReview, String, String) -> Unit,
     onReviewVehicleRepair: suspend (VehicleRepair, String, String) -> Unit,
@@ -2283,7 +2299,28 @@ fun AdminOperationsScreen(
     var workerSearch by rememberSaveable { mutableStateOf("") }
     var workerFilter by rememberSaveable { mutableStateOf("semua") }
     var updatingWorkerId by remember { mutableStateOf<Int?>(null) }
+    var photoTarget by remember { mutableStateOf<AdminWorker?>(null) }
+    var uploadingPhotoWorkerId by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
+    val workerPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val worker = photoTarget
+        photoTarget = null
+        if (uri != null && worker != null) {
+            scope.launch {
+                uploadingPhotoWorkerId = worker.id
+                actionError = ""
+                try {
+                    onUploadWorkerPhoto(worker, uri)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    actionError = error.message ?: "Foto profil petugas gagal disimpan."
+                } finally {
+                    uploadingPhotoWorkerId = null
+                }
+            }
+        }
+    }
     val workerSearchQuery = workerSearch.trim().lowercase()
     val workersNeedingAttention = workers.count { it.pendingConfirmations > 0 || it.activeTasks > 0 }
     val workerFilters = listOf(
@@ -2504,7 +2541,42 @@ fun AdminOperationsScreen(
                             modifier = Modifier.fillMaxWidth().padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            UserAvatar(item.name.displayPersonName())
+                            Box(modifier = Modifier.size(48.dp)) {
+                                UserAvatar(
+                                    item.name.displayPersonName(),
+                                    modifier = Modifier.fillMaxSize(),
+                                    photoUrl = item.profilePhotoUrl
+                                )
+                                if (account.role == UserRole.ADMIN && item.hasAccount) {
+                                    IconButton(
+                                        onClick = {
+                                            photoTarget = item
+                                            workerPhotoPicker.launch("image/*")
+                                        },
+                                        enabled = uploadingPhotoWorkerId == null,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .size(23.dp)
+                                            .clip(CircleShape)
+                                            .background(AppSurface)
+                                    ) {
+                                        if (uploadingPhotoWorkerId == item.id) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(13.dp),
+                                                strokeWidth = 2.dp,
+                                                color = LoginAccent
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Filled.PhotoCamera,
+                                                contentDescription = "Tambah atau ganti foto profil ${item.name}",
+                                                tint = LoginAccent,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                             Spacer(modifier = Modifier.width(9.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -2950,6 +3022,7 @@ fun PetugasTasksScreen(
     capacityClearanceRequests: List<CapacityClearanceRequest>,
     errorMessage: String,
     account: UserAccount,
+    onUpdateProfile: suspend (String) -> UserAccount,
     onAskAssistant: suspend (String, List<PetugasAssistantTurn>) -> PetugasAssistantReply,
     onOpenPhoto: (String) -> Unit,
     onArchiveTask: suspend (WasteRecord) -> Unit,
@@ -3168,6 +3241,9 @@ fun PetugasTasksScreen(
     val currentSection = selectedSection.takeIf {
         it in setOf("ringkasan", "tugas", "riwayat", "profil")
     } ?: "ringkasan"
+    BackHandler(enabled = currentSection == "profil") {
+        selectedSection = "ringkasan"
+    }
     val activeTasks = tasks
         .filter { it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED }
         .sortedWith(
@@ -3860,7 +3936,7 @@ fun PetugasTasksScreen(
                 }
             }
 
-            "profil" -> AccountProfileSettings(account, onLogout)
+            "profil" -> AccountProfileSettings(account, onLogout, onUpdateProfile)
                 }
             }
         }
@@ -4576,19 +4652,23 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
         label = "petugas-theme-progress"
     )
 
-    Canvas(modifier) {
+    val sky = listOf(
+        lerp(Color(0xFFC5DDE5), Color(0xFF111C2A), nightProgress),
+        lerp(Color(0xFFE8E3D5), Color(0xFF18302F), nightProgress),
+        lerp(Color(0xFFC1D3BF), Color(0xFF10221F), nightProgress)
+    )
+    val navigationAreaHeight = 87.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    Box(modifier = modifier.background(Brush.verticalGradient(sky))) {
+        Canvas(
+            modifier = Modifier.fillMaxSize().padding(bottom = navigationAreaHeight)
+        ) {
             val width = size.width
             val height = size.height
             val breeze = sin(ambientPhase.toDouble()).toFloat()
             val drift = breeze * 12.dp.toPx()
             val mobileSceneShift = if (compact) 0.025f else 0f
             val dayProgress = 1f - nightProgress
-            val sky = listOf(
-                lerp(Color(0xFFC5DDE5), Color(0xFF111C2A), nightProgress),
-                lerp(Color(0xFFE8E3D5), Color(0xFF18302F), nightProgress),
-                lerp(Color(0xFFC1D3BF), Color(0xFF10221F), nightProgress)
-            )
-            drawRect(Brush.verticalGradient(sky), size = size)
             val nightPhase = ambientPhase
 
             run {
@@ -4722,6 +4802,29 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                 )
             )
 
+            val shorelineStemColor = lerp(
+                Color(0xFF557A61).copy(alpha = 0.78f),
+                Color(0xFF8BA391).copy(alpha = 0.68f),
+                nightProgress
+            )
+            listOf(0.28f to 0.851f, 0.73f to 0.842f).forEach { (xFraction, yFraction) ->
+                val stemTop = Offset(width * xFraction, height * yFraction + 2.dp.toPx())
+                val stemBottom = Offset(width * xFraction, height * (yFraction + 0.055f))
+                val stem = Path().apply {
+                    moveTo(stemTop.x, stemTop.y)
+                    cubicTo(
+                        stemTop.x - 1.5.dp.toPx(), stemTop.y + 6.dp.toPx(),
+                        stemBottom.x + 1.5.dp.toPx(), stemBottom.y - 5.dp.toPx(),
+                        stemBottom.x, stemBottom.y
+                    )
+                }
+                drawPath(
+                    stem,
+                    shorelineStemColor,
+                    style = Stroke(width = 1.2.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+
             val water = Path().apply {
                 moveTo(0f, height * (0.88f + mobileSceneShift))
                 cubicTo(width * 0.18f, height * (0.83f + mobileSceneShift), width * 0.33f, height * (0.92f + mobileSceneShift), width * 0.51f, height * (0.87f + mobileSceneShift))
@@ -4798,6 +4901,24 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                 val center = Offset(width * xFraction, height * yFraction + gentleBob)
                 val radiusX = width * 0.030f * scale
                 val radiusY = height * 0.011f * scale
+                val petioleEnd = Offset(center.x + radiusX * 0.24f, height * 0.985f)
+                val petiole = Path().apply {
+                    moveTo(center.x, center.y + radiusY * 0.20f)
+                    cubicTo(
+                        center.x - radiusX * 0.30f, center.y + radiusY * 2.8f,
+                        petioleEnd.x + radiusX * 0.28f, petioleEnd.y - height * 0.10f,
+                        petioleEnd.x, petioleEnd.y
+                    )
+                }
+                drawPath(
+                    petiole,
+                    lerp(
+                        Color(0xFF47765E).copy(alpha = 0.32f),
+                        Color(0xFF9AB4A1).copy(alpha = 0.30f),
+                        nightProgress
+                    ),
+                    style = Stroke(width = 1.05.dp.toPx(), cap = StrokeCap.Round)
+                )
                 val pad = Path().apply {
                     moveTo(center.x, center.y)
                     cubicTo(
@@ -4886,6 +5007,7 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
                     drawCircle(Color(0xFFD5DDAA).copy(alpha = shimmer * nightProgress), 1.4.dp.toPx(), firefly)
                 }
             }
+        }
     }
 }
 
@@ -4918,14 +5040,18 @@ private fun PetugasJourneyHero(
         it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED || it.status == WasteFlow.DONE
     }
     val active = assigned + transported
-    val heroColor = if (isDark) Color(0xFF263E33) else Color(0xFF2A7050)
-    val heroText = Color(0xFFF5F4EA)
-    val heroMuted = Color(0xFFD8E5D9)
+    val heroColors = if (isDark) {
+        listOf(Color(0xFF26392F), Color(0xFF30443A))
+    } else {
+        listOf(Color(0xFF50735F), Color(0xFF426551))
+    }
+    val heroText = Color(0xFFF2F0E8)
+    val heroMuted = Color(0xFFD8E1D8)
     val progress = if (total == 0) 0 else (completed * 100 / total)
     val displayName = name.displayPersonName().ifBlank { "Petugas" }
-    val readyTint = if (isDark) Color(0xFFB9D99A) else Color(0xFFC9E6A8)
-    val routeTint = if (isDark) Color(0xFF91CDBD) else Color(0xFF9ED8C9)
-    val attentionTint = if (isDark) Color(0xFFE4BE78) else Color(0xFFFFD58F)
+    val readyTint = if (isDark) Color(0xFFB7C99E) else Color(0xFF5C805E)
+    val routeTint = if (isDark) Color(0xFF9FC1B6) else Color(0xFF4E7D73)
+    val attentionTint = if (isDark) Color(0xFFD3BA8C) else Color(0xFF9A7746)
     val workSummary = when {
         isInitialLoading -> "Memuat tugas dan laporan terbaru."
         needsRevision > 0 -> "$needsRevision bukti perlu diperbaiki. Dahulukan pemeriksaan ini."
@@ -4944,21 +5070,34 @@ private fun PetugasJourneyHero(
         else -> "Buka antrean"
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(heroColor)
-            .padding(horizontal = 18.dp, vertical = 17.dp)
+    val progressFraction = if (total > 0) (completed.toFloat() / total).coerceIn(0f, 1f) else 0f
+    val detailText = AppText
+    val detailMuted = AppTextMuted
+    val progressTint = if (isDark) Color(0xFFABC49B) else Color(0xFF52765B)
+    val progressTrack = if (isDark) Color(0xFF3A4A40) else Color(0xFFDCE4D8)
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(23.dp))
+            .background(AppSurface)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .background(Brush.linearGradient(heroColors))
+                .padding(horizontal = 17.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
                 Text(
-                    "RUANG KERJA PETUGAS",
+                    "RUANG KERJA · PETUGAS",
                     color = heroMuted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.55.sp
                 )
                 Text(
                     "Halo, $displayName",
@@ -4969,45 +5108,74 @@ private fun PetugasJourneyHero(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(active.toString(), color = heroText, fontSize = 30.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("tugas aktif", color = heroText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text(workSummary, color = heroMuted, fontSize = 11.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                PetugasHeroStat(assigned.toString(), "Siap angkut", readyTint, Modifier.weight(1f))
-                PetugasHeroStat(inRoute.toString(), "Dalam rute", routeTint, Modifier.weight(1f))
-                PetugasHeroStat(needsAttention.toString(), "Perlu dicek", attentionTint, Modifier.weight(1f))
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    when {
-                        isInitialLoading -> "Sedang menyegarkan antrean…"
-                        total > 0 -> "$completed dari $total selesai · $progress%"
-                        else -> "Belum ada pekerjaan yang selesai."
-                    },
-                    modifier = Modifier.weight(1f),
-                    color = heroMuted.copy(alpha = 0.88f),
+                    workSummary,
+                    color = heroMuted,
                     fontSize = 10.sp,
-                    maxLines = 1,
+                    lineHeight = 14.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+            Column(
+                modifier = Modifier.size(76.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.10f)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(active.toString(), color = heroText, fontSize = 27.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
+                Text("tugas aktif", color = heroMuted, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 13.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                PetugasHeroStat(assigned.toString(), "Siap angkut", readyTint, detailMuted, Modifier.weight(1f))
+                PetugasHeroStat(inRoute.toString(), "Dalam rute", routeTint, detailMuted, Modifier.weight(1f))
+                PetugasHeroStat(needsAttention.toString(), "Perlu dicek", attentionTint, detailMuted, Modifier.weight(1f))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Penyelesaian", color = detailMuted, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        when {
+                            isInitialLoading -> "Memperbarui antrean…"
+                            total > 0 -> "$completed dari $total selesai · $progress%"
+                            else -> "Belum ada pekerjaan yang selesai"
+                        },
+                        color = detailText,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 TextButton(
                     onClick = onOpenTasks,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 8.dp, end = 0.dp, top = 2.dp, bottom = 2.dp)
                 ) {
-                    Text("$actionLabel  ›", color = heroText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("$actionLabel  ›", color = progressTint, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Box(
+                modifier = Modifier.fillMaxWidth().height(4.dp)
+                    .clip(CircleShape)
+                    .background(progressTrack)
+            ) {
+                if (progressFraction > 0f) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(progressFraction).fillMaxHeight()
+                            .background(progressTint)
+                    )
                 }
             }
         }
@@ -5015,12 +5183,18 @@ private fun PetugasJourneyHero(
 }
 
 @Composable
-private fun PetugasHeroStat(value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
+private fun PetugasHeroStat(
+    value: String,
+    label: String,
+    tint: Color,
+    labelColor: Color,
+    modifier: Modifier = Modifier
+) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(value, color = tint, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = tint, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             Box(Modifier.size(6.dp).clip(CircleShape).background(tint))
-            Text(label, color = Color(0xFFE7EEE4), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, color = labelColor, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -5110,11 +5284,41 @@ private fun PetugasNavigationBar(selectedSection: String, onSectionSelected: (St
 }
 
 @Composable
-private fun AccountProfileSettings(account: UserAccount, onLogout: () -> Unit) {
+private fun AccountProfileSettings(
+    account: UserAccount,
+    onLogout: () -> Unit,
+    onUpdateProfile: suspend (String) -> UserAccount,
+    onUpdateProfilePhoto: (suspend (Uri) -> UserAccount)? = null
+) {
     val appearance = LocalSmartWasteAppearance.current
     val isDark = appearance.darkMode
     val cardShape = RoundedCornerShape(24.dp)
     val surface = AppSurface.copy(alpha = if (isDark) 0.88f else 0.92f)
+    var showNameDialog by rememberSaveable(account.username) { mutableStateOf(false) }
+    var nameDraft by rememberSaveable(account.username) { mutableStateOf(account.name) }
+    var nameError by remember { mutableStateOf("") }
+    var savingName by remember { mutableStateOf(false) }
+    var photoError by remember { mutableStateOf("") }
+    var savingPhoto by rememberSaveable(account.username) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val profilePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val updatePhoto = onUpdateProfilePhoto
+        if (uri != null && updatePhoto != null) {
+            scope.launch {
+                savingPhoto = true
+                photoError = ""
+                try {
+                    updatePhoto(uri)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    photoError = error.message ?: "Foto profil gagal diperbarui."
+                } finally {
+                    savingPhoto = false
+                }
+            }
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         AdminSectionHeading(
@@ -5131,7 +5335,7 @@ private fun AccountProfileSettings(account: UserAccount, onLogout: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                UserAvatar(account.name, Modifier.size(58.dp))
+                UserAvatar(account.name, Modifier.size(58.dp), account.profilePhotoUrl)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -5155,6 +5359,44 @@ private fun AccountProfileSettings(account: UserAccount, onLogout: () -> Unit) {
             }
             ProfileInfoRow("Username", "@${account.username}")
             ProfileInfoRow("Peran", account.role.label)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onUpdateProfilePhoto != null) {
+                    TextButton(
+                        onClick = { profilePhotoPicker.launch("image/*") },
+                        enabled = !savingPhoto && !savingName
+                    ) {
+                        if (savingPhoto) {
+                            Text("Menyimpan…", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                        } else {
+                            Icon(
+                                Icons.Filled.PhotoCamera,
+                                contentDescription = null,
+                                tint = LoginAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(5.dp))
+                            Text("Ganti foto", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+                TextButton(
+                    onClick = {
+                        nameDraft = account.name
+                        nameError = ""
+                        showNameDialog = true
+                    },
+                    enabled = !savingName && !savingPhoto
+                ) {
+                    Text("Ubah nama profil", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (photoError.isNotBlank()) {
+                Text(photoError, color = RoleRed, fontSize = 11.sp)
+            }
         }
 
         Column(
@@ -5193,6 +5435,65 @@ private fun AccountProfileSettings(account: UserAccount, onLogout: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text("Keluar dari akun", color = RoleRed, fontWeight = FontWeight.Bold)
         }
+    }
+
+    if (showNameDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!savingName) showNameDialog = false },
+            title = { Text("Ubah nama profil", color = AppText, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = nameDraft,
+                        onValueChange = {
+                            nameDraft = it.take(120)
+                            nameError = ""
+                        },
+                        label = { Text("Nama") },
+                        singleLine = true,
+                        enabled = !savingName,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (nameError.isNotBlank()) {
+                        Text(nameError, color = RoleRed, fontSize = 12.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !savingName,
+                    onClick = {
+                        val newName = nameDraft.trim()
+                        if (newName.isEmpty()) {
+                            nameError = "Nama tidak boleh kosong."
+                        } else {
+                            scope.launch {
+                                savingName = true
+                                nameError = ""
+                                try {
+                                    val updated = onUpdateProfile(newName)
+                                    nameDraft = updated.name
+                                    showNameDialog = false
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (error: Exception) {
+                                    nameError = error.message ?: "Nama profil gagal diperbarui."
+                                } finally {
+                                    savingName = false
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (savingName) "Menyimpan…" else "Simpan", color = LoginAccent)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNameDialog = false }, enabled = !savingName) {
+                    Text("Batal", color = AppTextMuted)
+                }
+            }
+        )
     }
 }
 
@@ -6300,6 +6601,186 @@ private fun String.toDisplayDateTime(): String {
         outputPattern,
         java.util.Locale.forLanguageTag("id-ID")
     ).format(parsed)
+}
+
+@Composable
+private fun MonthlyReportsChart(months: List<MonthlyStat>) {
+    val chartMax = months.maxOfOrNull { it.total }?.coerceAtLeast(1) ?: 1
+    val (axisMax, axisStep) = monthlyAxisScale(chartMax)
+    val highlightedIndex = months.indices.maxByOrNull { months[it].total } ?: 0
+    val highlighted = months[highlightedIndex]
+    val previousTotal = months.getOrNull(highlightedIndex - 1)?.total ?: 0
+    val changeLabel = if (previousTotal > 0) {
+        val change = (highlighted.total - previousTotal) * 100.0 / previousTotal
+        String.format(java.util.Locale.US, "%+.1f%%", change)
+    } else {
+        "Puncak"
+    }
+    val night = IsNightAdmin
+    val mutedBar = if (night) Color(0xFF4F6F5E) else Color(0xFFA7C9B6)
+    val activeBar = if (night) Color(0xFF398A65) else Color(0xFF087D50)
+    val chartHeight = 132.dp
+    val plotTop = 36.dp
+    val plotHeight = chartHeight - plotTop
+    val gridColor = AppTextMuted.copy(alpha = if (night) 0.28f else 0.20f)
+
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = AppSurface
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "Jumlah laporan",
+                color = AppTextMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.width(29.dp).height(chartHeight)) {
+                    Spacer(modifier = Modifier.height(plotTop - 6.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        (5 downTo 0).forEach { tick ->
+                            Text(
+                                (axisStep * tick).toChartAxisLabel(),
+                                color = AppTextMuted,
+                                fontSize = 9.sp,
+                                lineHeight = 10.sp,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+                Box(
+                    modifier = Modifier.weight(1f).height(chartHeight)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val top = plotTop.toPx()
+                        val interval = plotHeight.toPx() / 5f
+                        (0..5).forEach { index ->
+                            val y = top + interval * index
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(0f, y),
+                                end = Offset(size.width, y),
+                                strokeWidth = 1.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 5.dp.toPx()))
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        months.forEachIndexed { index, month ->
+                            val ratio = (month.total.toFloat() / axisMax).coerceIn(0f, 1f)
+                            val barHeight = plotHeight * ratio
+                            val isHighlighted = index == highlightedIndex && month.total > 0
+                            val barColor = if (isHighlighted) activeBar else mutedBar
+                            Box(
+                                modifier = Modifier.weight(1f).fillMaxHeight()
+                            ) {
+                                if (isHighlighted) {
+                                    Column(
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .offset(y = (chartHeight - barHeight - 34.dp).coerceAtLeast(0.dp)),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            changeLabel,
+                                            color = Color.White,
+                                            fontSize = 9.sp,
+                                            lineHeight = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .background(activeBar)
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(11.dp)
+                                                .clip(CircleShape)
+                                                .background(activeBar)
+                                                .border(2.dp, AppSurface, CircleShape)
+                                        )
+                                    }
+                                }
+                                if (month.total > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .widthIn(max = 40.dp)
+                                            .fillMaxWidth(0.64f)
+                                            .height(barHeight.coerceAtLeast(3.dp))
+                                            .clip(CircleShape)
+                                            .background(barColor)
+                                            .drawWithContent {
+                                                drawContent()
+                                                val spacing = 10.dp.toPx()
+                                                val stroke = 1.dp.toPx()
+                                                var startX = -size.height
+                                                while (startX < size.width) {
+                                                    drawLine(
+                                                        color = Color.White.copy(alpha = if (isHighlighted) 0.20f else 0.30f),
+                                                        start = Offset(startX, size.height),
+                                                        end = Offset(startX + size.height, 0f),
+                                                        strokeWidth = stroke
+                                                    )
+                                                    startX += spacing
+                                                }
+                                            }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Spacer(modifier = Modifier.width(29.dp))
+                months.forEach { month ->
+                    Text(
+                        shortMonth(month.period).uppercase(java.util.Locale.forLanguageTag("id-ID")),
+                        modifier = Modifier.weight(1f),
+                        color = AppTextMuted,
+                        fontSize = 9.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun monthlyAxisScale(value: Int): Pair<Int, Int> {
+    val rawStep = ceil(value.coerceAtLeast(1) / 5.0).toInt()
+    val magnitude = 10.0.pow(floor(log10(rawStep.toDouble()))).toInt().coerceAtLeast(1)
+    val normalized = rawStep.toDouble() / magnitude
+    val step = when {
+        normalized <= 1.0 -> magnitude
+        normalized <= 2.0 -> 2 * magnitude
+        normalized <= 5.0 -> 5 * magnitude
+        else -> 10 * magnitude
+    }
+    return step * 5 to step
+}
+
+private fun Int.toChartAxisLabel(): String = when {
+    this >= 1_000 && this % 1_000 == 0 -> "${this / 1_000}k"
+    this >= 1_000 -> String.format(java.util.Locale.US, "%.1fk", this / 1_000.0)
+    else -> toString()
 }
 
 private fun shortMonth(period: String): String {

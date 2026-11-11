@@ -90,7 +90,8 @@ object SmartWasteApi {
             username = value(json, "username"),
             password = "",
             role = role,
-            isSuperAdmin = json.optBoolean("is_super_admin", false)
+            isSuperAdmin = json.optBoolean("is_super_admin", false),
+            profilePhotoUrl = value(json, "profile_photo").ifBlank { null }
         )
     }
 
@@ -297,7 +298,8 @@ object SmartWasteApi {
                 completedTasks = item.optInt("completed_tasks", item.optInt("total_pickups", 0)),
                 activeTasks = item.optInt("active_tasks", 0),
                 pendingConfirmations = item.optInt("pending_confirmations", 0),
-                completedWeightKg = item.optDouble("completed_weight_kg", 0.0)
+                completedWeightKg = item.optDouble("completed_weight_kg", 0.0),
+                profilePhotoUrl = value(item, "profile_photo").ifBlank { null }
             )
         }
     }
@@ -343,6 +345,39 @@ object SmartWasteApi {
             "PATCH", "/admin/petugas/${worker.id}", JSONObject()
                 .put("aktif", active).put("zona_tugas", worker.zone)
         )
+    }
+
+    suspend fun uploadWorkerProfilePhoto(workerId: Int, imageBytes: ByteArray) {
+        uploadMultipart(
+            path = "/admin/petugas/$workerId/foto-profil",
+            fields = emptyMap(),
+            imageBytes = imageBytes,
+            fileName = "petugas-$workerId.jpg"
+        )
+    }
+
+    suspend fun updateMyProfile(name: String): UserAccount {
+        val response = request(
+            "PUT",
+            "/me",
+            JSONObject().put("name", name.trim())
+        )
+        return mapAccount(response.getJSONObject("user"))
+    }
+
+    suspend fun updateMyProfilePhoto(imageBytes: ByteArray): UserAccount {
+        val response = uploadMultipart(
+            path = "/me/foto-profil",
+            fields = emptyMap(),
+            imageBytes = imageBytes,
+            fileName = "admin-profile.jpg"
+        )
+        return mapAccount(response.getJSONObject("user"))
+    }
+
+    suspend fun currentAccount(): UserAccount {
+        val response = request("GET", "/me")
+        return mapAccount(response.getJSONObject("user"))
     }
 
     suspend fun deleteWorkerAccount(workerId: Int, replacementWorkerId: Int? = null) {
