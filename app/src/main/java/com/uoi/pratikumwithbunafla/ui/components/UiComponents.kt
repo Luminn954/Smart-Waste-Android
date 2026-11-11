@@ -5,12 +5,15 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +52,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -62,9 +68,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.uoi.pratikumwithbunafla.R
 import com.uoi.pratikumwithbunafla.ui.theme.AppBackground
 import com.uoi.pratikumwithbunafla.ui.theme.AppBorder
 import com.uoi.pratikumwithbunafla.ui.theme.AppSurface
@@ -181,17 +192,6 @@ fun SmartWasteSplash() {
         ),
         label = "splash-leaf-drift"
     )
-    val title = "Smart Waste"
-    val writeProgress = remember { Animatable(0f) }
-
-    LaunchedEffect(title) {
-        writeProgress.snapTo(0f)
-        writeProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 1500, easing = LinearEasing)
-        )
-    }
-
     AppScreen {
         Box(
             modifier = Modifier
@@ -220,22 +220,8 @@ fun SmartWasteSplash() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = title,
-                    modifier = Modifier.drawWithContent {
-                        clipRect(right = size.width * writeProgress.value) {
-                            this@drawWithContent.drawContent()
-                        }
-                    },
-                    color = SplashText,
-                    fontSize = if (compactScreen) 30.sp else 34.sp,
-                    fontFamily = InterFont,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.35).sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                SplashLogoAssembly(compactScreen)
+                Spacer(modifier = Modifier.height(if (compactScreen) 20.dp else 24.dp))
                 Text(
                     text = "Kelola sampah lebih mudah, mulai dari lingkungan sekitar.",
                     color = SplashMuted,
@@ -274,6 +260,81 @@ fun SmartWasteSplash() {
         }
     }
 }
+
+@Composable
+private fun SplashLogoAssembly(compactScreen: Boolean) {
+    val logoSize = if (compactScreen) 144.dp else 160.dp
+    val sliceCount = 5
+    val startRotations = listOf(-32f, 25f, -27f, 31f, -22f)
+    val slices = remember { List(sliceCount) { Animatable(0f) } }
+    val formation = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        coroutineScope {
+            slices.forEachIndexed { index, slice ->
+                launch {
+                    delay(index * 150L)
+                    slice.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
+                    )
+                }
+            }
+        }
+        formation.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(dampingRatio = 0.78f, stiffness = 460f)
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .size(logoSize)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.22f))
+    ) {
+        val logoPainter = painterResource(R.drawable.login_recycling_mark)
+        slices.forEachIndexed { index, slice ->
+            val dropProgress = slice.value
+            val formProgress = formation.value
+            Image(
+                painter = logoPainter,
+                contentDescription = null,
+                colorFilter = SplashLogoFilter,
+                modifier = Modifier
+                    .offset(y = -(logoSize * ((1f - dropProgress) * 0.88f)))
+                    .size(logoSize)
+                    .graphicsLayer {
+                        alpha = dropProgress
+                        rotationZ = startRotations[index] * (1f - formProgress)
+                        val scale = 0.94f + formProgress * 0.06f
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .drawWithContent {
+                        val bandHeight = size.height / sliceCount
+                        clipRect(
+                            top = bandHeight * index,
+                            bottom = bandHeight * (index + 1)
+                        ) {
+                            this@drawWithContent.drawContent()
+                        }
+                    }
+            )
+        }
+    }
+}
+
+private val SplashLogoFilter = ColorFilter.colorMatrix(
+    ColorMatrix(
+        floatArrayOf(
+            0f, 0f, 0f, 0f, 35f,
+            0f, 0f, 0f, 0f, 132f,
+            0f, 0f, 0f, 0f, 90f,
+            -0.299f, -0.587f, -0.114f, 0f, 255f
+        )
+    )
+)
 
 @Composable
 private fun SplashEcoBackdrop(drift: Float, modifier: Modifier = Modifier) {

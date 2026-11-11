@@ -10,6 +10,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -536,6 +537,19 @@ fun LoginScreen(
     val scope = rememberCoroutineScope()
     val modeRippleProgress = remember { Animatable(1f) }
     var modeRippleOrigin by remember { mutableStateOf(Offset.Zero) }
+    val loginEntry = remember { MutableTransitionState(false) }.apply {
+        targetState = true
+    }
+    val logoMotion = rememberInfiniteTransition(label = "login-logo-float")
+    val logoDrift by logoMotion.animateFloat(
+        initialValue = 0f,
+        targetValue = -4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "login-logo-drift"
+    )
 
     LaunchedEffect(Unit) {
         runCatching { onCheckConnection() }
@@ -696,246 +710,301 @@ fun LoginScreen(
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(78.dp)
-                    .shadow(
-                        logoElevation,
-                        CircleShape,
-                        spotColor = palette.accent.copy(alpha = if (isDarkMode) 0.34f else 0.18f)
+            AnimatedVisibility(
+                visibleState = loginEntry,
+                enter = fadeIn(animationSpec = tween(850, easing = FastOutSlowInEasing)) +
+                    slideInVertically(
+                        initialOffsetY = { -it / 3 },
+                        animationSpec = tween(850, easing = FastOutSlowInEasing)
                     )
-                    .clip(CircleShape)
-                    .background(Brush.verticalGradient(listOf(logoTopColor, logoBottomColor)))
-                    .border(1.2.dp, logoBorderColor, CircleShape),
-                contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(R.drawable.login_recycling_mark),
-                    contentDescription = "Logo daur ulang Smart Waste",
-                    colorFilter = RecyclingLogoFilter,
-                    modifier = Modifier.size(59.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .graphicsLayer { translationY = logoDrift.dp.toPx() }
+                        .size(78.dp)
+                        .shadow(
+                            logoElevation,
+                            CircleShape,
+                            spotColor = palette.accent.copy(alpha = if (isDarkMode) 0.34f else 0.18f)
+                        )
+                        .clip(CircleShape)
+                        .background(Brush.verticalGradient(listOf(logoTopColor, logoBottomColor)))
+                        .border(1.2.dp, logoBorderColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.login_recycling_mark),
+                        contentDescription = "Logo daur ulang Smart Waste",
+                        colorFilter = RecyclingLogoFilter,
+                        modifier = Modifier.size(59.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Masuk ke Smart Waste",
-                color = primaryText,
-                fontFamily = LoginFont,
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
-                lineHeight = 30.sp,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(13.dp))
-            Crossfade(
-                targetState = isDarkMode,
-                animationSpec = tween(420),
-                label = "mode-caption"
-            ) { darkMode ->
+            AnimatedVisibility(
+                visibleState = loginEntry,
+                enter = fadeIn(animationSpec = tween(850, delayMillis = 140, easing = FastOutSlowInEasing)) +
+                    slideInVertically(
+                        initialOffsetY = { -it / 4 },
+                        animationSpec = tween(850, delayMillis = 140, easing = FastOutSlowInEasing)
+                    )
+            ) {
                 Text(
-                    text = if (darkMode) {
-                        "Mode malam · operasional tetap terpantau"
-                    } else {
-                        "Pagi yang lebih bersih, dimulai dari sekitar"
-                    },
-                    color = secondaryText,
+                    text = "Masuk ke Smart Waste",
+                    color = primaryText,
                     fontFamily = LoginFont,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    lineHeight = 30.sp,
                     textAlign = TextAlign.Center
                 )
             }
+            Spacer(modifier = Modifier.height(13.dp))
+            AnimatedVisibility(
+                visibleState = loginEntry,
+                enter = fadeIn(animationSpec = tween(850, delayMillis = 240, easing = FastOutSlowInEasing)) +
+                    slideInVertically(
+                        initialOffsetY = { -it / 4 },
+                        animationSpec = tween(850, delayMillis = 240, easing = FastOutSlowInEasing)
+                    )
+            ) {
+                Crossfade(
+                    targetState = isDarkMode,
+                    animationSpec = tween(420),
+                    label = "mode-caption"
+                ) { darkMode ->
+                    Text(
+                        text = if (darkMode) {
+                            "Mode malam · operasional tetap terpantau"
+                        } else {
+                            "Pagi yang lebih bersih, dimulai dari sekitar"
+                        },
+                        color = secondaryText,
+                        fontFamily = LoginFont,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
-            LoginRoleSelector(
-                selectedRole = selectedRole,
-                onSelectRole = {
-                    if (selectedRole != it) {
-                        username = if (rememberMe) {
-                            preferences.getString(roleUsernamePreferenceKey(it), "").orEmpty()
-                                .ifBlank { if (it == UserRole.ADMIN) savedUsername else "" }
-                        } else ""
-                    }
-                    selectedRole = it
-                    errorMessage = ""
-                },
-                palette = palette,
-                darkMode = isDarkMode,
-                compact = compactScreen
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            LoginGlassPanel(palette = palette, darkMode = isDarkMode) {
-                LoginPillField(
-                    value = username,
-                    onValueChange = { username = it; errorMessage = "" },
-                    placeholder = "Username atau email",
-                    leadingIcon = Icons.Filled.Person,
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next,
-                    palette = palette,
-                    darkMode = isDarkMode
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                LoginPillField(
-                    value = password,
-                    onValueChange = { password = it; errorMessage = "" },
-                    placeholder = "Kata sandi",
-                    leadingIcon = Icons.Filled.Lock,
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
-                    visualTransformation = if (passwordVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
+            AnimatedVisibility(
+                visibleState = loginEntry,
+                enter = fadeIn(animationSpec = tween(850, delayMillis = 360, easing = FastOutSlowInEasing)) +
+                    slideInVertically(
+                        initialOffsetY = { -it / 4 },
+                        animationSpec = tween(850, delayMillis = 360, easing = FastOutSlowInEasing)
+                    )
+            ) {
+                LoginRoleSelector(
+                    selectedRole = selectedRole,
+                    onSelectRole = {
+                        if (selectedRole != it) {
+                            username = if (rememberMe) {
+                                preferences.getString(roleUsernamePreferenceKey(it), "").orEmpty()
+                                    .ifBlank { if (it == UserRole.ADMIN) savedUsername else "" }
+                            } else ""
+                        }
+                        selectedRole = it
+                        errorMessage = ""
                     },
-                    onImeAction = ::submitLogin,
                     palette = palette,
                     darkMode = isDarkMode,
-                    trailingContent = {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .clickable { passwordVisible = !passwordVisible },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (passwordVisible) {
-                                    Icons.Filled.Visibility
-                                } else {
-                                    Icons.Filled.VisibilityOff
-                                },
-                                contentDescription = if (passwordVisible) "Sembunyikan kata sandi" else "Tampilkan kata sandi",
-                                modifier = Modifier.size(18.dp),
-                                tint = secondaryText
-                            )
-                        }
-                    }
+                    compact = compactScreen
                 )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .padding(top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .toggleable(
-                                value = rememberMe,
-                                role = Role.Checkbox,
-                                onValueChange = { rememberMe = it }
-                            )
-                            .semantics { role = Role.Checkbox },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .shadow(
-                                    elevation = if (rememberMe) 7.dp else 2.dp,
-                                    shape = RoundedCornerShape(5.dp),
-                                    spotColor = palette.accent.copy(alpha = 0.30f)
-                                )
-                                .clip(RoundedCornerShape(5.dp))
-                                .background(if (rememberMe) palette.accent else palette.surface)
-                                .border(1.dp, palette.border, RoundedCornerShape(5.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (rememberMe) {
+            AnimatedVisibility(
+                visibleState = loginEntry,
+                enter = fadeIn(animationSpec = tween(850, delayMillis = 500, easing = FastOutSlowInEasing)) +
+                    slideInVertically(
+                        initialOffsetY = { -it / 5 },
+                        animationSpec = tween(850, delayMillis = 500, easing = FastOutSlowInEasing)
+                    )
+            ) {
+                LoginGlassPanel(palette = palette, darkMode = isDarkMode) {
+                    LoginPillField(
+                        value = username,
+                        onValueChange = { username = it; errorMessage = "" },
+                        placeholder = "Username atau email",
+                        leadingIcon = Icons.Filled.Person,
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next,
+                        palette = palette,
+                        darkMode = isDarkMode
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LoginPillField(
+                        value = password,
+                        onValueChange = { password = it; errorMessage = "" },
+                        placeholder = "Kata sandi",
+                        leadingIcon = Icons.Filled.Lock,
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                        visualTransformation = if (passwordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
+                        onImeAction = ::submitLogin,
+                        palette = palette,
+                        darkMode = isDarkMode,
+                        trailingContent = {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .clickable { passwordVisible = !passwordVisible },
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
+                                    imageVector = if (passwordVisible) {
+                                        Icons.Filled.Visibility
+                                    } else {
+                                        Icons.Filled.VisibilityOff
+                                    },
+                                    contentDescription = if (passwordVisible) "Sembunyikan kata sandi" else "Tampilkan kata sandi",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = secondaryText
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(7.dp))
-                        Text(
-                            text = "Ingat username",
-                            color = primaryText,
-                            fontFamily = LoginFont,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp
-                        )
-                    }
+                    )
 
-                    TextButton(
-                        onClick = { showForgotDialog = true },
-                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "Lupa kata sandi?",
-                            color = palette.accentDark,
-                            fontFamily = LoginFont,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            maxLines = 1
-                        )
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = errorMessage.isNotBlank(),
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { -it / 3 })
-                ) {
-                    Text(
-                        text = errorMessage,
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 6.dp),
-                        color = palette.error,
-                        fontFamily = LoginFont,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.Medium
+                            .heightIn(min = 48.dp)
+                            .padding(top = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .toggleable(
+                                    value = rememberMe,
+                                    role = Role.Checkbox,
+                                    onValueChange = { rememberMe = it }
+                                )
+                                .semantics { role = Role.Checkbox },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .shadow(
+                                        elevation = if (rememberMe) 7.dp else 2.dp,
+                                        shape = RoundedCornerShape(5.dp),
+                                        spotColor = palette.accent.copy(alpha = 0.30f)
+                                    )
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(if (rememberMe) palette.accent else palette.surface)
+                                    .border(1.dp, palette.border, RoundedCornerShape(5.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (rememberMe) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(7.dp))
+                            Text(
+                                text = "Ingat username",
+                                color = primaryText,
+                                fontFamily = LoginFont,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        TextButton(
+                            onClick = { showForgotDialog = true },
+                            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Lupa kata sandi?",
+                                color = palette.accentDark,
+                                fontFamily = LoginFont,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = errorMessage.isNotBlank(),
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { -it / 3 })
+                    ) {
+                        Text(
+                            text = errorMessage,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            color = palette.error,
+                            fontFamily = LoginFont,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+                    LoginActionButton(
+                        isLoading = isLoading,
+                        selectedRole = selectedRole,
+                        palette = palette,
+                        darkMode = isDarkMode,
+                        onClick = ::submitLogin
                     )
                 }
-
-                Spacer(modifier = Modifier.height(3.dp))
-                LoginActionButton(
-                    isLoading = isLoading,
-                    selectedRole = selectedRole,
-                    palette = palette,
-                    darkMode = isDarkMode,
-                    onClick = ::submitLogin
-                )
             }
         }
 
-        NeomorphicModeToggle(
-            darkMode = isDarkMode,
-            palette = palette,
-            onClick = {
-                val nextDarkMode = !isDarkMode
-                isDarkMode = nextDarkMode
-                onThemeModeChange(nextDarkMode)
-                scope.launch {
-                    modeRippleProgress.snapTo(0f)
-                    modeRippleProgress.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = 860, easing = FastOutSlowInEasing)
-                    )
-                }
-            },
+        AnimatedVisibility(
+            visibleState = loginEntry,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(top = 10.dp, end = 14.dp)
-                .onGloballyPositioned { coordinates ->
-                    val position = coordinates.positionInRoot()
-                    modeRippleOrigin = Offset(
-                        x = position.x + coordinates.size.width / 2f,
-                        y = position.y + coordinates.size.height / 2f
-                    )
+                .padding(top = 10.dp, end = 14.dp),
+            enter = fadeIn(animationSpec = tween(700, delayMillis = 120, easing = FastOutSlowInEasing)) +
+                slideInVertically(
+                    initialOffsetY = { -it / 3 },
+                    animationSpec = tween(700, delayMillis = 120, easing = FastOutSlowInEasing)
+                )
+        ) {
+            NeomorphicModeToggle(
+                darkMode = isDarkMode,
+                palette = palette,
+                onClick = {
+                    val nextDarkMode = !isDarkMode
+                    isDarkMode = nextDarkMode
+                    onThemeModeChange(nextDarkMode)
+                    scope.launch {
+                        modeRippleProgress.snapTo(0f)
+                        modeRippleProgress.animateTo(
+                            targetValue = 1f,
+                            animationSpec = tween(durationMillis = 860, easing = FastOutSlowInEasing)
+                        )
+                    }
+                },
+            modifier = Modifier.onGloballyPositioned { coordinates ->
+                        val position = coordinates.positionInRoot()
+                        modeRippleOrigin = Offset(
+                            x = position.x + coordinates.size.width / 2f,
+                            y = position.y + coordinates.size.height / 2f
+                        )
                 }
-        )
+            )
+        }
     }
 
     if (showForgotDialog) {
