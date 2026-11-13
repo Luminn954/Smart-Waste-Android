@@ -72,10 +72,16 @@ import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Recycling
 import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.filled.LocalShipping
@@ -188,6 +194,7 @@ import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import java.io.File
 
@@ -2501,7 +2508,7 @@ fun AdminStatsScreen(
     val periodCount = dailyReports.sumOf { it.totalWaste }
     val periodWeight = dailyReports.sumOf { it.weightKg }
     val monthlyBars = stats.monthly.take(6).reversed()
-    val maxTypeWeight = stats.byType.maxOfOrNull { it.weightKg }?.coerceAtLeast(1.0) ?: 1.0
+    val totalTypeWeight = stats.byType.sumOf { it.weightKg }.coerceAtLeast(0.0)
     val chartColors =
         listOf(LoginAccent, RoleTeal, RolePurple, RoleOrange, RoleGreenDark, RoleNavy)
 
@@ -2595,37 +2602,74 @@ fun AdminStatsScreen(
             MonthlyReportsChart(monthlyBars)
         }
 
-        SectionTitle("Komposisi jenis sampah", "Perbandingan berdasarkan berat tercatat")
+        SectionTitle("Komposisi jenis sampah", "Porsi berat dari total tercatat")
         if (stats.byType.isEmpty()) EmptyAdminState("Belum ada data jenis sampah.") else {
-            AppCard(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = AppSurface,
-                borderColor = AppBorder
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    stats.byType.sortedByDescending { it.weightKg }.take(6).forEachIndexed { index, item ->
-                        val accent = chartColors[index % chartColors.size]
-                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                stats.byType.sortedByDescending { it.weightKg }.take(6).forEachIndexed { index, item ->
+                    val accent = chartColors[index % chartColors.size]
+                    val share = if (totalTypeWeight > 0.0) {
+                        (item.weightKg.coerceAtLeast(0.0) / totalTypeWeight).toFloat()
+                    } else {
+                        0f
+                    }
+                    val sharePercent = (share * 100).roundToInt()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(42.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(accent.copy(alpha = if (IsNightAdmin) 0.20f else 0.14f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = wasteTypeIcon(item.type),
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     item.type,
                                     modifier = Modifier.weight(1f),
                                     color = AppText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text("${item.total} laporan", color = AppTextMuted, fontSize = 11.sp)
                             }
-                            DataProgress(item.weightKg.toFloat() / maxTypeWeight.toFloat(), accent)
                             Text(
                                 "${item.weightKg.pretty()} kg",
-                                color = accent,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                color = AppText,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
                             )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                DataProgress(share, accent, modifier = Modifier.weight(1f))
+                                Text(
+                                    "$sharePercent%",
+                                    modifier = Modifier.widthIn(min = 32.dp),
+                                    color = AppTextMuted,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.End
+                                )
+                            }
                         }
                     }
                 }
@@ -7398,9 +7442,19 @@ private fun SoftProgress(progress: Float) {
 }
 
 @Composable
-private fun DataProgress(progress: Float, accent: Color) {
+private fun wasteTypeIcon(type: String): ImageVector = when (type.trim().lowercase()) {
+    "organik" -> Icons.Filled.Eco
+    "kertas" -> Icons.Filled.Description
+    "kaca" -> Icons.Filled.LocalDrink
+    "plastik" -> Icons.Filled.Recycling
+    "elektronik" -> Icons.Filled.Devices
+    else -> Icons.Filled.Category
+}
+
+@Composable
+private fun DataProgress(progress: Float, accent: Color, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50.dp))
+        modifier = modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50.dp))
             .background(RoleAccentSurface)
     ) {
         Box(
