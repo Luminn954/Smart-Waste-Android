@@ -124,7 +124,9 @@ object SmartWasteApi {
             completionProofPhotoUrl = value(json, "completion_proof_photo").ifBlank { null },
             completionSubmittedAt = value(json, "completion_submitted_at"),
             completionReviewNote = value(json, "completion_review_note"),
-            workerDecisionNote = workerDecisionNote
+            workerDecisionNote = workerDecisionNote,
+            locationEvidencePhotoUrl = value(json, "location_evidence_photo").ifBlank { null },
+            locationEvidenceSubmittedAt = value(json, "location_evidence_submitted_at")
         )
     }
 
@@ -631,6 +633,15 @@ object SmartWasteApi {
 
     suspend fun submitCompletionProof(reportId: Int, imageBytes: ByteArray, fileName: String, note: String) {
         uploadCompletionProof(reportId, imageBytes, fileName, note)
+    }
+
+    suspend fun submitLocationEvidence(reportId: Int, imageBytes: ByteArray, fileName: String) {
+        uploadMultipart(
+            path = "/petugas/tugas/$reportId/bukti-lokasi",
+            fields = emptyMap(),
+            imageBytes = imageBytes,
+            fileName = fileName
+        )
     }
 
     suspend fun dailyReports(from: String, to: String): List<DailyReport> {

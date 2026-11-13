@@ -38,7 +38,9 @@ data class WasteRecord(
     val completionProofPhotoUrl: String? = null,
     val completionSubmittedAt: String = "",
     val completionReviewNote: String = "",
-    val workerDecisionNote: String = ""
+    val workerDecisionNote: String = "",
+    val locationEvidencePhotoUrl: String? = null,
+    val locationEvidenceSubmittedAt: String = ""
 )
 
 data class ArchivedWasteRecord(

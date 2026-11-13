@@ -27,12 +27,12 @@ data class SmartWastePalette(
 )
 
 val LightSmartWastePalette = SmartWastePalette(
-    background = Color(0xFFEBF1DF),
-    surface = Color(0xFFFAF8EC),
+    background = Color.White,
+    surface = Color(0xFFF2F5EE),
     surfaceMuted = Color(0xFFDDEAD5),
     border = Color(0xFFB2D0B2),
     text = Color(0xFF1D3527),
-    textMuted = Color(0xFF566F5E)
+    textMuted = Color(0xFF3D5145)
 )
 
 val DarkSmartWastePalette = SmartWastePalette(

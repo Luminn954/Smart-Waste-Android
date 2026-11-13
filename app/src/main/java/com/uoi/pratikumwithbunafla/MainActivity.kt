@@ -364,6 +364,33 @@ class MainActivity : ComponentActivity() {
                                 pendingVehicleRepairActionCount = vehicleRepairs.count {
                                     it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"
                                 },
+                                pendingCapacityClearanceCount = capacityClearanceRequests.count { it.isPending },
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } }
+                            )
+                        }
+                        composable("notifications") {
+                            val account = activeAccount
+                            if (account == null) RedirectToLogin { navController.navigate("login") }
+                            else NotificationCenterScreen(
+                                account = account,
+                                summary = summary,
+                                reports = reports,
+                                tasks = tasks,
+                                incomingReports = incomingReports,
+                                completionReviews = completionReviews,
+                                vehicleRepairs = vehicleRepairs,
+                                capacityClearanceRequests = capacityClearanceRequests,
+                                onNavigate = ::navigateAdminRoute,
+                                onBack = {
+                                    if (!navController.popBackStack()) {
+                                        navController.navigate(if (account.role == UserRole.ADMIN) "dashboard" else "tasks") {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                },
+                                onLogout = ::signOut,
                                 isInitialLoading = !hasLoadedWorkspace,
                                 isRefreshing = isRefreshingWorkspace,
                                 onRefresh = { scope.launch { refreshWorkspace() } }
@@ -421,6 +448,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             else AdminOperationsScreen(
+                                reports = reports,
                                 workers = workers,
                                 completionReviews = completionReviews,
                                 vehicleRepairs = vehicleRepairs,
@@ -585,6 +613,14 @@ class MainActivity : ComponentActivity() {
                                     )
                                     refreshWorkspace()
                                 },
+                                onSubmitLocationEvidence = { task, photoUri ->
+                                    SmartWasteApi.submitLocationEvidence(
+                                        task.id,
+                                        compressEvidence(photoUri),
+                                        "lokasi-${task.id}.jpg"
+                                    )
+                                    refreshWorkspace()
+                                },
                                 onCreateVehicle = { plate, capacity, route ->
                                     SmartWasteApi.createVehicle(plate, capacity, route)
                                     refreshWorkspace()
@@ -629,6 +665,9 @@ class MainActivity : ComponentActivity() {
                                 isInitialLoading = !hasLoadedWorkspace,
                                 isRefreshing = isRefreshingWorkspace,
                                 onRefresh = { scope.launch { refreshWorkspace() } },
+                                onOpenNotifications = {
+                                    navController.navigate("notifications") { launchSingleTop = true }
+                                },
                                 onLogout = ::signOut
                             )
                         }

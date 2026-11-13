@@ -1,6 +1,7 @@
 package com.uoi.pratikumwithbunafla.ui.admin
 
 import android.content.Intent
+import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.activity.compose.BackHandler
@@ -63,9 +64,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
@@ -76,6 +79,7 @@ import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.filled.Search
@@ -90,6 +94,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -98,11 +103,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -112,8 +120,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -130,6 +140,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -272,7 +284,7 @@ private fun ScrollableDialogContent(
 private fun AnimatedAdminPageBackground() {
     val dark = LocalSmartWasteAppearance.current.darkMode
     val background by animateColorAsState(
-        targetValue = if (dark) AdminNightPalette.background else LightSmartWastePalette.background,
+        targetValue = if (dark) AdminNightPalette.background else LocalSmartWastePalette.current.background,
         animationSpec = tween(durationMillis = 820, easing = FastOutSlowInEasing),
         label = "admin-page-background"
     )
@@ -280,6 +292,7 @@ private fun AnimatedAdminPageBackground() {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun AdminPage(
     current: String,
     account: UserAccount,
@@ -289,7 +302,10 @@ private fun AdminPage(
     isInitialLoading: Boolean = false,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {},
+    onOpenNotifications: (() -> Unit)? = null,
     bottomBar: (@Composable () -> Unit)? = null,
+    showBottomBar: Boolean = true,
+    showNotificationsButton: Boolean = true,
     backgroundContent: @Composable BoxScope.() -> Unit = {},
     fullBleedContent: (@Composable ColumnScope.() -> Unit)? = null,
     showTopBar: Boolean = true,
@@ -341,46 +357,57 @@ private fun AdminPage(
                                 modifier = Modifier.weight(1f).fillMaxWidth(),
                                 contentAlignment = Alignment.TopCenter
                             ) {
-                                Column(
-                                    modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight().fillMaxWidth()
-                                        .then(
-                                            if (showTopBar) Modifier.windowInsetsPadding(WindowInsets.statusBars)
-                                            else Modifier
-                                        )
-                                        .verticalScroll(pageScrollState)
+                                PullToRefreshBox(
+                                    isRefreshing = isRefreshing,
+                                    onRefresh = onRefresh,
+                                    modifier = Modifier.fillMaxSize()
                                 ) {
-                                    if (showTopBar) {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth()
-                                                .padding(horizontal = horizontalPadding, vertical = 11.dp)
-                                        ) {
-                                            AdminTopBar(
-                                                account = account,
-                                                onLogout = onLogout,
-                                                onOpenProfile = { onNavigate("profile") },
-                                                isRefreshing = isRefreshing,
-                                                onRefresh = onRefresh
+                                    Column(
+                                        modifier = Modifier.widthIn(max = 720.dp).fillMaxHeight().fillMaxWidth()
+                                            .then(
+                                                if (showTopBar) Modifier.windowInsetsPadding(WindowInsets.statusBars)
+                                                else Modifier
                                             )
+                                            .verticalScroll(pageScrollState)
+                                    ) {
+                                        if (showTopBar) {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .padding(horizontal = horizontalPadding, vertical = 11.dp)
+                                            ) {
+                                                AdminTopBar(
+                                                    account = account,
+                                                    onLogout = onLogout,
+                                                    onOpenProfile = { onNavigate("profile") },
+                                                    showNotificationsButton = showNotificationsButton,
+                                                    onOpenNotifications = {
+                                                        onOpenNotifications?.invoke()
+                                                            ?: onNavigate("notifications")
+                                                    }
+                                                )
+                                            }
                                         }
-                                    }
-                                    if (isInitialLoading) {
-                                        AdminLoadingState()
-                                    } else {
-                                        fullBleedContent?.invoke(this)
-                                        Column(
-                                            modifier = Modifier.fillMaxWidth()
-                                                .padding(horizontal = horizontalPadding)
-                                                .padding(top = 11.dp, bottom = 11.dp)
-                                        ) {
-                                            content()
-                                            Spacer(modifier = Modifier.height(12.dp))
+                                        if (isInitialLoading) {
+                                            AdminLoadingState()
+                                        } else {
+                                            fullBleedContent?.invoke(this)
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth()
+                                                    .padding(horizontal = horizontalPadding)
+                                                    .padding(top = 11.dp, bottom = 11.dp)
+                                            ) {
+                                                content()
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                            }
                                         }
                                     }
                                 }
                             }
-                            when {
-                                bottomBar != null -> bottomBar()
-                                account.role == UserRole.ADMIN -> AdminNavigationBar(current, onNavigate)
+                            if (showBottomBar) {
+                                when {
+                                    bottomBar != null -> bottomBar()
+                                    account.role == UserRole.ADMIN -> AdminNavigationBar(current, onNavigate)
+                                }
                             }
                         }
                     }
@@ -470,8 +497,8 @@ private fun AdminTopBar(
     account: UserAccount,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
-    isRefreshing: Boolean,
-    onRefresh: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    showNotificationsButton: Boolean = true,
     isOnHero: Boolean = false
 ) {
     var profileMenuExpanded by remember(account.username) { mutableStateOf(false) }
@@ -523,11 +550,16 @@ private fun AdminTopBar(
             )
         }
         Spacer(modifier = Modifier.weight(1f))
-        PetugasRefreshButton(
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-            tint = if (isOnHero) Color(0xFFE2E9D9) else LoginAccent
-        )
+        if (showNotificationsButton) {
+            IconButton(onClick = onOpenNotifications, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Notifications,
+                    contentDescription = "Buka notifikasi",
+                    tint = if (isOnHero) Color(0xFFE2E9D9) else LoginAccent,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+        }
         Box {
             IconButton(onClick = { profileMenuExpanded = true }, modifier = Modifier.size(if (compact) 38.dp else 42.dp)) {
                 UserAvatar(
@@ -768,12 +800,8 @@ private fun DashboardHeroBanner(
     val heroHeight = 340.dp + heroHeaderHeight
     val bannerText = Color(0xFFF5F4E8)
     val bannerMuted = Color(0xFFE2E9D9)
-    val heroGlassSurface = Color(0xFF102D22).copy(alpha = if (darkMode) 0.30f else 0.22f)
-    val reportCountSize = when {
-        summary.totalReports >= 1000 -> 36.sp
-        summary.totalReports >= 100 -> 42.sp
-        else -> 48.sp
-    }
+    val heroStatusSurface = Color(0xFF102D22).copy(alpha = if (darkMode) 0.72f else 0.64f)
+    val heroContentWidth = if (LocalConfiguration.current.screenWidthDp < 360) 0.74f else 0.68f
     val focusHeading: String
     val focusDetail: String
     val focusAction: String
@@ -889,116 +917,72 @@ private fun DashboardHeroBanner(
                 account = account,
                 onLogout = onLogout,
                 onOpenProfile = onOpenProfile,
-                isRefreshing = isRefreshing,
-                onRefresh = onRefresh,
+                onOpenNotifications = { onClick("notifications") },
                 isOnHero = true
             )
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth(0.60f)
+            modifier = Modifier.fillMaxWidth(heroContentWidth)
                 .align(Alignment.TopStart)
-                .padding(start = 20.dp, top = heroHeaderHeight + 14.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+                .padding(start = 18.dp, top = heroHeaderHeight + 14.dp, bottom = 24.dp)
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(heroGlassSurface)
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(Icons.Filled.Inbox, contentDescription = null, tint = bannerText, modifier = Modifier.size(13.dp))
-                    Text(
-                        "Ringkasan laporan",
-                        color = bannerText,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        summary.totalReports.toString(),
-                        color = bannerText,
-                        fontSize = reportCountSize,
-                        lineHeight = when {
-                            summary.totalReports >= 1000 -> 40.sp
-                            summary.totalReports >= 100 -> 46.sp
-                            else -> 52.sp
-                        },
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text("laporan", color = bannerText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("terpantau", color = bannerMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.LocalShipping,
-                        contentDescription = null,
-                        tint = Color(0xFFD8E7C8),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        "${summary.totalWeightKg.pretty()} kg total tercatat",
-                        color = bannerText,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(17.dp))
-                    .background(heroGlassSurface.copy(alpha = heroGlassSurface.alpha * 0.82f))
+                    .background(heroStatusSurface)
                     .clickable { onClick(focusRoute) }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                Box(
-                    modifier = Modifier.size(28.dp).clip(CircleShape)
-                        .background(focusColor.copy(alpha = 0.19f)),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
-                    Icon(focusIcon, contentDescription = null, tint = focusColor, modifier = Modifier.size(17.dp))
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Box(
+                        modifier = Modifier.size(34.dp).clip(CircleShape)
+                            .background(focusColor.copy(alpha = 0.18f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(focusIcon, contentDescription = null, tint = focusColor, modifier = Modifier.size(19.dp))
+                    }
                     Text(
                         focusHeading,
+                        modifier = Modifier.weight(1f),
                         color = bannerText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        focusDetail,
-                        color = bannerMuted,
-                        fontSize = 9.sp,
-                        lineHeight = 12.sp,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+                Text(
+                    focusDetail,
+                    color = bannerMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        "$focusAction  ›",
+                        focusAction,
                         color = focusColor,
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = focusColor,
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
@@ -1069,6 +1053,7 @@ fun AdminDashboardScreen(
     onLogout: () -> Unit,
     pendingProofCount: Int = 0,
     pendingVehicleRepairActionCount: Int = 0,
+    pendingCapacityClearanceCount: Int = 0,
     isInitialLoading: Boolean = false,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {}
@@ -1139,6 +1124,9 @@ fun AdminDashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             containerColor = AppSurfaceMuted
         ) {
+            val pendingReportCount = reports.count { it.status == WasteFlow.WAITING }
+            val totalPendingActions = pendingReportCount + pendingProofCount +
+                pendingVehicleRepairActionCount + pendingCapacityClearanceCount
             Column(
                 modifier = Modifier.fillMaxWidth().padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp)
@@ -1163,19 +1151,40 @@ fun AdminDashboardScreen(
                         Modifier.weight(1f)
                     ) { onNavigate("ops:petugas") }
                 }
-                when {
-                    pendingProofCount == 0 && pendingVehicleRepairActionCount == 0 -> Text(
-                        "Pantau progres tugas petugas dari bukti penyelesaian dan statistik.",
-                        modifier = Modifier.padding(horizontal = 3.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Perlu ditangani", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "$totalPendingActions tindakan",
                         color = AppTextMuted,
                         fontSize = 11.sp,
-                        lineHeight = 16.sp
+                        fontFamily = InterFont
                     )
-                    else -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                }
+                if (totalPendingActions == 0) {
+                    Text(
+                        "Semua antrean sudah ditangani.",
+                        modifier = Modifier.padding(horizontal = 3.dp),
+                        color = AppTextMuted,
+                        fontSize = 12.sp
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        if (pendingReportCount > 0) {
+                            DashboardPriorityAction(
+                                title = "$pendingReportCount laporan menunggu verifikasi",
+                                detail = "Periksa laporan warga yang baru masuk",
+                                icon = Icons.Filled.Inbox,
+                                tint = RoleOrange
+                            ) { onNavigate("status:${WasteFlow.WAITING}") }
+                        }
                         if (pendingProofCount > 0) {
                             DashboardPriorityAction(
-                                title = "$pendingProofCount bukti petugas menunggu",
-                                detail = "Tinjau hasil kerja sebelum disetujui",
+                                title = "$pendingProofCount bukti kerja menunggu",
+                                detail = "Tinjau foto penyelesaian petugas",
                                 icon = Icons.Filled.CheckCircle,
                                 tint = RoleGreenDark
                             ) { onNavigate("ops:bukti") }
@@ -1183,10 +1192,18 @@ fun AdminDashboardScreen(
                         if (pendingVehicleRepairActionCount > 0) {
                             DashboardPriorityAction(
                                 title = "$pendingVehicleRepairActionCount proses armada menunggu",
-                                detail = "Tinjau persetujuan atau hasil perbaikan",
+                                detail = "Tinjau laporan atau hasil perbaikan",
                                 icon = Icons.Filled.Build,
                                 tint = RoleOrange
                             ) { onNavigate("ops:armada") }
+                        }
+                        if (pendingCapacityClearanceCount > 0) {
+                            DashboardPriorityAction(
+                                title = "$pendingCapacityClearanceCount permintaan kapasitas",
+                                detail = "Periksa bukti sebelum menyetujui reset",
+                                icon = Icons.Filled.LocalShipping,
+                                tint = RoleTeal
+                            ) { onNavigate("ops:pengosongan") }
                         }
                     }
                 }
@@ -1252,10 +1269,10 @@ private fun DashboardPriorityAction(
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(17.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(title, color = AppText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            Text(detail, color = AppTextMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(detail, color = AppTextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text("Buka", color = LoginAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text("Buka", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1310,6 +1327,345 @@ private fun AdminTaskTile(
         )
     }
 }
+
+@Composable
+fun NotificationCenterScreen(
+    account: UserAccount,
+    summary: AdminDashboardSummary,
+    reports: List<WasteRecord>,
+    tasks: List<WasteRecord>,
+    incomingReports: List<WasteRecord>,
+    completionReviews: List<TaskCompletionReview>,
+    vehicleRepairs: List<VehicleRepair>,
+    capacityClearanceRequests: List<CapacityClearanceRequest>,
+    onNavigate: (String) -> Unit,
+    onBack: () -> Unit,
+    onLogout: () -> Unit,
+    isInitialLoading: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit
+) {
+    BackHandler(onBack = onBack)
+
+    val isAdmin = account.role == UserRole.ADMIN
+    val notices = buildList {
+        if (isAdmin) {
+            val waitingReports = reports.filter { it.status == WasteFlow.WAITING }
+            val latestWaitingReport = waitingReports.maxByOrNull { it.reportedAt }
+            if (waitingReports.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "admin_waiting_reports",
+                    revision = "${waitingReports.size}:${latestWaitingReport?.id}:${latestWaitingReport?.reportedAt.orEmpty()}",
+                    title = "Laporan menunggu verifikasi",
+                    detail = "${waitingReports.size} laporan warga perlu diperiksa.",
+                    count = waitingReports.size,
+                    icon = Icons.Filled.Inbox,
+                    accent = RoleOrange,
+                    timestamp = latestWaitingReport?.reportedAt.orEmpty(),
+                    destination = "status:${WasteFlow.WAITING}"
+                )
+            )
+
+            if (completionReviews.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "admin_completion_reviews",
+                    revision = "${completionReviews.size}:${completionReviews.maxByOrNull { it.submittedAt }?.let { "${it.id}:${it.submittedAt}" }.orEmpty()}",
+                    title = "Bukti kerja menunggu persetujuan",
+                    detail = "Periksa foto dan hasil tugas sebelum menyetujui penyelesaian.",
+                    count = completionReviews.size,
+                    icon = Icons.Filled.CheckCircle,
+                    accent = RoleTeal,
+                    timestamp = completionReviews.maxByOrNull { it.submittedAt }?.submittedAt.orEmpty(),
+                    destination = "ops:bukti"
+                )
+            )
+
+            val locationEvidenceReports = reports.filter { !it.locationEvidencePhotoUrl.isNullOrBlank() }
+            val latestLocationEvidence = locationEvidenceReports.maxByOrNull { it.locationEvidenceSubmittedAt }
+            if (locationEvidenceReports.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "admin_location_evidence",
+                    revision = "${locationEvidenceReports.size}:${latestLocationEvidence?.id}:${latestLocationEvidence?.locationEvidenceSubmittedAt.orEmpty()}",
+                    title = "Foto lokasi dari petugas",
+                    detail = "Lihat bukti kondisi sampah di titik laporan.",
+                    count = locationEvidenceReports.size,
+                    icon = Icons.Filled.PhotoCamera,
+                    accent = RoleTeal,
+                    timestamp = latestLocationEvidence?.locationEvidenceSubmittedAt.orEmpty(),
+                    destination = "ops:bukti"
+                )
+            )
+
+            val repairsWaiting = vehicleRepairs.filter {
+                it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"
+            }
+            val latestRepair = repairsWaiting.maxByOrNull { it.reportedAt }
+            if (repairsWaiting.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "admin_vehicle_repairs",
+                    revision = "${repairsWaiting.size}:${latestRepair?.id}:${latestRepair?.reportedAt.orEmpty()}",
+                    title = "Perbaikan armada perlu ditinjau",
+                    detail = "Ada laporan kerusakan atau hasil perbaikan yang menunggu keputusan.",
+                    count = repairsWaiting.size,
+                    icon = Icons.Filled.Build,
+                    accent = RoleOrange,
+                    timestamp = latestRepair?.reportedAt.orEmpty(),
+                    destination = "ops:armada"
+                )
+            )
+
+            val clearancesWaiting = capacityClearanceRequests.filter { it.isPending }
+            val latestClearance = clearancesWaiting.maxByOrNull { it.createdAt }
+            if (clearancesWaiting.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "admin_capacity_clearance",
+                    revision = "${clearancesWaiting.size}:${latestClearance?.id}:${latestClearance?.createdAt.orEmpty()}",
+                    title = "Permintaan kapasitas menunggu",
+                    detail = "Tinjau bukti pengosongan TPA atau armada sebelum menyetujui reset.",
+                    count = clearancesWaiting.size,
+                    icon = Icons.Filled.LocalShipping,
+                    accent = RolePurple,
+                    timestamp = latestClearance?.createdAt.orEmpty(),
+                    destination = "ops:pengosongan"
+                )
+            )
+        } else {
+            if (incomingReports.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "worker_incoming_reports",
+                    revision = "${incomingReports.size}:${incomingReports.maxByOrNull { it.reportedAt }?.let { "${it.id}:${it.reportedAt}" }.orEmpty()}",
+                    title = "Laporan baru tersedia",
+                    detail = "Pilih laporan yang siap ditangani dan cek tujuan pengangkutannya.",
+                    count = incomingReports.size,
+                    icon = Icons.Filled.Inbox,
+                    accent = RoleOrange,
+                    timestamp = incomingReports.maxByOrNull { it.reportedAt }?.reportedAt.orEmpty(),
+                    destination = "tasks"
+                )
+            )
+
+            val revisionsNeeded = tasks.filter { it.completionStatus.equals("perlu_perbaikan", ignoreCase = true) }
+            val latestRevision = revisionsNeeded.maxByOrNull { it.completionSubmittedAt }
+            if (revisionsNeeded.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "worker_proof_revisions",
+                    revision = "${revisionsNeeded.size}:${latestRevision?.id}:${latestRevision?.completionSubmittedAt.orEmpty()}",
+                    title = "Bukti perlu diperbaiki",
+                    detail = "Periksa catatan Admin lalu kirim ulang foto penyelesaian.",
+                    count = revisionsNeeded.size,
+                    icon = Icons.Filled.CheckCircle,
+                    accent = RoleOrange,
+                    timestamp = latestRevision?.completionSubmittedAt.orEmpty(),
+                    destination = "tasks"
+                )
+            )
+
+            val reviewsPending = tasks.filter {
+                it.status == WasteFlow.TRANSPORTED && it.completionStatus.equals("menunggu", ignoreCase = true)
+            }
+            val latestPendingReview = reviewsPending.maxByOrNull { it.completionSubmittedAt }
+            if (reviewsPending.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "worker_proof_reviews",
+                    revision = "${reviewsPending.size}:${latestPendingReview?.id}:${latestPendingReview?.completionSubmittedAt.orEmpty()}",
+                    title = "Bukti sedang diperiksa",
+                    detail = "Admin sedang meninjau foto dan catatan penyelesaian tugas.",
+                    count = reviewsPending.size,
+                    icon = Icons.Filled.CheckCircle,
+                    accent = RoleTeal,
+                    timestamp = latestPendingReview?.completionSubmittedAt.orEmpty(),
+                    destination = "tasks"
+                )
+            )
+
+            val activeTasks = tasks.filter { WasteFlow.isInProgress(it.status) }
+            val latestActiveTask = activeTasks.maxByOrNull { it.reportedAt }
+            if (activeTasks.isNotEmpty()) add(
+                WorkspaceNotice(
+                    id = "worker_active_tasks",
+                    revision = "${activeTasks.size}:${latestActiveTask?.id}:${latestActiveTask?.reportedAt.orEmpty()}",
+                    title = "Tugas masih berjalan",
+                    detail = "Lanjutkan pengangkutan dan kirim bukti setelah pekerjaan selesai.",
+                    count = activeTasks.size,
+                    icon = Icons.Filled.LocalShipping,
+                    accent = RolePurple,
+                    timestamp = latestActiveTask?.reportedAt.orEmpty(),
+                    destination = "tasks"
+                )
+            )
+        }
+    }
+    val context = LocalContext.current
+    val readStateKey = "${account.role.name}:${account.username.lowercase(java.util.Locale.ROOT)}"
+    val readPreferences = remember(context) {
+        context.getSharedPreferences("smart_waste_notification_reads", Context.MODE_PRIVATE)
+    }
+    val readRevisions = remember(readStateKey) { mutableStateMapOf<String, String>() }
+    LaunchedEffect(readStateKey, notices.map { it.id to it.revision }) {
+        notices.forEach { notice ->
+            readPreferences.getString("$readStateKey:${notice.id}", null)?.let { savedRevision ->
+                readRevisions[notice.id] = savedRevision
+            }
+        }
+    }
+    val markNoticeRead: (WorkspaceNotice) -> Unit = { notice ->
+        readPreferences.edit()
+            .putString("$readStateKey:${notice.id}", notice.revision)
+            .apply()
+        readRevisions[notice.id] = notice.revision
+    }
+
+    AdminPage(
+        current = "notifications",
+        account = account,
+        onNavigate = onNavigate,
+        onLogout = onLogout,
+        isInitialLoading = isInitialLoading,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        showBottomBar = false,
+        showNotificationsButton = false
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Kembali",
+                    tint = LoginAccent
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Notifikasi", color = AppText, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (isAdmin) "Pembaruan laporan dan operasional" else "Pembaruan pekerjaan petugas",
+                    color = AppTextMuted,
+                    fontSize = 13.sp
+                )
+            }
+        }
+
+        if (isAdmin) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AppSurface)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Icon(Icons.Filled.Inbox, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(22.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Ringkasan laporan", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "${summary.totalReports} laporan · ${summary.totalWeightKg.pretty()} kg tercatat",
+                        color = AppTextMuted,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+
+        SectionTitle(
+            "Perlu ditangani",
+            if (isAdmin) "Pembaruan yang membutuhkan perhatian Admin."
+            else "Pembaruan tugas dan bukti pekerjaanmu."
+        )
+
+        if (notices.isEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AppSurface)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(Icons.Filled.Notifications, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(22.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Belum ada notifikasi", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Pembaruan berikutnya akan muncul di halaman ini.",
+                        color = AppTextMuted,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AppSurface)
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                notices.forEachIndexed { index, notice ->
+                    val isRead = readRevisions[notice.id] == notice.revision
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .then(
+                                if (notice.destination != null) Modifier.clickable {
+                                    markNoticeRead(notice)
+                                    onNavigate(notice.destination)
+                                } else Modifier
+                            )
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(38.dp)
+                                .clip(CircleShape)
+                                .background(notice.accent.copy(alpha = 0.14f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(notice.icon, contentDescription = null, tint = notice.accent, modifier = Modifier.size(19.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(notice.title, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(notice.detail, color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    notice.timestamp.takeIf { it.isNotBlank() }?.toDisplayDateTime() ?: "Waktu belum tersedia",
+                                    color = AppTextMuted,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    if (isRead) "Sudah dilihat" else "Baru",
+                                    color = if (isRead) AppTextMuted else notice.accent,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(notice.count.toString(), color = notice.accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            if (notice.destination != null) {
+                                Text("Buka", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    if (index < notices.lastIndex) Spacer(Modifier.height(4.dp))
+                }
+            }
+        }
+    }
+}
+
+private data class WorkspaceNotice(
+    val id: String,
+    val revision: String,
+    val title: String,
+    val detail: String,
+    val count: Int,
+    val icon: ImageVector,
+    val accent: Color,
+    val timestamp: String = "",
+    val destination: String? = null
+)
 
 @Composable
 fun AdminVerificationScreen(
@@ -1391,27 +1747,86 @@ fun AdminVerificationScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            TextButton(
-                onClick = {
-                    archiveActionError = ""
-                    onArchiveViewChange(!showingArchive)
-                },
-                colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
-            ) {
-                Text(
-                    if (showingArchive) "← Kembali ke laporan" else "Arsip tersimpan · ${archivedReports.size}",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            if (showingArchive) {
+                TextButton(
+                    onClick = {
+                        archiveActionError = ""
+                        onArchiveViewChange(false)
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
+                ) {
+                    Text("← Kembali ke laporan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                IconButton(
+                    onClick = {
+                        archiveActionError = ""
+                        onArchiveViewChange(true)
+                    }
+                ) {
+                    Icon(
+                        Icons.Filled.Archive,
+                        contentDescription = "Buka arsip tersimpan, ${archivedReports.size} laporan",
+                        tint = LoginAccent
+                    )
+                }
             }
         }
         if (!showingArchive) {
+            val reportFilterPositions = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
+            val selectedFilterBounds = reportFilterPositions[activeFilter]
+            val selectedFilterAccent = when (activeFilter) {
+                "baru" -> RoleGreen
+                "proses" -> RoleTeal
+                "selesai" -> RoleGreenDark
+                "ditolak" -> RoleRed
+                else -> RoleNavy
+            }
+            val reportIndicatorColor by animateColorAsState(
+                targetValue = selectedFilterAccent.copy(alpha = 0.38f),
+                animationSpec = tween(360, easing = FastOutSlowInEasing),
+                label = "report-filter-indicator-color"
+            )
+            val reportIndicatorX by animateFloatAsState(
+                targetValue = selectedFilterBounds?.first ?: 0f,
+                animationSpec = tween(360, easing = FastOutSlowInEasing),
+                label = "report-filter-indicator-x"
+            )
+            val reportIndicatorWidth by animateFloatAsState(
+                targetValue = selectedFilterBounds?.second ?: 0f,
+                animationSpec = tween(360, easing = FastOutSlowInEasing),
+                label = "report-filter-indicator-width"
+            )
             Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .drawBehind {
+                        if (reportIndicatorWidth > 0f) {
+                            drawRoundRect(
+                                color = reportIndicatorColor,
+                                topLeft = Offset(reportIndicatorX, 0f),
+                                size = Size(reportIndicatorWidth, size.height),
+                                cornerRadius = CornerRadius(12.dp.toPx())
+                            )
+                        }
+                    },
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 reportFilters.forEach { (filter, label) ->
                     val active = activeFilter == filter
+                    val filterAccent = when (filter) {
+                        "baru" -> RoleGreen
+                        "proses" -> RoleTeal
+                        "selesai" -> RoleGreenDark
+                        "ditolak" -> RoleRed
+                        else -> RoleNavy
+                    }
+                    val filterSurface by animateColorAsState(
+                        targetValue = filterAccent.copy(alpha = if (active) 0f else 0.08f),
+                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                        label = "report-filter-$filter-surface"
+                    )
                     TextButton(
                         onClick = {
                             when (filter) {
@@ -1441,9 +1856,15 @@ fun AdminVerificationScreen(
                             horizontal = 11.dp,
                             vertical = 6.dp
                         ),
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            val bounds = coordinates.positionInParent().x to coordinates.size.width.toFloat()
+                            if (reportFilterPositions[filter] != bounds) {
+                                reportFilterPositions[filter] = bounds
+                            }
+                        },
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = if (active) LoginAccent else AppTextMuted,
-                            containerColor = if (active) RoleAccentSurface else AppSurfaceMuted
+                            containerColor = filterSurface
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -2163,7 +2584,11 @@ fun AdminStatsScreen(
             }
         }
 
-        SectionTitle("Laporan per bulan", "Perbandingan enam bulan terakhir")
+        val monthlyRange = monthlyBars.firstOrNull()?.let { first ->
+            val latest = monthlyBars.last()
+            "Enam bulan penuh · ${monthTitle(first.period)}–${monthTitle(latest.period)}"
+        } ?: "Enam bulan penuh terakhir"
+        SectionTitle("Laporan per bulan", monthlyRange)
         if (monthlyBars.isEmpty()) EmptyAdminState("Belum ada data bulanan.") else {
             MonthlyReportsChart(monthlyBars)
         }
@@ -2247,6 +2672,7 @@ fun AdminStatsScreen(
 
 @Composable
 fun AdminOperationsScreen(
+    reports: List<WasteRecord>,
     workers: List<AdminWorker>,
     completionReviews: List<TaskCompletionReview>,
     vehicleRepairs: List<VehicleRepair>,
@@ -2358,7 +2784,7 @@ fun AdminOperationsScreen(
             "petugas" to "Petugas",
             "armada" to "Perbaikan · ${vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }}",
             "pengosongan" to "Kapasitas · ${capacityClearanceRequests.count { it.isPending }}",
-            "bukti" to "Bukti kerja · ${completionReviews.size}"
+            "bukti" to "Bukti kerja · ${completionReviews.size + reports.count { !it.locationEvidencePhotoUrl.isNullOrBlank() }}"
         )
         AdminSectionHeading(
             when (tab) {
@@ -2382,19 +2808,77 @@ fun AdminOperationsScreen(
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
         if (actionError.isNotBlank()) InlineError(actionError)
+        val operationsTabPositions = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
+        val activeTabBounds = operationsTabPositions[tab]
+        val activeTabAccent = when (tab) {
+            "petugas" -> RoleGreen
+            "armada" -> RoleOrange
+            "pengosongan" -> RoleTeal
+            else -> RolePurple
+        }
+        val indicatorColor by animateColorAsState(
+            targetValue = activeTabAccent.copy(alpha = 0.38f),
+            animationSpec = tween(360, easing = FastOutSlowInEasing),
+            label = "operations-tab-indicator-color"
+        )
+        val indicatorX by animateFloatAsState(
+            targetValue = activeTabBounds?.first ?: 0f,
+            animationSpec = tween(360, easing = FastOutSlowInEasing),
+            label = "operations-tab-indicator-x"
+        )
+        val indicatorWidth by animateFloatAsState(
+            targetValue = activeTabBounds?.second ?: 0f,
+            animationSpec = tween(360, easing = FastOutSlowInEasing),
+            label = "operations-tab-indicator-width"
+        )
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .drawBehind {
+                    if (indicatorWidth > 0f) {
+                        drawRoundRect(
+                            color = indicatorColor,
+                            topLeft = Offset(indicatorX, 0f),
+                            size = Size(indicatorWidth, size.height),
+                            cornerRadius = CornerRadius(13.dp.toPx())
+                        )
+                    }
+                },
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             operationsTabs.forEach { (key, label) ->
+                val selected = tab == key
+                val tabAccent = when (key) {
+                    "petugas" -> RoleGreen
+                    "armada" -> RoleOrange
+                    "pengosongan" -> RoleTeal
+                    else -> RolePurple
+                }
+                val tabContent by animateColorAsState(
+                    targetValue = if (selected) LoginAccent else LoginMuted,
+                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    label = "operations-tab-$key-content"
+                )
+                val tabSurface by animateColorAsState(
+                    targetValue = tabAccent.copy(alpha = if (selected) 0f else 0.08f),
+                    animationSpec = tween(240, easing = FastOutSlowInEasing),
+                    label = "operations-tab-$key-surface"
+                )
                 TextButton(
                     onClick = {
                         tab = key
                         onTabSelected(key)
                     },
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                        val bounds = coordinates.positionInParent().x to coordinates.size.width.toFloat()
+                        if (operationsTabPositions[key] != bounds) {
+                            operationsTabPositions[key] = bounds
+                        }
+                    },
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = if (tab == key) LoginAccent else LoginMuted,
-                        containerColor = if (tab == key) RoleAccentSurface else AppSurface
+                        contentColor = tabContent,
+                        containerColor = tabSurface
                     ),
                     shape = RoundedCornerShape(13.dp)
                 ) {
@@ -2531,120 +3015,161 @@ fun AdminOperationsScreen(
                     )
                 }
                 visibleWorkers.forEach { item ->
+                    val isDarkMode = LocalSmartWasteAppearance.current.darkMode
+                    val workerTextColor = if (isDarkMode) AppText else Color(0xFF202820)
+                    val workerDetailColor = AppTextMuted
+                    val workerActionColor = if (isDarkMode) LoginAccent else Color(0xFF176B49)
+                    val workerWarningColor = if (isDarkMode) RoleRed else Color(0xFF963E45)
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = AppSurface,
                         borderColor = AppBorder,
                         accentColor = if (item.active && item.hasAccount) LoginAccent else RoleRed
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Box(modifier = Modifier.size(48.dp)) {
-                                UserAvatar(
-                                    item.name.displayPersonName(),
-                                    modifier = Modifier.fillMaxSize(),
-                                    photoUrl = item.profilePhotoUrl
-                                )
-                                if (account.role == UserRole.ADMIN && item.hasAccount) {
-                                    IconButton(
-                                        onClick = {
-                                            photoTarget = item
-                                            workerPhotoPicker.launch("image/*")
-                                        },
-                                        enabled = uploadingPhotoWorkerId == null,
-                                        modifier = Modifier
-                                            .align(Alignment.BottomEnd)
-                                            .size(23.dp)
-                                            .clip(CircleShape)
-                                            .background(AppSurface)
-                                    ) {
-                                        if (uploadingPhotoWorkerId == item.id) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(13.dp),
-                                                strokeWidth = 2.dp,
-                                                color = LoginAccent
-                                            )
-                                        } else {
-                                            Icon(
-                                                imageVector = Icons.Filled.PhotoCamera,
-                                                contentDescription = "Tambah atau ganti foto profil ${item.name}",
-                                                tint = LoginAccent,
-                                                modifier = Modifier.size(14.dp)
-                                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(modifier = Modifier.size(56.dp)) {
+                                    UserAvatar(
+                                        item.name.displayPersonName(),
+                                        modifier = Modifier.fillMaxSize(),
+                                        photoUrl = item.profilePhotoUrl
+                                    )
+                                    if (account.role == UserRole.ADMIN && item.hasAccount) {
+                                        IconButton(
+                                            onClick = {
+                                                photoTarget = item
+                                                workerPhotoPicker.launch("image/*")
+                                            },
+                                            enabled = uploadingPhotoWorkerId == null,
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .size(23.dp)
+                                                .clip(CircleShape)
+                                                .background(AppSurface)
+                                        ) {
+                                            if (uploadingPhotoWorkerId == item.id) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(13.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = LoginAccent
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Filled.PhotoCamera,
+                                                    contentDescription = "Tambah atau ganti foto profil ${item.name}",
+                                                    tint = LoginAccent,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            Spacer(modifier = Modifier.width(9.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    item.name.displayPersonName(),
-                                    color = AppText,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    if (item.hasAccount) "@${item.username} · ${item.zone.ifBlank { "Tanpa zona" }}"
-                                    else "Belum ada akun Android · ${item.zone.ifBlank { "Tanpa zona" }}",
-                                    color = if (item.hasAccount) AppTextMuted else RoleRed,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    "${item.completedTasks} tugas disetujui · ${item.completedWeightKg.pretty()} kg",
-                                    color = LoginAccent,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    "${item.activeTasks} tugas aktif · ${item.pendingConfirmations} bukti menunggu",
-                                    color = AppTextMuted,
-                                    fontSize = 10.sp
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                TextButton(onClick = { editingWorker = item }) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     Text(
-                                        "Zona",
-                                        color = LoginAccent,
-                                        fontSize = 11.sp
+                                        item.name.displayPersonName(),
+                                        color = AppText,
+                                        fontSize = 16.sp,
+                                        lineHeight = 22.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        if (item.hasAccount) "@${item.username} · ${item.zone.ifBlank { "Tanpa zona" }}"
+                                        else "Belum ada akun Android · ${item.zone.ifBlank { "Tanpa zona" }}",
+                                        color = if (item.hasAccount) workerDetailColor else workerWarningColor,
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp
                                     )
                                 }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("Disetujui", color = workerDetailColor, fontSize = 12.sp)
+                                    Text(
+                                        "${item.completedTasks} tugas · ${item.completedWeightKg.pretty()} kg",
+                                        color = workerTextColor,
+                                        fontSize = 14.sp,
+                                        lineHeight = 19.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("Aktif · bukti menunggu", color = workerDetailColor, fontSize = 12.sp)
+                                    Text(
+                                        "${item.activeTasks} tugas · ${item.pendingConfirmations} bukti",
+                                        color = workerTextColor,
+                                        fontSize = 14.sp,
+                                        lineHeight = 19.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = { editingWorker = item }) {
+                                    Text("Ubah zona", color = workerActionColor, fontSize = 13.sp)
+                                }
+                                Spacer(modifier = Modifier.weight(1f))
                                 if (item.hasAccount) {
-                                    TextButton(onClick = {
-                                        scope.launch {
-                                            if (updatingWorkerId != null) return@launch
-                                            updatingWorkerId = item.id
-                                            actionError = ""
-                                            try {
-                                                onUpdateWorker(item, !item.active)
-                                            } catch (cancelled: CancellationException) {
-                                                throw cancelled
-                                            } catch (error: Exception) {
-                                                actionError = error.message
-                                                    ?: "Status petugas gagal diperbarui."
-                                            } finally {
-                                                updatingWorkerId = null
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                if (updatingWorkerId != null) return@launch
+                                                updatingWorkerId = item.id
+                                                actionError = ""
+                                                try {
+                                                    onUpdateWorker(item, !item.active)
+                                                } catch (cancelled: CancellationException) {
+                                                    throw cancelled
+                                                } catch (error: Exception) {
+                                                    actionError = error.message
+                                                        ?: "Status petugas gagal diperbarui."
+                                                } finally {
+                                                    updatingWorkerId = null
+                                                }
                                             }
-                                        }
-                                    }, enabled = updatingWorkerId == null) {
+                                        },
+                                        enabled = updatingWorkerId == null
+                                    ) {
                                         Text(
                                             when {
                                                 updatingWorkerId == item.id -> "Menyimpan…"
                                                 item.active -> "Nonaktifkan"
                                                 else -> "Aktifkan"
                                             },
-                                            color = if (item.active) RoleRed else LoginAccent,
-                                            fontSize = 11.sp
+                                            color = if (item.active) workerWarningColor else workerActionColor,
+                                            fontSize = 13.sp
                                         )
                                     }
-                                } else {
-                                    Text("Akun sudah dihapus", color = AppTextMuted, fontSize = 10.sp)
-                                }
-                                if (item.hasAccount) {
                                     IconButton(
                                         onClick = { deletingWorker = item },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Icon(
                                             Icons.Filled.Delete,
@@ -2653,6 +3178,8 @@ fun AdminOperationsScreen(
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
+                                } else {
+                                    Text("Akun sudah dihapus", color = workerDetailColor, fontSize = 12.sp)
                                 }
                             }
                         }
@@ -2729,6 +3256,81 @@ fun AdminOperationsScreen(
                     singleLine = true
                 )
                 val query = proofSearch.trim().lowercase()
+                val visibleLocationEvidence = reports
+                    .filter { !it.locationEvidencePhotoUrl.isNullOrBlank() }
+                    .filter { report ->
+                        query.isBlank() || listOf(report.code, report.workerName, report.location)
+                            .any { it.lowercase().contains(query) }
+                    }
+                    .sortedByDescending { it.locationEvidenceSubmittedAt }
+                SectionTitle(
+                    "Foto di lokasi",
+                    "Bukti kondisi sampah yang dikirim Petugas dari titik laporan."
+                )
+                if (visibleLocationEvidence.isEmpty()) {
+                    Text(
+                        if (query.isBlank()) "Belum ada foto lokasi dari petugas."
+                        else "Foto lokasi yang cocok tidak ditemukan.",
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        fontFamily = InterFont
+                    )
+                } else {
+                    AppCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = AppSurface
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            visibleLocationEvidence.forEachIndexed { index, report ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Text(
+                                            report.code,
+                                            color = AppText,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = InterFont
+                                        )
+                                        Text(
+                                            "${report.workerName.ifBlank { "Petugas" }} · ${report.location}",
+                                            color = AppTextMuted,
+                                            fontSize = 12.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            fontFamily = InterFont
+                                        )
+                                        report.locationEvidenceSubmittedAt.takeIf { it.isNotBlank() }?.let {
+                                            Text(
+                                                "Dikirim ${it.toDisplayDateTime()}",
+                                                color = AppTextMuted,
+                                                fontSize = 11.sp,
+                                                fontFamily = InterFont
+                                            )
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = { report.locationEvidencePhotoUrl?.let(onOpenPhoto) },
+                                        enabled = !report.locationEvidencePhotoUrl.isNullOrBlank()
+                                    ) {
+                                        Text("Lihat foto", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
+                                    }
+                                }
+                                if (index < visibleLocationEvidence.lastIndex) Spacer(Modifier.height(3.dp))
+                            }
+                        }
+                    }
+                }
+
                 val visibleReviews = completionReviews.filter { review ->
                     query.isBlank() || listOf(
                         review.report.code,
@@ -3031,6 +3633,7 @@ fun PetugasTasksScreen(
     onRejectReport: suspend (WasteRecord, String) -> Unit,
     onMarkTransported: suspend (WasteRecord) -> Unit,
     onSubmitProof: suspend (WasteRecord, Uri, String) -> Unit,
+    onSubmitLocationEvidence: suspend (WasteRecord, Uri) -> Unit,
     onCreateVehicle: suspend (String, Double, String) -> Unit,
     onUpdateVehicle: suspend (WasteVehicle) -> Unit,
     onReportVehicleDamage: suspend (WasteVehicle, String, String) -> Unit,
@@ -3043,6 +3646,7 @@ fun PetugasTasksScreen(
     isInitialLoading: Boolean,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    onOpenNotifications: () -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedSection by rememberSaveable(account.username) { mutableStateOf("ringkasan") }
@@ -3077,6 +3681,8 @@ fun PetugasTasksScreen(
     var transportingTaskId by remember { mutableStateOf<Int?>(null) }
     var selectedCompletionTaskId by rememberSaveable(account.username) { mutableStateOf<Int?>(null) }
     val selectedCompletionTask = tasks.firstOrNull { it.id == selectedCompletionTaskId }
+    var selectedLocationTaskId by rememberSaveable(account.username) { mutableStateOf<Int?>(null) }
+    val selectedLocationTask = tasks.firstOrNull { it.id == selectedLocationTaskId }
     var selectedProofUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
     var selectedCameraUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
     var galleryEvidenceUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
@@ -3086,6 +3692,14 @@ fun PetugasTasksScreen(
     var proofNote by rememberSaveable { mutableStateOf("") }
     var proofError by remember { mutableStateOf("") }
     var sendingProof by remember { mutableStateOf(false) }
+    var selectedLocationPhotoUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
+    var selectedLocationCameraUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
+    var locationGalleryUri by rememberSaveable(account.username) { mutableStateOf<Uri?>(null) }
+    var locationCameraPath by rememberSaveable(account.username) { mutableStateOf<String?>(null) }
+    val locationCameraFile = locationCameraPath?.let(::File)
+    var showLocationPhotoSourceDialog by remember { mutableStateOf(false) }
+    var locationPhotoError by remember { mutableStateOf("") }
+    var sendingLocationTaskId by remember { mutableStateOf<Int?>(null) }
     var confirmingTransportTask by remember { mutableStateOf<WasteRecord?>(null) }
     var showAssistantDialog by remember { mutableStateOf(false) }
     var assistantDraft by rememberSaveable(account.username) { mutableStateOf("") }
@@ -3110,6 +3724,21 @@ fun PetugasTasksScreen(
         if (uri == null) selectedCompletionTaskId = null
         showProofSourceDialog = false
     }
+    val locationPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            locationGalleryUri = uri
+            selectedLocationPhotoUri = uri
+            showLocationPhotoSourceDialog = false
+        } else {
+            showLocationPhotoSourceDialog = true
+        }
+    }
     val capacityClearancePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
@@ -3129,6 +3758,16 @@ fun PetugasTasksScreen(
             selectedCameraUri = null
             proofError = "Foto belum diambil. Kamu bisa mencoba lagi atau memilih dari galeri."
             showProofSourceDialog = true
+        }
+    }
+    val locationCameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        selectedLocationPhotoUri = if (captured) selectedLocationCameraUri else null
+        if (!captured) {
+            locationCameraFile?.delete()
+            locationCameraPath = null
+            selectedLocationCameraUri = null
+            locationPhotoError = "Foto belum diambil. Coba lagi atau pilih foto dari galeri."
+            showLocationPhotoSourceDialog = true
         }
     }
     fun clearProofSelection() {
@@ -3178,6 +3817,54 @@ fun PetugasTasksScreen(
             cameraEvidencePath = null
             selectedCameraUri = null
             proofError = error.message ?: "Kamera tidak dapat dibuka. Pilih foto dari galeri."
+        }
+    }
+    fun clearLocationPhotoSelection() {
+        locationCameraFile?.delete()
+        locationCameraPath = null
+        selectedLocationCameraUri = null
+        locationGalleryUri?.let { uri ->
+            runCatching {
+                context.contentResolver.releasePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
+        locationGalleryUri = null
+        selectedLocationPhotoUri = null
+        selectedLocationTaskId = null
+        showLocationPhotoSourceDialog = false
+    }
+    fun requestLocationPhoto(task: WasteRecord) {
+        clearLocationPhotoSelection()
+        selectedLocationTaskId = task.id
+        locationPhotoError = ""
+        showLocationPhotoSourceDialog = true
+    }
+    fun launchLocationPhotoCamera() {
+        val task = selectedLocationTask ?: return
+        val file = File(
+            File(context.cacheDir, "evidence").apply { mkdirs() },
+            "lokasi-${task.id}-${System.currentTimeMillis()}.jpg"
+        )
+        runCatching {
+            check(file.createNewFile()) { "File foto tidak dapat dibuat." }
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            locationCameraPath = file.absolutePath
+            selectedLocationCameraUri = uri
+            showLocationPhotoSourceDialog = false
+            locationCameraPicker.launch(uri)
+        }.onFailure { error ->
+            file.delete()
+            locationCameraPath = null
+            selectedLocationCameraUri = null
+            locationPhotoError = error.message ?: "Kamera tidak dapat dibuka. Coba pilih foto dari galeri."
+            showLocationPhotoSourceDialog = true
         }
     }
     fun startTransport(task: WasteRecord) {
@@ -3353,6 +4040,7 @@ fun PetugasTasksScreen(
         account = account,
         onNavigate = {},
         onLogout = onLogout,
+        onOpenNotifications = onOpenNotifications,
         bottomBar = { PetugasNavigationBar(currentSection) { selectedSection = it } },
         backgroundContent = { PetugasThemeBackdrop(Modifier.fillMaxSize()) }
     ) {
@@ -3437,7 +4125,9 @@ fun PetugasTasksScreen(
                                     onMarkTransported = { confirmingTransportTask = it },
                                     isTransporting = transportingTaskId == nextTask.id,
                                     isActionEnabled = transportingTaskId == null,
-                                    onComplete = ::requestCompletionProof
+                                    onComplete = ::requestCompletionProof,
+                                    onSendLocationEvidence = ::requestLocationPhoto,
+                                    isSendingLocationEvidence = sendingLocationTaskId == nextTask.id
                                 )
                                 TextButton(
                                     onClick = {
@@ -3488,7 +4178,7 @@ fun PetugasTasksScreen(
                             }
                             else -> PetugasEmptyState(
                                 "Semua pekerjaan tertangani",
-                                "Belum ada tugas aktif atau laporan baru. Perbarui data untuk cek antrean terbaru."
+                                "Belum ada tugas aktif atau laporan baru. Tarik layar ke bawah untuk memeriksa antrean terbaru."
                             )
                         }
                     }
@@ -3497,33 +4187,27 @@ fun PetugasTasksScreen(
 
             "tugas" -> {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        listOf(
-                            Triple("laporan", "Masuk", newReports.size),
-                            Triple("aktif", "Aktif", activeTasks.size),
-                            Triple("armada", "Armada", vehicles.size),
-                            Triple("perbaikan", "Perbaikan", vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }),
-                            Triple("tpa", "TPA", facilities.size)
-                        ).forEach { (key, label, count) ->
-                            val selected = selectedWorkArea == key
-                            TextButton(
-                                onClick = { selectedWorkArea = key },
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                colors = ButtonDefaults.textButtonColors(
-                                    contentColor = if (selected) LoginAccent else LoginMuted,
-                                    containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
-                                ),
-                                shape = RoundedCornerShape(14.dp)
-                            ) { Text("$label · $count", fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
-                        }
+                    listOf(
+                        Triple("laporan", "Masuk", newReports.size),
+                        Triple("aktif", "Aktif", activeTasks.size),
+                        Triple("armada", "Armada", vehicles.size),
+                        Triple("perbaikan", "Perbaikan", vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }),
+                        Triple("tpa", "TPA", facilities.size)
+                    ).forEach { (key, label, count) ->
+                        val selected = selectedWorkArea == key
+                        TextButton(
+                            onClick = { selectedWorkArea = key },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (selected) LoginAccent else LoginMuted,
+                                containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) { Text("$label · $count", fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
                     }
-                    PetugasRefreshButton(isRefreshing, onRefresh)
                 }
                 when (selectedWorkArea) {
                     "laporan" -> {
@@ -3623,7 +4307,9 @@ fun PetugasTasksScreen(
                                     onMarkTransported = { confirmingTransportTask = it },
                                     isTransporting = transportingTaskId == task.id,
                                     isActionEnabled = transportingTaskId == null,
-                                    onComplete = ::requestCompletionProof
+                                    onComplete = ::requestCompletionProof,
+                                    onSendLocationEvidence = ::requestLocationPhoto,
+                                    isSendingLocationEvidence = sendingLocationTaskId == task.id
                                 )
                             }
                         }
@@ -3805,21 +4491,18 @@ fun PetugasTasksScreen(
             }
 
             "riwayat" -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
-                            color = AppText,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan" else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
-                            color = AppTextMuted,
-                            fontSize = 11.sp
-                        )
-                    }
-                    PetugasRefreshButton(isRefreshing, onRefresh)
+                Column {
+                    Text(
+                        if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
+                        color = AppText,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan" else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
+                        color = AppTextMuted,
+                        fontSize = 11.sp
+                    )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -4323,6 +5006,118 @@ fun PetugasTasksScreen(
                 TextButton(onClick = { clearProofSelection() }, enabled = !sendingProof) {
                     Text("Batal", color = LoginMuted)
                 }
+            },
+            containerColor = AppSurface
+        )
+    }
+    if (showLocationPhotoSourceDialog && selectedLocationTask != null && selectedLocationPhotoUri == null) {
+        val task = selectedLocationTask!!
+        AlertDialog(
+            onDismissRequest = ::clearLocationPhotoSelection,
+            title = { Text("Foto di lokasi", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(task.code, color = AppText, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        task.location.ifBlank { "Lokasi belum dicatat" },
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "Kirim satu foto kondisi di titik laporan agar Admin bisa melihatnya. Bukti ini terpisah dari foto penerimaan TPA.",
+                        color = AppText,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                    if (locationPhotoError.isNotBlank()) InlineError(locationPhotoError)
+                }
+            },
+            confirmButton = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = {
+                            locationCameraFile?.delete()
+                            locationCameraPath = null
+                            selectedLocationCameraUri = null
+                            showLocationPhotoSourceDialog = false
+                            locationPhotoPicker.launch(arrayOf("image/*"))
+                        }
+                    ) { Text("Galeri", color = LoginMuted) }
+                    TextButton(onClick = ::launchLocationPhotoCamera) {
+                        Icon(Icons.Filled.PhotoCamera, contentDescription = null, tint = LoginAccent)
+                        Spacer(Modifier.width(5.dp))
+                        Text("Kamera", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = ::clearLocationPhotoSelection) {
+                    Text("Batal", color = LoginMuted)
+                }
+            },
+            containerColor = AppSurface
+        )
+    }
+    val taskForLocationEvidence = selectedLocationTask
+    val locationPhotoUri = selectedLocationPhotoUri
+    if (taskForLocationEvidence != null && locationPhotoUri != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (sendingLocationTaskId == null) clearLocationPhotoSelection()
+            },
+            title = { Text("Kirim foto ke Admin?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(taskForLocationEvidence.code, color = AppText, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        taskForLocationEvidence.location.ifBlank { "Lokasi belum dicatat" },
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "Foto akan tersimpan bersama waktu pengiriman dan tampil di halaman Bukti kerja Admin.",
+                        color = AppText,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                    if (locationPhotoError.isNotBlank()) InlineError(locationPhotoError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = sendingLocationTaskId == null,
+                    onClick = {
+                        scope.launch {
+                            sendingLocationTaskId = taskForLocationEvidence.id
+                            locationPhotoError = ""
+                            try {
+                                onSubmitLocationEvidence(taskForLocationEvidence, locationPhotoUri)
+                                clearLocationPhotoSelection()
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                locationPhotoError = error.message ?: "Foto lokasi gagal dikirim. Coba lagi."
+                            } finally {
+                                sendingLocationTaskId = null
+                            }
+                        }
+                    }
+                ) {
+                    Text(
+                        if (sendingLocationTaskId != null) "Mengirim…" else "Kirim foto",
+                        color = LoginAccent
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = ::clearLocationPhotoSelection,
+                    enabled = sendingLocationTaskId == null
+                ) { Text("Batal", color = LoginMuted) }
             },
             containerColor = AppSurface
         )
@@ -5518,6 +6313,8 @@ private fun PetugasTaskCard(
     isTransporting: Boolean = false,
     isActionEnabled: Boolean = true,
     onComplete: ((WasteRecord) -> Unit)? = null,
+    onSendLocationEvidence: ((WasteRecord) -> Unit)? = null,
+    isSendingLocationEvidence: Boolean = false,
     onArchive: ((WasteRecord) -> Unit)? = null
 ) {
     val isComplete = report.status == WasteFlow.DONE
@@ -5635,6 +6432,22 @@ private fun PetugasTaskCard(
                         Text("Foto laporan", color = statusAccent, fontSize = 11.sp)
                     }
                 }
+                if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        report.locationEvidenceSubmittedAt.takeIf { it.isNotBlank() }?.let {
+                            Text(
+                                "Foto lokasi · ${it.toDisplayDateTime()}",
+                                modifier = Modifier.weight(1f),
+                                color = AppTextMuted,
+                                fontSize = 11.sp,
+                                fontFamily = InterFont
+                            )
+                        }
+                        TextButton(onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) }) {
+                            Text("Lihat bukti lokasi", color = LoginAccent, fontSize = 11.sp, fontFamily = InterFont)
+                        }
+                    }
+                }
                 if (!report.completionProofPhotoUrl.isNullOrBlank()) {
                     TextButton(
                         onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
@@ -5642,6 +6455,34 @@ private fun PetugasTaskCard(
                     ) {
                         Text("Bukti petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 11.sp)
                     }
+                }
+            }
+            if (
+                !compactHistory &&
+                (report.status == WasteFlow.ASSIGNED || report.status == WasteFlow.TRANSPORTED) &&
+                report.locationEvidencePhotoUrl.isNullOrBlank() &&
+                onSendLocationEvidence != null
+            ) {
+                TextButton(
+                    onClick = { onSendLocationEvidence(report) },
+                    modifier = Modifier.align(Alignment.Start),
+                    enabled = !isSendingLocationEvidence,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.PhotoCamera,
+                        contentDescription = null,
+                        tint = LoginAccent,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (isSendingLocationEvidence) "Mengirim foto…" else "Kirim foto di lokasi",
+                        color = LoginAccent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = InterFont
+                    )
                 }
             }
             if (compactHistory && onArchive != null) {
@@ -5658,7 +6499,7 @@ private fun PetugasTaskCard(
                     Button(
                         onClick = { onMarkTransported(report) },
                         modifier = Modifier.fillMaxWidth().height(46.dp),
-                        enabled = isActionEnabled && !isTransporting,
+                        enabled = isActionEnabled && !isTransporting && !isSendingLocationEvidence,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = LoginAccent)
                     ) {
@@ -5676,7 +6517,7 @@ private fun PetugasTaskCard(
                     Button(
                         onClick = { onComplete(report) },
                         modifier = Modifier.fillMaxWidth().height(46.dp),
-                        enabled = isActionEnabled,
+                        enabled = isActionEnabled && !isSendingLocationEvidence,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = RoleGreenDark)
                     ) {
@@ -5687,34 +6528,6 @@ private fun PetugasTaskCard(
                         )
                     }
             }
-        }
-    }
-}
-
-@Composable
-private fun PetugasRefreshButton(
-    isRefreshing: Boolean,
-    onRefresh: () -> Unit,
-    tint: Color = LoginAccent
-) {
-    IconButton(
-        onClick = onRefresh,
-        enabled = !isRefreshing,
-        modifier = Modifier.size(40.dp)
-    ) {
-        if (isRefreshing) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                color = tint,
-                strokeWidth = 2.dp
-            )
-        } else {
-            Icon(
-                Icons.Filled.Sync,
-                contentDescription = "Perbarui data",
-                tint = tint,
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }
@@ -6607,18 +7420,40 @@ private fun String.toDisplayDateTime(): String {
 private fun MonthlyReportsChart(months: List<MonthlyStat>) {
     val chartMax = months.maxOfOrNull { it.total }?.coerceAtLeast(1) ?: 1
     val (axisMax, axisStep) = monthlyAxisScale(chartMax)
-    val highlightedIndex = months.indices.maxByOrNull { months[it].total } ?: 0
+    val highlightedIndex = months.lastIndex
     val highlighted = months[highlightedIndex]
-    val previousTotal = months.getOrNull(highlightedIndex - 1)?.total ?: 0
-    val changeLabel = if (previousTotal > 0) {
-        val change = (highlighted.total - previousTotal) * 100.0 / previousTotal
-        String.format(java.util.Locale.US, "%+.1f%%", change)
-    } else {
-        "Puncak"
+    val previous = months.getOrNull(highlightedIndex - 1)
+    val comparisonPercent = previous?.takeIf { it.total > 0 }?.let {
+        (highlighted.total - it.total) * 100.0 / it.total
+    }
+    val hasMonthlyReports = months.any { it.total > 0 }
+    val localeId = java.util.Locale.forLanguageTag("id-ID")
+    val changeLabel = comparisonPercent?.let { String.format(localeId, "%+.1f%%", it) }
+    val trendLabel = when {
+        !hasMonthlyReports -> "Belum ada data"
+        comparisonPercent == null && previous == null -> "—"
+        comparisonPercent == null && highlighted.total > 0 -> "Baru"
+        comparisonPercent == null -> "Baru"
+        comparisonPercent > 0 -> "Naik"
+        comparisonPercent < 0 -> "Turun"
+        else -> "Tetap"
+    }
+    val comparisonDetail = when {
+        !hasMonthlyReports -> "Enam bulan terakhir"
+        previous == null -> "Belum ada pembanding"
+        previous.total == 0 && highlighted.total > 0 -> "Bulan lalu 0 laporan"
+        previous.total == 0 -> "Bulan lalu 0 laporan"
+        else -> "Dibanding ${monthTitle(previous.period)}"
     }
     val night = IsNightAdmin
     val mutedBar = if (night) Color(0xFF4F6F5E) else Color(0xFFA7C9B6)
     val activeBar = if (night) Color(0xFF398A65) else Color(0xFF087D50)
+    val trendColor = when {
+        !hasMonthlyReports -> AppTextMuted
+        comparisonPercent != null && comparisonPercent < 0 -> RoleRed
+        comparisonPercent == null && previous?.total == 0 && highlighted.total == 0 -> AppTextMuted
+        else -> activeBar
+    }
     val chartHeight = 132.dp
     val plotTop = 36.dp
     val plotHeight = chartHeight - plotTop
@@ -6633,11 +7468,43 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                "Jumlah laporan",
+                "Laporan masuk",
                 color = AppTextMuted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        monthTitle(highlighted.period),
+                        color = AppText,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "${highlighted.total} laporan",
+                        color = AppTextMuted,
+                        fontSize = 12.sp
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        trendLabel,
+                        color = trendColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        comparisonDetail,
+                        color = AppTextMuted,
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.width(29.dp).height(chartHeight)) {
                     Spacer(modifier = Modifier.height(plotTop - 6.dp))
@@ -6680,12 +7547,12 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
                         months.forEachIndexed { index, month ->
                             val ratio = (month.total.toFloat() / axisMax).coerceIn(0f, 1f)
                             val barHeight = plotHeight * ratio
-                            val isHighlighted = index == highlightedIndex && month.total > 0
+                            val isHighlighted = index == highlightedIndex
                             val barColor = if (isHighlighted) activeBar else mutedBar
                             Box(
                                 modifier = Modifier.weight(1f).fillMaxHeight()
                             ) {
-                                if (isHighlighted) {
+                                if (isHighlighted && changeLabel != null) {
                                     Column(
                                         modifier = Modifier
                                             .align(Alignment.TopCenter)
@@ -6713,13 +7580,13 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
                                         )
                                     }
                                 }
-                                if (month.total > 0) {
+                                if (month.total > 0 || isHighlighted) {
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.BottomCenter)
                                             .widthIn(max = 40.dp)
                                             .fillMaxWidth(0.64f)
-                                            .height(barHeight.coerceAtLeast(3.dp))
+                                            .height((if (barHeight > 0.dp) barHeight else 3.dp).coerceAtLeast(3.dp))
                                             .clip(CircleShape)
                                             .background(barColor)
                                             .drawWithContent {
@@ -6759,6 +7626,13 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
                         maxLines = 1
                     )
                 }
+            }
+            if (!hasMonthlyReports) {
+                Text(
+                    "Belum ada laporan pada enam bulan penuh ini.",
+                    color = AppTextMuted,
+                    fontSize = 12.sp
+                )
             }
         }
     }
@@ -6801,3 +7675,6 @@ private fun shortMonth(period: String): String {
     )
         .getOrNull(month - 1) ?: period.takeLast(2)
 }
+
+private fun monthTitle(period: String): String =
+    "${shortMonth(period)} ${period.substringBefore('-', period)}"
