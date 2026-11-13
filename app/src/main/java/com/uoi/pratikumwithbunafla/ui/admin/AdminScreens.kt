@@ -3018,13 +3018,14 @@ fun AdminOperationsScreen(
                 }
                 visibleWorkers.forEach { item ->
                     val isDarkMode = LocalSmartWasteAppearance.current.darkMode
+                    val workerCardColor = if (isDarkMode) AppSurface else Color(0xFFDCE8D9)
                     val workerTextColor = if (isDarkMode) AppText else Color(0xFF202820)
                     val workerDetailColor = AppTextMuted
                     val workerActionColor = if (isDarkMode) LoginAccent else Color(0xFF176B49)
                     val workerWarningColor = if (isDarkMode) RoleRed else Color(0xFF963E45)
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = AppSurface,
+                        containerColor = workerCardColor,
                         borderColor = AppBorder,
                         accentColor = if (item.active && item.hasAccount) LoginAccent else RoleRed
                     ) {
