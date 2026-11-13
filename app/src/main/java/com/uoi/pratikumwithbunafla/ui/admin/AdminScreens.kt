@@ -2161,7 +2161,7 @@ private fun AdminReportCard(
                 if (!report.photoUrl.isNullOrBlank()) {
                     TextButton(onClick = { onOpenPhoto(report.photoUrl) }) {
                         Text(
-                            "Lihat foto",
+                            "Lihat foto TKP",
                             color = LoginAccent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -6483,7 +6483,7 @@ private fun PetugasTaskCard(
                         onClick = { onOpenPhoto(report.photoUrl) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)
                     ) {
-                        Text("Foto laporan", color = statusAccent, fontSize = 11.sp)
+                        Text("Foto TKP warga", color = statusAccent, fontSize = 11.sp)
                     }
                 }
                 if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
