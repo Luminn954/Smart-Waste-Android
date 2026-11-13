@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -145,6 +146,7 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1854,7 +1856,7 @@ fun AdminVerificationScreen(
                         },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 11.dp,
-                            vertical = 6.dp
+                            vertical = 8.dp
                         ),
                         modifier = Modifier.onGloballyPositioned { coordinates ->
                             val bounds = coordinates.positionInParent().x to coordinates.size.width.toFloat()
@@ -1868,7 +1870,7 @@ fun AdminVerificationScreen(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -2526,7 +2528,7 @@ fun AdminStatsScreen(
                         containerColor = if (days == dailyRangeDays) RoleAccentSurface else AppSurface
                     ),
                     shape = RoundedCornerShape(12.dp)
-                ) { Text("$days hari", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                ) { Text("$days hari", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
             }
         }
         Row(
@@ -4186,29 +4188,21 @@ fun PetugasTasksScreen(
             }
 
             "tugas" -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    listOf(
-                        Triple("laporan", "Masuk", newReports.size),
-                        Triple("aktif", "Aktif", activeTasks.size),
-                        Triple("armada", "Armada", vehicles.size),
-                        Triple("perbaikan", "Perbaikan", vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }),
-                        Triple("tpa", "TPA", facilities.size)
-                    ).forEach { (key, label, count) ->
-                        val selected = selectedWorkArea == key
-                        TextButton(
-                            onClick = { selectedWorkArea = key },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (selected) LoginAccent else LoginMuted,
-                                containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(14.dp)
-                        ) { Text("$label · $count", fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
-                    }
-                }
+                PetugasFilterGrid(
+                    choices = listOf(
+                        PetugasFilterOption("laporan", "Masuk", newReports.size),
+                        PetugasFilterOption("aktif", "Aktif", activeTasks.size),
+                        PetugasFilterOption("armada", "Armada", vehicles.size),
+                        PetugasFilterOption(
+                            "perbaikan",
+                            "Perbaikan",
+                            vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }
+                        ),
+                        PetugasFilterOption("tpa", "TPA", facilities.size)
+                    ),
+                    selectedKey = selectedWorkArea,
+                    onSelect = { selectedWorkArea = it }
+                )
                 when (selectedWorkArea) {
                     "laporan" -> {
                         SectionTitle("Laporan masuk", "Pilih laporan untuk menentukan armada dan TPA tujuan.")
@@ -4253,35 +4247,17 @@ fun PetugasTasksScreen(
                             onQueryChange = { activeTaskSearch = it.take(100) },
                             placeholder = "Cari kode, lokasi, armada, atau TPA"
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            listOf(
-                                Triple("semua", "Semua", activeTasks.size),
-                                Triple("perbaikan", "Perbaikan", tasksNeedingRevision.size),
-                                Triple("siap", "Siap angkut", tasksReadyForTransport.size),
-                                Triple("rute", "Dalam rute", tasksInRoute.size),
-                                Triple("admin", "Menunggu Admin", tasksWaitingForAdmin.size)
-                            ).forEach { (key, label, count) ->
-                                val selected = activeTaskFilter == key
-                                TextButton(
-                                    onClick = { activeTaskFilter = key },
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                    colors = ButtonDefaults.textButtonColors(
-                                        contentColor = if (selected) LoginAccent else LoginMuted,
-                                        containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
-                                    ),
-                                    shape = RoundedCornerShape(14.dp)
-                                ) {
-                                    Text(
-                                        "$label · $count",
-                                        fontSize = 10.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
+                        PetugasFilterGrid(
+                            choices = listOf(
+                                PetugasFilterOption("semua", "Semua", activeTasks.size),
+                                PetugasFilterOption("perbaikan", "Perbaikan", tasksNeedingRevision.size),
+                                PetugasFilterOption("siap", "Siap angkut", tasksReadyForTransport.size),
+                                PetugasFilterOption("rute", "Dalam rute", tasksInRoute.size),
+                                PetugasFilterOption("admin", "Menunggu Admin", tasksWaitingForAdmin.size)
+                            ),
+                            selectedKey = activeTaskFilter,
+                            onSelect = { activeTaskFilter = it }
+                        )
                         if (isInitialLoading && activeTasks.isEmpty()) {
                             PetugasLoadingState("Memuat tugas", "Mengambil penugasan akun ini dari server.")
                         } else if (activeTasks.isEmpty() && hasLoadError("Penugasan")) {
@@ -4501,7 +4477,7 @@ fun PetugasTasksScreen(
                     Text(
                         if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan" else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
                         color = AppTextMuted,
-                        fontSize = 11.sp
+                        fontSize = 12.sp
                     )
                 }
                 Row(
@@ -4525,37 +4501,19 @@ fun PetugasTasksScreen(
                             ),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text(label, fontSize = 11.sp, fontWeight = if (showingTaskArchive == archive) FontWeight.Bold else FontWeight.Medium)
+                            Text(label, fontSize = 12.sp, fontWeight = if (showingTaskArchive == archive) FontWeight.SemiBold else FontWeight.Medium)
                         }
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    listOf(
-                        Triple("semua", "Semua", historyFilterRows.size),
-                        Triple("selesai", "Selesai", historyFilterRows.count { it.status == WasteFlow.DONE }),
-                        Triple("ditolak", "Ditolak", historyFilterRows.count { it.status == WasteFlow.REJECTED })
-                    ).forEach { (key, label, count) ->
-                        val selected = historyFilter == key
-                        TextButton(
-                            onClick = { historyFilter = key },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (selected) LoginAccent else LoginMuted,
-                                containerColor = if (selected) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text(
-                                "$label · $count",
-                                fontSize = 10.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-                    }
-                }
+                PetugasFilterGrid(
+                    choices = listOf(
+                        PetugasFilterOption("semua", "Semua", historyFilterRows.size),
+                        PetugasFilterOption("selesai", "Selesai", historyFilterRows.count { it.status == WasteFlow.DONE }),
+                        PetugasFilterOption("ditolak", "Ditolak", historyFilterRows.count { it.status == WasteFlow.REJECTED })
+                    ),
+                    selectedKey = historyFilter,
+                    onSelect = { historyFilter = it }
+                )
                 PetugasQueueSearch(
                     query = historySearch,
                     onQueryChange = { historySearch = it.take(100) },
@@ -6067,6 +6025,102 @@ private fun PetugasSummaryFact(icon: ImageVector, text: String, tint: Color, mod
     }
 }
 
+private data class PetugasFilterOption(
+    val key: String,
+    val label: String,
+    val count: Int
+)
+
+@Composable
+private fun PetugasFilterGrid(
+    choices: List<PetugasFilterOption>,
+    selectedKey: String,
+    onSelect: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        choices.chunked(3).forEach { rowChoices ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                val sideSpace = (3 - rowChoices.size) / 2f
+                if (sideSpace > 0f) Spacer(modifier = Modifier.weight(sideSpace))
+                rowChoices.forEach { choice ->
+                    PetugasFilterChoice(
+                        choice = choice,
+                        selected = choice.key == selectedKey,
+                        onSelect = onSelect,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (sideSpace > 0f) Spacer(modifier = Modifier.weight(sideSpace))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PetugasFilterChoice(
+    choice: PetugasFilterOption,
+    selected: Boolean,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(14.dp)
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
+            LoginAccent.copy(alpha = if (IsNightAdmin) 0.26f else 0.15f)
+        } else {
+            AppSurface.copy(alpha = if (IsNightAdmin) 0.68f else 0.74f)
+        },
+        animationSpec = tween(280, easing = FastOutSlowInEasing),
+        label = "petugas-filter-${choice.key}-surface"
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (selected) LoginAccent else AppText,
+        animationSpec = tween(240, easing = FastOutSlowInEasing),
+        label = "petugas-filter-${choice.key}-title"
+    )
+    val countColor by animateColorAsState(
+        targetValue = if (selected) LoginAccent else AppTextMuted,
+        animationSpec = tween(240, easing = FastOutSlowInEasing),
+        label = "petugas-filter-${choice.key}-count"
+    )
+
+    Column(
+        modifier = modifier
+            .heightIn(min = 58.dp)
+            .clip(shape)
+            .background(containerColor)
+            .selectable(
+                selected = selected,
+                role = Role.Tab,
+                onClick = { onSelect(choice.key) }
+            )
+            .padding(horizontal = 9.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = choice.label,
+            color = titleColor,
+            fontFamily = InterFont,
+            fontSize = 12.sp,
+            lineHeight = 15.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = "${choice.count} data",
+            color = countColor,
+            fontFamily = InterFont,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+        )
+    }
+}
+
 @Composable
 private fun PetugasNavigationBar(selectedSection: String, onSectionSelected: (String) -> Unit) {
     val destinations = listOf(
@@ -7255,11 +7309,29 @@ private fun FormField(
 
 @Composable
 private fun StatusPill(status: String, color: Color) {
+    val textColor = when {
+        IsNightAdmin -> color
+        color == RoleOrange -> Color(0xFF80500E)
+        color == RolePurple -> Color(0xFF46552E)
+        color == RoleTeal -> Color(0xFF0D604F)
+        color == RoleGreen -> Color(0xFF0D613D)
+        color == RoleGreenDark -> Color(0xFF12472F)
+        color == RoleNavy -> Color(0xFF2A4033)
+        color == RoleRed -> Color(0xFF8C3041)
+        else -> AppText
+    }
     Box(
         modifier = Modifier.clip(RoundedCornerShape(50.dp)).background(color.copy(alpha = 0.12f))
-            .padding(horizontal = 8.dp, vertical = 5.dp)
+            .padding(horizontal = 9.dp, vertical = 6.dp)
     ) {
-        Text(WasteFlow.label(status), color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(
+            WasteFlow.label(status),
+            color = textColor,
+            fontFamily = InterFont,
+            fontSize = 12.sp,
+            lineHeight = 15.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -7454,7 +7526,7 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
         comparisonPercent == null && previous?.total == 0 && highlighted.total == 0 -> AppTextMuted
         else -> activeBar
     }
-    val chartHeight = 132.dp
+    val chartHeight = 142.dp
     val plotTop = 36.dp
     val plotHeight = chartHeight - plotTop
     val gridColor = AppTextMuted.copy(alpha = if (night) 0.28f else 0.20f)
@@ -7470,7 +7542,7 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
             Text(
                 "Laporan masuk",
                 color = AppTextMuted,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Row(
@@ -7500,13 +7572,13 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
                     Text(
                         comparisonDetail,
                         color = AppTextMuted,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         textAlign = TextAlign.End
                     )
                 }
             }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.width(29.dp).height(chartHeight)) {
+                Column(modifier = Modifier.width(34.dp).height(chartHeight)) {
                     Spacer(modifier = Modifier.height(plotTop - 6.dp))
                     Column(
                         modifier = Modifier.weight(1f),
@@ -7516,8 +7588,8 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
                             Text(
                                 (axisStep * tick).toChartAxisLabel(),
                                 color = AppTextMuted,
-                                fontSize = 9.sp,
-                                lineHeight = 10.sp,
+                                fontSize = 11.sp,
+                                lineHeight = 13.sp,
                                 maxLines = 1
                             )
                         }
@@ -7562,7 +7634,7 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
                                         Text(
                                             changeLabel,
                                             color = Color.White,
-                                            fontSize = 9.sp,
+                                            fontSize = 10.sp,
                                             lineHeight = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier
@@ -7615,13 +7687,13 @@ private fun MonthlyReportsChart(months: List<MonthlyStat>) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Spacer(modifier = Modifier.width(29.dp))
+                Spacer(modifier = Modifier.width(34.dp))
                 months.forEach { month ->
                     Text(
                         shortMonth(month.period).uppercase(java.util.Locale.forLanguageTag("id-ID")),
                         modifier = Modifier.weight(1f),
                         color = AppTextMuted,
-                        fontSize = 9.sp,
+                        fontSize = 11.sp,
                         textAlign = TextAlign.Center,
                         maxLines = 1
                     )

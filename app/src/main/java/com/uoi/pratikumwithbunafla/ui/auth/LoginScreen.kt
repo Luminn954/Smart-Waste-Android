@@ -1253,9 +1253,9 @@ private fun LoginRoleSelector(
             )
             val roleFill by animateColorAsState(
                 targetValue = if (isSelected) {
-                    roleStyle.soft.copy(alpha = if (darkMode) 0.88f else 0.88f)
+                    roleStyle.soft.copy(alpha = 0.84f)
                 } else {
-                    roleStyle.soft.copy(alpha = if (darkMode) 0.20f else 0.76f)
+                    roleStyle.soft.copy(alpha = if (darkMode) 0.20f else 0.46f)
                 },
                 animationSpec = tween(260),
                 label = "${role.name.lowercase()}-role-fill"
@@ -1264,11 +1264,11 @@ private fun LoginRoleSelector(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 80.dp)
+                    .heightIn(min = 88.dp)
                     .clip(roleShape)
                     .background(roleFill, roleShape)
                     .border(
-                        width = if (isSelected) 1.5.dp else 1.dp,
+                        width = if (isSelected) 2.dp else 1.dp,
                         color = if (isSelected) roleColor else roleStyle.border.copy(alpha = 0.78f),
                         shape = roleShape
                     )
@@ -1278,8 +1278,8 @@ private fun LoginRoleSelector(
                         onClick = { onSelectRole(role) }
                     )
                     .padding(
-                        horizontal = if (compact) 7.dp else 11.dp,
-                        vertical = if (compact) 8.dp else 9.dp
+                        horizontal = if (compact) 8.dp else 11.dp,
+                        vertical = 10.dp
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
@@ -1287,11 +1287,11 @@ private fun LoginRoleSelector(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(if (compact) 27.dp else 30.dp)
+                            .size(if (compact) 30.dp else 32.dp)
                             .clip(CircleShape)
                             .background(roleStyle.soft.copy(alpha = if (isSelected) 0.92f else 0.62f)),
                         contentAlignment = Alignment.Center
@@ -1299,7 +1299,7 @@ private fun LoginRoleSelector(
                         Icon(
                             imageVector = roleStyle.icon,
                             contentDescription = null,
-                            modifier = Modifier.size(if (compact) 17.dp else 19.dp),
+                            modifier = Modifier.size(if (compact) 18.dp else 20.dp),
                             tint = roleColor
                         )
                     }
@@ -1312,9 +1312,9 @@ private fun LoginRoleSelector(
                             text = role.label,
                             color = roleColor,
                             fontFamily = LoginFont,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = if (compact) 13.sp else 14.sp,
-                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = if (compact) 14.sp else 15.sp,
+                            lineHeight = 19.sp,
                             maxLines = 1
                         )
                         Text(
@@ -1322,9 +1322,9 @@ private fun LoginRoleSelector(
                             color = palette.muted,
                             fontFamily = LoginFont,
                             fontWeight = FontWeight.Medium,
-                            fontSize = 11.sp,
-                            lineHeight = 14.sp,
-                            maxLines = 1
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            maxLines = 2
                         )
                     }
                 }
