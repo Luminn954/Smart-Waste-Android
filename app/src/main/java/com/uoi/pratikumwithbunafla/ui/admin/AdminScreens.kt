@@ -3395,10 +3395,35 @@ fun AdminOperationsScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            TextButton(
-                                enabled = review.proofPhotoUrl.isNotBlank(),
-                                onClick = { onOpenPhoto(review.proofPhotoUrl) }
-                            ) { Text("Lihat foto bukti", color = LoginAccent, fontSize = 10.sp) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!report.photoUrl.isNullOrBlank()) {
+                                    TextButton(
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { onOpenPhoto(report.photoUrl) }
+                                    ) {
+                                        Text("Sebelum · warga", color = LoginAccent, fontSize = 10.sp, fontFamily = InterFont)
+                                    }
+                                } else {
+                                    Text(
+                                        "Foto awal warga belum tersedia",
+                                        modifier = Modifier.weight(1f),
+                                        color = AppTextMuted,
+                                        fontSize = 10.sp,
+                                        fontFamily = InterFont
+                                    )
+                                }
+                                TextButton(
+                                    modifier = Modifier.weight(1f),
+                                    enabled = review.proofPhotoUrl.isNotBlank(),
+                                    onClick = { onOpenPhoto(review.proofPhotoUrl) }
+                                ) {
+                                    Text("Sesudah · petugas", color = LoginAccent, fontSize = 10.sp, fontFamily = InterFont)
+                                }
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -4917,12 +4942,12 @@ fun PetugasTasksScreen(
     if (taskForProof != null && proofUri != null) {
         AlertDialog(
             onDismissRequest = { if (!sendingProof) clearProofSelection() },
-            title = { Text("Kirim bukti penyelesaian", color = LoginInk, fontWeight = FontWeight.Bold) },
+            title = { Text("Kirim foto sesudah penanganan", color = LoginInk, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("${taskForProof.code} · ${taskForProof.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 11.sp)
                     Text(
-                        "Unggah foto saat sampah sudah diterima di ${taskForProof.tpaName.ifBlank { "TPA tujuan" }}. Setelah admin menyetujui bukti, muatan dicatat di TPA dan dikeluarkan dari kendaraan.",
+                        "Ambil foto akhir setelah tugas ditangani dan sampah diterima di ${taskForProof.tpaName.ifBlank { "TPA tujuan" }}. Admin membandingkannya dengan foto awal warga sebelum menyetujui penyelesaian.",
                         color = AppText,
                         fontSize = 11.sp
                     )
@@ -4958,7 +4983,7 @@ fun PetugasTasksScreen(
                             }
                         }
                     }
-                ) { Text(if (sendingProof) "Mengirim…" else "Kirim bukti TPA", color = LoginAccent) }
+                ) { Text(if (sendingProof) "Mengirim…" else "Kirim foto akhir", color = LoginAccent) }
             },
             dismissButton = {
                 TextButton(onClick = { clearProofSelection() }, enabled = !sendingProof) {
@@ -6399,7 +6424,7 @@ private fun PetugasTaskCard(
         waitingForAdmin -> "Bukti sudah terkirim. Tunggu Admin memeriksa foto sebelum tugas ditutup."
         isComplete -> "Bukti telah disetujui Admin dan pekerjaan tercatat selesai."
         isRejected -> report.workerDecisionNote.ifBlank { "Laporan tidak diteruskan ke proses pengangkutan." }
-        report.status == WasteFlow.TRANSPORTED -> "Antar muatan ke ${report.tpaName.ifBlank { "TPA tujuan" }}, lalu kirim foto bukti penerimaan."
+        report.status == WasteFlow.TRANSPORTED -> "Antar muatan ke ${report.tpaName.ifBlank { "TPA tujuan" }}, lalu kirim foto akhir setelah penanganan."
         else -> "Ambil muatan dengan ${report.vehiclePlate.ifBlank { "armada yang ditetapkan" }}, lalu mulai pengangkutan."
     }
 
@@ -6483,7 +6508,7 @@ private fun PetugasTaskCard(
                         onClick = { onOpenPhoto(report.photoUrl) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)
                     ) {
-                        Text("Foto TKP warga", color = statusAccent, fontSize = 11.sp)
+                        Text("Foto awal · warga", color = statusAccent, fontSize = 11.sp)
                     }
                 }
                 if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
@@ -6498,7 +6523,7 @@ private fun PetugasTaskCard(
                             )
                         }
                         TextButton(onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) }) {
-                            Text("Lihat bukti lokasi", color = LoginAccent, fontSize = 11.sp, fontFamily = InterFont)
+                            Text("Foto progres lokasi", color = LoginAccent, fontSize = 11.sp, fontFamily = InterFont)
                         }
                     }
                 }
@@ -6507,7 +6532,7 @@ private fun PetugasTaskCard(
                         onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)
                     ) {
-                        Text("Bukti petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 11.sp)
+                        Text("Foto akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 11.sp)
                     }
                 }
             }
