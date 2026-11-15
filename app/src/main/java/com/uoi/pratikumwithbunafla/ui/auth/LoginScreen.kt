@@ -76,9 +76,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -88,7 +86,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -264,20 +261,10 @@ private val RecyclingLogoFilter = ColorFilter.colorMatrix(
 
 @Composable
 private fun SmartWasteBackdrop(
-    palette: LoginPalette,
     darkMode: Boolean,
     modifier: Modifier = Modifier
 ) {
     val transition = rememberInfiniteTransition(label = "eco-backdrop-motion")
-    val drift by transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 6200),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "floating-leaves"
-    )
     val skyMotion by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -301,12 +288,6 @@ private fun SmartWasteBackdrop(
         } else {
             Color(0xFF5C896B).copy(alpha = 0.43f)
         }
-        val treeColor = if (darkMode) {
-            Color(0xFF131E17).copy(alpha = 0.90f)
-        } else {
-            Color(0xFF356B4D).copy(alpha = 0.40f)
-        }
-
         if (darkMode) {
             val skyPhase = skyMotion * 2f * PI.toFloat()
             val floatX = sin(skyPhase.toDouble()).toFloat()
@@ -355,37 +336,6 @@ private fun SmartWasteBackdrop(
             color = nearHill
         )
 
-        drawSoftTree(w * 0.10f, h * 0.78f, w * 0.18f, treeColor)
-        drawSoftTree(w * 0.90f, h * 0.80f, w * 0.20f, treeColor)
-        drawSoftTree(w * 0.27f, h * 0.78f, w * 0.11f, treeColor.copy(alpha = treeColor.alpha * 0.72f))
-        drawNeighborhoodHouse(w * 0.57f, h * 0.78f, w * 0.12f, h * 0.23f, treeColor)
-
-        val breeze = (drift + 1f) * PI.toFloat()
-        val firstLeaf = sin(breeze.toDouble()).toFloat()
-        val secondLeaf = sin((breeze + 1.3f).toDouble()).toFloat()
-        val thirdLeaf = sin((breeze + 2.5f).toDouble()).toFloat()
-        drawFloatingLeaf(
-            Offset(w * 0.39f + firstLeaf * 13.dp.toPx(), h * 0.37f + cos(breeze.toDouble()).toFloat() * 4.dp.toPx()),
-            8.dp.toPx(), palette.accent.copy(alpha = if (darkMode) 0.72f else 0.48f), -28f + firstLeaf * 12f
-        )
-        drawFloatingLeaf(
-            Offset(w * 0.75f - secondLeaf * 11.dp.toPx(), h * 0.20f + firstLeaf * 5.dp.toPx()),
-            6.dp.toPx(), palette.accentDark.copy(alpha = if (darkMode) 0.76f else 0.42f), 22f + secondLeaf * 14f
-        )
-        drawFloatingLeaf(
-            Offset(w * 0.46f - thirdLeaf * 9.dp.toPx(), h * 0.66f + secondLeaf * 3.dp.toPx()),
-            5.dp.toPx(), palette.accent.copy(alpha = if (darkMode) 0.64f else 0.36f), 38f + thirdLeaf * 16f
-        )
-        if (!darkMode) {
-            drawFloatingLeaf(
-                Offset(w * 0.16f + firstLeaf * 9.dp.toPx(), h * 0.28f + secondLeaf * 4.dp.toPx()),
-                14.dp.toPx(), Color(0xFF3E9A5D).copy(alpha = 0.50f), -38f + firstLeaf * 12f
-            )
-            drawFloatingLeaf(
-                Offset(w * 0.86f - secondLeaf * 8.dp.toPx(), h * 0.35f + thirdLeaf * 4.dp.toPx()),
-                11.dp.toPx(), Color(0xFF69A56B).copy(alpha = 0.46f), 28f + secondLeaf * 12f
-            )
-        }
     }
 }
 
@@ -434,70 +384,6 @@ private fun DrawScope.drawGlowingMoon(center: Offset, radius: Float, pulse: Floa
         radius = radius * 0.085f,
         center = Offset(center.x - radius * 0.39f, center.y - radius * 0.24f)
     )
-}
-
-private fun DrawScope.drawSoftTree(x: Float, groundY: Float, treeSize: Float, color: Color) {
-    val trunkWidth = treeSize * 0.11f
-    drawRoundRect(
-        color = color.copy(alpha = color.alpha * 0.78f),
-        topLeft = Offset(x - trunkWidth / 2f, groundY - treeSize * 0.64f),
-        size = Size(trunkWidth, treeSize * 0.66f),
-        cornerRadius = CornerRadius(trunkWidth / 2f)
-    )
-    drawCircle(color, treeSize * 0.31f, Offset(x, groundY - treeSize * 0.79f))
-    drawCircle(color.copy(alpha = color.alpha * 0.86f), treeSize * 0.25f, Offset(x - treeSize * 0.2f, groundY - treeSize * 0.63f))
-    drawCircle(color.copy(alpha = color.alpha * 0.86f), treeSize * 0.25f, Offset(x + treeSize * 0.2f, groundY - treeSize * 0.63f))
-}
-
-private fun DrawScope.drawNeighborhoodHouse(x: Float, groundY: Float, houseWidth: Float, houseHeight: Float, color: Color) {
-    val houseTop = groundY - houseHeight * 0.7f
-    drawRoundRect(
-        color = color.copy(alpha = color.alpha * 0.62f),
-        topLeft = Offset(x, houseTop + houseHeight * 0.25f),
-        size = Size(houseWidth, houseHeight * 0.45f),
-        cornerRadius = CornerRadius(5.dp.toPx())
-    )
-    drawPath(
-        path = Path().apply {
-            moveTo(x - houseWidth * 0.08f, houseTop + houseHeight * 0.28f)
-            lineTo(x + houseWidth * 0.5f, houseTop)
-            lineTo(x + houseWidth * 1.08f, houseTop + houseHeight * 0.28f)
-            close()
-        },
-        color = color
-    )
-    drawRoundRect(
-        color = paletteHouseWindow(color),
-        topLeft = Offset(x + houseWidth * 0.13f, houseTop + houseHeight * 0.37f),
-        size = Size(houseWidth * 0.2f, houseHeight * 0.13f),
-        cornerRadius = CornerRadius(2.dp.toPx())
-    )
-    drawRoundRect(
-        color = paletteHouseWindow(color),
-        topLeft = Offset(x + houseWidth * 0.66f, houseTop + houseHeight * 0.37f),
-        size = Size(houseWidth * 0.2f, houseHeight * 0.13f),
-        cornerRadius = CornerRadius(2.dp.toPx())
-    )
-}
-
-private fun paletteHouseWindow(color: Color) = color.copy(alpha = color.alpha * 0.62f)
-
-private fun DrawScope.drawFloatingLeaf(center: Offset, radius: Float, color: Color, rotation: Float) {
-    rotate(rotation, center) {
-        val leaf = Path().apply {
-            moveTo(center.x, center.y - radius)
-            quadraticTo(center.x + radius * 1.25f, center.y, center.x, center.y + radius)
-            quadraticTo(center.x - radius * 1.25f, center.y, center.x, center.y - radius)
-            close()
-        }
-        drawPath(leaf, color)
-        drawLine(
-            color = color.copy(alpha = color.alpha * 0.65f),
-            start = Offset(center.x, center.y - radius * 0.65f),
-            end = Offset(center.x, center.y + radius * 0.65f),
-            strokeWidth = 1.dp.toPx()
-        )
-    }
 }
 
 @Composable
@@ -652,7 +538,6 @@ fun LoginScreen(
                     MorningAtmosphere(modifier = Modifier.fillMaxSize())
                 }
                 SmartWasteBackdrop(
-                    palette = palette,
                     darkMode = darkScene,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
