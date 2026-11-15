@@ -961,9 +961,13 @@ private fun MorningAtmosphere(modifier: Modifier = Modifier) {
             size = size
         )
         val cloudShift = cloudDrift * 18.dp.toPx()
+        // Extend beyond both canvas edges so the slow drift never exposes a seam.
+        val cloudBleed = 28.dp.toPx()
+        val cloudLeft = -cloudBleed - cloudShift
+        val cloudRight = size.width + cloudBleed - cloudShift
 
         val morningCloud = Path().apply {
-            moveTo(-cloudShift, size.height * 0.16f)
+            moveTo(cloudLeft, size.height * 0.16f)
             cubicTo(
                 size.width * 0.22f - cloudShift, size.height * 0.11f,
                 size.width * 0.38f - cloudShift, size.height * 0.21f,
@@ -972,13 +976,13 @@ private fun MorningAtmosphere(modifier: Modifier = Modifier) {
             cubicTo(
                 size.width * 0.78f - cloudShift, size.height * 0.09f,
                 size.width * 0.89f - cloudShift, size.height * 0.15f,
-                size.width - cloudShift, size.height * 0.10f
+                cloudRight, size.height * 0.10f
             )
-            lineTo(size.width - cloudShift, size.height * 0.21f)
+            lineTo(cloudRight, size.height * 0.21f)
             cubicTo(
                 size.width * 0.76f - cloudShift, size.height * 0.25f,
                 size.width * 0.42f - cloudShift, size.height * 0.22f,
-                -cloudShift, size.height * 0.26f
+                cloudLeft, size.height * 0.26f
             )
             close()
         }
