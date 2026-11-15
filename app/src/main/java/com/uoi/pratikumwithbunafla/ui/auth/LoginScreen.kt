@@ -269,10 +269,10 @@ private fun SmartWasteBackdrop(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5200),
+            animation = tween(durationMillis = 6500),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "sun-moon-drift"
+        label = "night-star-twinkle"
     )
 
     Canvas(modifier = modifier) {
@@ -290,15 +290,6 @@ private fun SmartWasteBackdrop(
         }
         if (darkMode) {
             val skyPhase = skyMotion * 2f * PI.toFloat()
-            val floatX = sin(skyPhase.toDouble()).toFloat()
-            val floatY = cos(skyPhase.toDouble()).toFloat()
-            val glowPulse = 0.5f + 0.5f * sin((skyPhase + 0.6f).toDouble()).toFloat()
-            val moonCenter = Offset(
-                x = w * 0.82f + floatX * 2.dp.toPx(),
-                y = h * 0.18f + floatY * 4.dp.toPx()
-            )
-            drawGlowingMoon(moonCenter, w * 0.073f, glowPulse)
-
             val stars = listOf(
                 Offset(w * 0.18f, h * 0.18f),
                 Offset(w * 0.47f, h * 0.12f),
@@ -339,51 +330,66 @@ private fun SmartWasteBackdrop(
     }
 }
 
-private fun DrawScope.drawGlowingMoon(center: Offset, radius: Float, pulse: Float) {
-    val moonlight = Color(0xFFDDEAD9)
-    val glowRadius = size.width * (0.24f + pulse * 0.025f)
-    drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(moonlight.copy(alpha = 0.25f), moonlight.copy(alpha = 0.08f), Color.Transparent),
-            center = center,
-            radius = glowRadius
-        ),
-        radius = glowRadius,
-        center = center
-    )
+@Composable
+private fun MoonlitNightAtmosphere(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+        val moonlight = Color(0xFFB7D3C4)
 
-    val crescent = Path().apply {
-        moveTo(center.x + radius * 0.24f, center.y - radius)
-        cubicTo(
-            center.x - radius * 0.96f, center.y - radius * 0.78f,
-            center.x - radius * 0.96f, center.y + radius * 0.78f,
-            center.x + radius * 0.24f, center.y + radius
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    moonlight.copy(alpha = 0.15f),
+                    moonlight.copy(alpha = 0.07f),
+                    Color.Transparent
+                ),
+                center = Offset(width * 0.78f, height * 0.08f),
+                radius = width * 0.92f
+            ),
+            size = size
         )
-        cubicTo(
-            center.x + radius * 0.52f, center.y + radius * 0.78f,
-            center.x + radius * 0.70f, center.y + radius * 0.34f,
-            center.x + radius * 0.68f, center.y
+
+        val cloudBand = Path().apply {
+            moveTo(-width * 0.08f, height * 0.12f)
+            cubicTo(
+                width * 0.12f, height * 0.05f,
+                width * 0.26f, height * 0.15f,
+                width * 0.43f, height * 0.12f
+            )
+            cubicTo(
+                width * 0.64f, height * 0.08f,
+                width * 0.78f, height * 0.19f,
+                width * 1.08f, height * 0.12f
+            )
+            lineTo(width * 1.08f, height * 0.25f)
+            cubicTo(
+                width * 0.83f, height * 0.30f,
+                width * 0.68f, height * 0.23f,
+                width * 0.51f, height * 0.27f
+            )
+            cubicTo(
+                width * 0.31f, height * 0.32f,
+                width * 0.14f, height * 0.21f,
+                -width * 0.08f, height * 0.25f
+            )
+            close()
+        }
+        drawPath(
+            path = cloudBand,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    moonlight.copy(alpha = 0.045f),
+                    moonlight.copy(alpha = 0.075f),
+                    moonlight.copy(alpha = 0.035f),
+                    Color.Transparent
+                ),
+                startX = 0f,
+                endX = width
+            )
         )
-        cubicTo(
-            center.x + radius * 0.70f, center.y - radius * 0.34f,
-            center.x + radius * 0.52f, center.y - radius * 0.78f,
-            center.x + radius * 0.24f, center.y - radius
-        )
-        close()
     }
-    drawPath(
-        path = crescent,
-        brush = Brush.linearGradient(
-            colors = listOf(Color(0xFFF2F6EF), Color(0xFFC9DCCB), Color(0xFF96B99B)),
-            start = Offset(center.x - radius, center.y - radius),
-            end = Offset(center.x + radius, center.y + radius)
-        )
-    )
-    drawCircle(
-        color = Color.White.copy(alpha = 0.20f),
-        radius = radius * 0.085f,
-        center = Offset(center.x - radius * 0.39f, center.y - radius * 0.24f)
-    )
 }
 
 @Composable
@@ -536,6 +542,8 @@ fun LoginScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!darkScene) {
                     MorningAtmosphere(modifier = Modifier.fillMaxSize())
+                } else {
+                    MoonlitNightAtmosphere(modifier = Modifier.fillMaxSize())
                 }
                 SmartWasteBackdrop(
                     darkMode = darkScene,
