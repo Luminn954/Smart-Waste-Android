@@ -335,18 +335,18 @@ private fun MoonlitNightAtmosphere(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
-        val moonlight = Color(0xFFD1E1D4)
+        val moonlight = Color(0xFFE2EEE5)
 
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    moonlight.copy(alpha = 0.18f),
-                    moonlight.copy(alpha = 0.10f),
-                    moonlight.copy(alpha = 0.025f),
+                    moonlight.copy(alpha = 0.26f),
+                    moonlight.copy(alpha = 0.14f),
+                    moonlight.copy(alpha = 0.04f),
                     Color.Transparent
                 ),
-                center = Offset(width * 0.88f, height * 0.04f),
-                radius = width * 0.96f
+                center = Offset(width * 0.92f, height * 0.03f),
+                radius = width * 0.82f
             ),
             size = size
         )
@@ -354,9 +354,9 @@ private fun MoonlitNightAtmosphere(modifier: Modifier = Modifier) {
             brush = Brush.linearGradient(
                 colors = listOf(
                     Color.Transparent,
-                    moonlight.copy(alpha = 0.018f),
-                    moonlight.copy(alpha = 0.04f),
-                    moonlight.copy(alpha = 0.018f),
+                    moonlight.copy(alpha = 0.035f),
+                    moonlight.copy(alpha = 0.11f),
+                    moonlight.copy(alpha = 0.035f),
                     Color.Transparent
                 ),
                 start = Offset(width * 0.96f, height * 0.02f),
