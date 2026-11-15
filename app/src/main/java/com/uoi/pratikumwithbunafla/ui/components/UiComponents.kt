@@ -5,22 +5,16 @@ import android.graphics.BitmapFactory
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
@@ -55,31 +48,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
-import kotlin.math.PI
-import kotlin.math.sin
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
@@ -98,11 +75,6 @@ import com.uoi.pratikumwithbunafla.ui.theme.WasteCoral
 import com.uoi.pratikumwithbunafla.ui.theme.WastePurple
 import com.uoi.pratikumwithbunafla.ui.theme.WasteTeal
 import com.uoi.pratikumwithbunafla.ui.theme.InterFont
-
-private val SplashForest = Color(0xFF1B714C)
-private val SplashLeaf = Color(0xFF4A9B68)
-private val SplashText = Color(0xFF25392D)
-private val SplashMuted = Color(0xFF596C5D)
 
 @Composable
 fun AppScreen(content: @Composable () -> Unit) {
@@ -189,263 +161,36 @@ fun AppScreen(content: @Composable () -> Unit) {
 
 @Composable
 fun SmartWasteSplash() {
-    val compactScreen = LocalConfiguration.current.screenWidthDp < 360
-    val splashMotion = rememberInfiniteTransition(label = "splash-motion")
-    val leafDrift by splashMotion.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "splash-leaf-drift"
-    )
-    AppScreen {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color(0xFFD6E8DB),
-                            Color(0xFFE1EDDE),
-                            Color(0xFFF0F0E3),
-                            Color(0xFFD8E7D3),
-                            Color(0xFFBBD3BF)
-                        )
-                    )
-                )
-        ) {
-            SplashEcoBackdrop(
-                drift = leafDrift,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                SplashLogoAssembly(compactScreen)
-                Spacer(modifier = Modifier.height(if (compactScreen) 20.dp else 24.dp))
-                Text(
-                    text = "Kelola sampah lebih mudah, mulai dari lingkungan sekitar.",
-                    color = SplashMuted,
-                    fontSize = 15.sp,
-                    fontFamily = InterFont,
-                    fontWeight = FontWeight.Medium,
-                    lineHeight = 21.sp,
-                    letterSpacing = 0.05.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(30.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = SplashForest,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(9.dp))
-                    Text(
-                        text = "Menyiapkan ruang kerja...",
-                        modifier = Modifier.weight(1f),
-                        color = SplashMuted,
-                        fontSize = 12.sp,
-                        fontFamily = InterFont,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.05.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SplashLogoAssembly(compactScreen: Boolean) {
-    val logoSize = if (compactScreen) 144.dp else 160.dp
-    val sliceCount = 5
-    val startRotations = listOf(-32f, 25f, -27f, 31f, -22f)
-    val slices = remember { List(sliceCount) { Animatable(0f) } }
-    val formation = remember { Animatable(0f) }
-
-    LaunchedEffect(Unit) {
-        coroutineScope {
-            slices.forEachIndexed { index, slice ->
-                launch {
-                    delay(index * 150L)
-                    slice.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
-                    )
-                }
-            }
-        }
-        formation.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(dampingRatio = 0.78f, stiffness = 460f)
-        )
-    }
+    val pillShape = RoundedCornerShape(50)
 
     Box(
         modifier = Modifier
-            .size(logoSize)
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.22f))
+            .fillMaxSize()
+            .background(Color(0xFF090909)),
+        contentAlignment = Alignment.Center
     ) {
-        val logoPainter = painterResource(R.drawable.login_recycling_mark)
-        slices.forEachIndexed { index, slice ->
-            val dropProgress = slice.value
-            val formProgress = formation.value
-            Image(
-                painter = logoPainter,
-                contentDescription = null,
-                colorFilter = SplashLogoFilter,
-                modifier = Modifier
-                    .offset(y = -(logoSize * ((1f - dropProgress) * 0.88f)))
-                    .size(logoSize)
-                    .graphicsLayer {
-                        alpha = dropProgress
-                        rotationZ = startRotations[index] * (1f - formProgress)
-                        val scale = 0.94f + formProgress * 0.06f
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .drawWithContent {
-                        val bandHeight = size.height / sliceCount
-                        clipRect(
-                            top = bandHeight * index,
-                            bottom = bandHeight * (index + 1)
-                        ) {
-                            this@drawWithContent.drawContent()
-                        }
-                    }
+        Row(
+            modifier = Modifier
+                .clip(pillShape)
+                .background(Color(0xFF101010))
+                .border(1.dp, Color(0xFF282828), pillShape)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                color = Color(0xFFF5F5F5),
+                strokeWidth = 1.7.dp
+            )
+            Text(
+                text = "Processing",
+                color = Color(0xFFF5F5F5),
+                fontSize = 14.sp,
+                fontFamily = InterFont,
+                fontWeight = FontWeight.SemiBold
             )
         }
-    }
-}
-
-private val SplashLogoFilter = ColorFilter.colorMatrix(
-    ColorMatrix(
-        floatArrayOf(
-            0f, 0f, 0f, 0f, 35f,
-            0f, 0f, 0f, 0f, 132f,
-            0f, 0f, 0f, 0f, 90f,
-            -0.299f, -0.587f, -0.114f, 0f, 255f
-        )
-    )
-)
-
-@Composable
-private fun SplashEcoBackdrop(drift: Float, modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val treeTone = Color(0xFF456A53).copy(alpha = 0.30f)
-        val hillTone = Color(0xFF66836A).copy(alpha = 0.30f)
-
-        drawPath(
-            path = Path().apply {
-                moveTo(0f, h * 0.69f)
-                cubicTo(w * 0.22f, h * 0.56f, w * 0.34f, h * 0.72f, w * 0.52f, h * 0.64f)
-                cubicTo(w * 0.71f, h * 0.55f, w * 0.85f, h * 0.72f, w, h * 0.61f)
-                lineTo(w, h)
-                lineTo(0f, h)
-                close()
-            },
-            color = Color(0xFF91AE91).copy(alpha = 0.32f)
-        )
-        drawPath(
-            path = Path().apply {
-                moveTo(0f, h * 0.81f)
-                cubicTo(w * 0.2f, h * 0.7f, w * 0.43f, h * 0.88f, w * 0.62f, h * 0.76f)
-                cubicTo(w * 0.79f, h * 0.67f, w * 0.9f, h * 0.83f, w, h * 0.74f)
-                lineTo(w, h)
-                lineTo(0f, h)
-                close()
-            },
-            color = hillTone
-        )
-
-        drawSplashTree(w * 0.04f, h * 0.98f, w * 0.32f, treeTone)
-        drawSplashTree(w * 0.98f, h * 0.98f, w * 0.40f, treeTone.copy(alpha = 0.12f))
-        drawSplashTree(w * 0.22f, h * 0.97f, w * 0.19f, treeTone.copy(alpha = 0.11f))
-        drawSplashHouse(w * 0.62f, h * 0.91f, w * 0.14f, h * 0.16f, treeTone)
-
-        val sway = sin(drift * PI).toFloat()
-        drawSplashLeaf(Offset(w * 0.13f + sway * 13.dp.toPx(), h * 0.22f), 10.dp.toPx(), SplashLeaf.copy(alpha = 0.30f), -28f)
-        drawSplashLeaf(Offset(w * 0.82f - sway * 10.dp.toPx(), h * 0.34f), 8.dp.toPx(), SplashForest.copy(alpha = 0.24f), 24f)
-        drawSplashLeaf(Offset(w * 0.91f + sway * 8.dp.toPx(), h * 0.53f), 6.dp.toPx(), Color(0xFF5D8567).copy(alpha = 0.30f), 42f)
-    }
-}
-
-private fun DrawScope.drawSplashTree(x: Float, groundY: Float, treeSize: Float, color: Color) {
-    val trunkWidth = treeSize * 0.10f
-    drawRoundRect(
-        color = color.copy(alpha = color.alpha * 0.8f),
-        topLeft = Offset(x - trunkWidth / 2f, groundY - treeSize * 0.65f),
-        size = Size(trunkWidth, treeSize * 0.67f),
-        cornerRadius = CornerRadius(trunkWidth / 2f)
-    )
-    drawCircle(color, treeSize * 0.30f, Offset(x, groundY - treeSize * 0.79f))
-    drawCircle(color.copy(alpha = color.alpha * 0.85f), treeSize * 0.24f, Offset(x - treeSize * 0.2f, groundY - treeSize * 0.63f))
-    drawCircle(color.copy(alpha = color.alpha * 0.85f), treeSize * 0.24f, Offset(x + treeSize * 0.2f, groundY - treeSize * 0.63f))
-}
-
-private fun DrawScope.drawSplashHouse(x: Float, groundY: Float, houseWidth: Float, houseHeight: Float, color: Color) {
-    val top = groundY - houseHeight * 0.82f
-    drawRoundRect(
-        color = color,
-        topLeft = Offset(x, top + houseHeight * 0.26f),
-        size = Size(houseWidth, houseHeight * 0.56f),
-        cornerRadius = CornerRadius(5.dp.toPx())
-    )
-    drawPath(
-        path = Path().apply {
-            moveTo(x - houseWidth * 0.08f, top + houseHeight * 0.28f)
-            lineTo(x + houseWidth * 0.5f, top)
-            lineTo(x + houseWidth * 1.08f, top + houseHeight * 0.28f)
-            close()
-        },
-        color = color.copy(alpha = color.alpha * 1.12f)
-    )
-    drawRoundRect(
-        color = Color(0xFFFFE8C2).copy(alpha = 0.88f),
-        topLeft = Offset(x + houseWidth * 0.14f, top + houseHeight * 0.39f),
-        size = Size(houseWidth * 0.2f, houseHeight * 0.15f),
-        cornerRadius = CornerRadius(2.dp.toPx())
-    )
-    drawRoundRect(
-        color = Color(0xFFFFE8C2).copy(alpha = 0.88f),
-        topLeft = Offset(x + houseWidth * 0.66f, top + houseHeight * 0.39f),
-        size = Size(houseWidth * 0.2f, houseHeight * 0.15f),
-        cornerRadius = CornerRadius(2.dp.toPx())
-    )
-}
-
-private fun DrawScope.drawSplashLeaf(center: Offset, radius: Float, color: Color, angle: Float) {
-    rotate(angle, center) {
-        val leaf = Path().apply {
-            moveTo(center.x, center.y - radius)
-            quadraticTo(center.x + radius, center.y, center.x, center.y + radius)
-            quadraticTo(center.x - radius, center.y, center.x, center.y - radius)
-            close()
-        }
-        drawPath(leaf, color)
-        drawLine(
-            color = color.copy(alpha = color.alpha * 0.68f),
-            start = Offset(center.x, center.y - radius * 0.62f),
-            end = Offset(center.x, center.y + radius * 0.62f),
-            strokeWidth = 1.dp.toPx()
-        )
     }
 }
 

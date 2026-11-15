@@ -76,6 +76,8 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(appearancePreferences.getBoolean("dark_mode", false))
             }
             var activeAccount by remember { mutableStateOf<UserAccount?>(null) }
+            var showSplash by rememberSaveable { mutableStateOf(true) }
+            var keepSplashSystemBars by remember { mutableStateOf(true) }
             SmartWasteTheme(
                 darkTheme = isDarkMode,
                 onToggleTheme = {
@@ -89,12 +91,11 @@ class MainActivity : ComponentActivity() {
                     currentBackStackEntry?.destination?.route == "dashboard"
                 SideEffect {
                     WindowCompat.getInsetsController(window, window.decorView).apply {
-                        isAppearanceLightStatusBars = !isDarkMode && !isAdminDashboard
-                        isAppearanceLightNavigationBars = activeAccount == null && !isDarkMode
+                        isAppearanceLightStatusBars = !keepSplashSystemBars && !isDarkMode && !isAdminDashboard
+                        isAppearanceLightNavigationBars = activeAccount == null && !keepSplashSystemBars && !isDarkMode
                     }
                 }
                 val scope = rememberCoroutineScope()
-                var showSplash by rememberSaveable { mutableStateOf(true) }
                 var summary by remember { mutableStateOf(AdminDashboardSummary()) }
                 var reports by remember { mutableStateOf(emptyList<WasteRecord>()) }
                 var archivedReports by remember { mutableStateOf(emptyList<ArchivedWasteRecord>()) }
@@ -276,6 +277,15 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     delay(3000)
                     showSplash = false
+                }
+
+                LaunchedEffect(showSplash) {
+                    if (showSplash) {
+                        keepSplashSystemBars = true
+                    } else {
+                        delay(350)
+                        keepSplashSystemBars = false
+                    }
                 }
 
                 LaunchedEffect(Unit) {
