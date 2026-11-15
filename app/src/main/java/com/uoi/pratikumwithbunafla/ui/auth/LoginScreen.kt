@@ -335,59 +335,34 @@ private fun MoonlitNightAtmosphere(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
-        val moonlight = Color(0xFFB7D3C4)
+        val moonlight = Color(0xFFD1E1D4)
 
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    moonlight.copy(alpha = 0.15f),
-                    moonlight.copy(alpha = 0.07f),
+                    moonlight.copy(alpha = 0.18f),
+                    moonlight.copy(alpha = 0.10f),
+                    moonlight.copy(alpha = 0.025f),
                     Color.Transparent
                 ),
-                center = Offset(width * 0.78f, height * 0.08f),
-                radius = width * 0.92f
+                center = Offset(width * 0.88f, height * 0.04f),
+                radius = width * 0.96f
             ),
             size = size
         )
-
-        val cloudBand = Path().apply {
-            moveTo(-width * 0.08f, height * 0.12f)
-            cubicTo(
-                width * 0.12f, height * 0.05f,
-                width * 0.26f, height * 0.15f,
-                width * 0.43f, height * 0.12f
-            )
-            cubicTo(
-                width * 0.64f, height * 0.08f,
-                width * 0.78f, height * 0.19f,
-                width * 1.08f, height * 0.12f
-            )
-            lineTo(width * 1.08f, height * 0.25f)
-            cubicTo(
-                width * 0.83f, height * 0.30f,
-                width * 0.68f, height * 0.23f,
-                width * 0.51f, height * 0.27f
-            )
-            cubicTo(
-                width * 0.31f, height * 0.32f,
-                width * 0.14f, height * 0.21f,
-                -width * 0.08f, height * 0.25f
-            )
-            close()
-        }
-        drawPath(
-            path = cloudBand,
-            brush = Brush.horizontalGradient(
+        drawRect(
+            brush = Brush.linearGradient(
                 colors = listOf(
                     Color.Transparent,
-                    moonlight.copy(alpha = 0.045f),
-                    moonlight.copy(alpha = 0.075f),
-                    moonlight.copy(alpha = 0.035f),
+                    moonlight.copy(alpha = 0.018f),
+                    moonlight.copy(alpha = 0.04f),
+                    moonlight.copy(alpha = 0.018f),
                     Color.Transparent
                 ),
-                startX = 0f,
-                endX = width
-            )
+                start = Offset(width * 0.96f, height * 0.02f),
+                end = Offset(width * 0.18f, height * 0.58f)
+            ),
+            size = size
         )
     }
 }
