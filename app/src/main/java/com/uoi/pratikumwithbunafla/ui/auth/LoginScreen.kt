@@ -653,7 +653,7 @@ fun LoginScreen(
                     textAlign = TextAlign.Center
                 )
             }
-            Spacer(modifier = Modifier.height(13.dp))
+            Spacer(modifier = Modifier.height(19.dp))
             AnimatedVisibility(
                 visibleState = loginEntry,
                 enter = fadeIn(animationSpec = tween(850, delayMillis = 240, easing = FastOutSlowInEasing)) +
@@ -681,7 +681,7 @@ fun LoginScreen(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             AnimatedVisibility(
                 visibleState = loginEntry,
