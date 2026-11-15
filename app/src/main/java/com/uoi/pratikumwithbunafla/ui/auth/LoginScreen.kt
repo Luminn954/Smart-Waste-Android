@@ -288,22 +288,6 @@ private fun SmartWasteBackdrop(
         } else {
             Color(0xFF5C896B).copy(alpha = 0.43f)
         }
-        if (darkMode) {
-            val skyPhase = skyMotion * 2f * PI.toFloat()
-            val stars = listOf(
-                Offset(w * 0.18f, h * 0.18f),
-                Offset(w * 0.47f, h * 0.12f),
-                Offset(w * 0.68f, h * 0.34f),
-                Offset(w * 0.91f, h * 0.43f)
-            )
-            stars.forEachIndexed { index, star ->
-                val twinkle = 0.34f + 0.46f * (
-                    0.5f + 0.5f * sin((skyPhase + index * 1.4f).toDouble()).toFloat()
-                )
-                drawCircle(Color(0xFFE8F1E5).copy(alpha = twinkle), (1.4f + index % 2 * 0.5f).dp.toPx(), star)
-            }
-        }
-
         drawPath(
             path = Path().apply {
                 moveTo(0f, h * 0.42f)
@@ -326,6 +310,22 @@ private fun SmartWasteBackdrop(
             },
             color = nearHill
         )
+
+        if (darkMode) {
+            val skyPhase = skyMotion * 2f * PI.toFloat()
+            val stars = listOf(
+                Offset(w * 0.18f, h * 0.18f),
+                Offset(w * 0.47f, h * 0.12f),
+                Offset(w * 0.68f, h * 0.34f),
+                Offset(w * 0.91f, h * 0.43f)
+            )
+            stars.forEachIndexed { index, star ->
+                val twinkle = 0.92f + 0.08f * (
+                    0.5f + 0.5f * sin((skyPhase + index * 1.4f).toDouble()).toFloat()
+                )
+                drawCircle(Color.White.copy(alpha = twinkle), (1.4f + index % 2 * 0.5f).dp.toPx(), star)
+            }
+        }
 
     }
 }
