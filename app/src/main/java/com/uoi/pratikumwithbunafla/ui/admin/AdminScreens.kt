@@ -3159,27 +3159,37 @@ fun AdminOperationsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Box(modifier = Modifier.size(56.dp)) {
+                                val canEditWorkerPhoto = account.role == UserRole.ADMIN && item.hasAccount
+                                val openWorkerPhotoPicker: () -> Unit = {
+                                    photoTarget = item
+                                    workerPhotoPicker.launch("image/*")
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clickable(
+                                            enabled = canEditWorkerPhoto && uploadingPhotoWorkerId == null,
+                                            role = Role.Button,
+                                            onClick = openWorkerPhotoPicker
+                                        )
+                                ) {
                                     UserAvatar(
                                         item.name.displayPersonName(),
                                         modifier = Modifier.fillMaxSize(),
                                         photoUrl = item.profilePhotoUrl
                                     )
-                                    if (account.role == UserRole.ADMIN && item.hasAccount) {
+                                    if (canEditWorkerPhoto) {
                                         IconButton(
-                                            onClick = {
-                                                photoTarget = item
-                                                workerPhotoPicker.launch("image/*")
-                                            },
+                                            onClick = openWorkerPhotoPicker,
                                             enabled = uploadingPhotoWorkerId == null,
                                             modifier = Modifier
                                                 .align(Alignment.BottomEnd)
                                                 .offset(x = 6.dp, y = 6.dp)
-                                                .size(20.dp)
+                                                .size(22.dp)
                                         ) {
                                             if (uploadingPhotoWorkerId == item.id) {
                                                 CircularProgressIndicator(
-                                                    modifier = Modifier.size(13.dp),
+                                                    modifier = Modifier.size(15.dp),
                                                     strokeWidth = 2.dp,
                                                     color = LoginAccent
                                                 )
@@ -3188,7 +3198,7 @@ fun AdminOperationsScreen(
                                                     imageVector = Icons.Filled.PhotoCamera,
                                                     contentDescription = "Ganti foto profil ${item.name}",
                                                     tint = if (isDarkMode) Color.White else LoginAccent,
-                                                    modifier = Modifier.size(14.dp)
+                                                    modifier = Modifier.size(17.dp)
                                                 )
                                             }
                                         }
