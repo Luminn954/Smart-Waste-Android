@@ -2829,14 +2829,14 @@ fun AdminOperationsScreen(
         val operationsTabs = listOf(
             "petugas" to "Petugas",
             "armada" to "Perbaikan · ${vehicleRepairs.count { it.status !in setOf("selesai", "ditolak") }}",
-            "pengosongan" to "Kapasitas · ${capacityClearanceRequests.count { it.isPending }}",
+            "pengosongan" to "Pengosongan · ${capacityClearanceRequests.count { it.isPending }}",
             "bukti" to "Bukti kerja · ${completionReviews.size + reports.count { !it.locationEvidencePhotoUrl.isNullOrBlank() }}"
         )
         AdminSectionHeading(
             when (tab) {
                 "bukti" -> "ADMIN • KINERJA"
                 "armada" -> "ADMIN • ARMADA"
-                "pengosongan" -> "ADMIN • KAPASITAS"
+                "pengosongan" -> "ADMIN • PERSETUJUAN"
                 else -> "ADMIN • OPERASIONAL"
             },
             when (tab) {
@@ -2848,7 +2848,7 @@ fun AdminOperationsScreen(
             when (tab) {
                 "bukti" -> "Tinjau foto hasil kerja, minta perbaikan, atau setujui penyelesaian."
                 "armada" -> "Setujui perbaikan dan periksa kendaraan sebelum kembali beroperasi."
-                "pengosongan" -> "Tinjau bukti foto sebelum mengatur kapasitas aset kembali kosong."
+                "pengosongan" -> "Petugas mengirim foto setelah aset dikosongkan. Tinjau bukti lalu setujui atau tolak permintaannya."
                 else -> "Atur akun petugas dan pantau pembagian tugas."
             }
         )
@@ -2956,7 +2956,7 @@ fun AdminOperationsScreen(
                 if (visibleRequests.isEmpty()) {
                     EmptyAdminState(
                         if (showingClearanceHistory) "Belum ada keputusan pengosongan."
-                        else "Belum ada permintaan kapasitas yang perlu ditinjau."
+                        else "Belum ada permintaan pengosongan yang menunggu persetujuan."
                     )
                 }
                 visibleRequests.forEach { request ->
