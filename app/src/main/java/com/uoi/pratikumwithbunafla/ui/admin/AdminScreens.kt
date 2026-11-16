@@ -2131,6 +2131,7 @@ private fun AdminReportCard(
             add(it.toDisplayDateTime())
         }
     }.joinToString("  ·  ")
+    val hasActions = onReject != null || onAssign != null || onArchive != null || onRestore != null
     AppCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = AppSurface,
@@ -2242,34 +2243,22 @@ private fun AdminReportCard(
                         )
                     }
                 }
-            } else if (compact) {
+            }
+            if (compact || hasActions) AppCardDivider()
+            if (compact) {
                 TextButton(
-                    onClick = { showDetails = true },
+                    onClick = { showDetails = !showDetails },
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                 ) {
                     Text(
-                        "Lihat detail ↓",
-                        color = LoginAccent,
+                        if (showDetails) "Tutup detail ↑" else "Lihat detail ↓",
+                        color = if (showDetails) LoginMuted else LoginAccent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
-            if (compact && showDetails) {
-                TextButton(
-                    onClick = { showDetails = false },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
-                ) {
-                    Text(
-                        "Tutup detail ↑",
-                        color = LoginMuted,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-            if (onReject != null || onAssign != null || onArchive != null || onRestore != null) {
-                AppCardDivider()
+            if (hasActions) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
