@@ -3088,10 +3088,7 @@ fun AdminOperationsScreen(
                 }
             }
             "petugas" -> {
-                SectionTitle(
-                    "Data petugas",
-                    "Akun Android dibuat oleh admin, tidak melalui registrasi umum"
-                )
+                SectionTitle("Data petugas")
                 AppButton(
                     "＋ Tambah akun petugas",
                     { adding = true },
@@ -7724,15 +7721,17 @@ private fun reportAccent(status: String): Color = when (status) {
 }
 
 @Composable
-private fun SectionTitle(title: String, subtitle: String) {
+private fun SectionTitle(title: String, subtitle: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, color = AppText, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold)
-        Text(
-            subtitle,
-            color = AppTextMuted,
-            fontSize = 13.sp,
-            lineHeight = 19.sp
-        )
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                subtitle,
+                color = AppTextMuted,
+                fontSize = 13.sp,
+                lineHeight = 19.sp
+            )
+        }
     }
 }
 
