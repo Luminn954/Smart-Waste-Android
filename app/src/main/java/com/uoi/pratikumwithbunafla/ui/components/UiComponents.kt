@@ -11,7 +11,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -19,8 +18,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +36,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -62,7 +58,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -76,10 +74,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.sin
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
@@ -101,8 +97,6 @@ import com.uoi.pratikumwithbunafla.ui.theme.InterFont
 
 private val SplashForest = Color(0xFF1B714C)
 private val SplashLeaf = Color(0xFF4A9B68)
-private val SplashText = Color(0xFF25392D)
-private val SplashMuted = Color(0xFF596C5D)
 
 @Composable
 fun AppScreen(content: @Composable () -> Unit) {
@@ -229,30 +223,6 @@ fun SmartWasteSplash() {
                 verticalArrangement = Arrangement.Center
             ) {
                 SplashLogoAssembly(compactScreen)
-                Spacer(modifier = Modifier.height(if (compactScreen) 28.dp else 36.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = SplashForest,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(9.dp))
-                    Text(
-                        text = "Menyiapkan ruang kerja...",
-                        modifier = Modifier.weight(1f),
-                        color = SplashMuted,
-                        fontSize = 12.sp,
-                        fontFamily = InterFont,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.05.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
         }
     }
@@ -261,64 +231,81 @@ fun SmartWasteSplash() {
 @Composable
 private fun SplashLogoAssembly(compactScreen: Boolean) {
     val logoSize = if (compactScreen) 144.dp else 160.dp
-    val sliceCount = 5
-    val startRotations = listOf(-32f, 25f, -27f, 31f, -22f)
-    val slices = remember { List(sliceCount) { Animatable(0f) } }
-    val formation = remember { Animatable(0f) }
+    val arcProgress = remember { Animatable(0f) }
+    val logoProgress = remember { Animatable(0f) }
+    val nameProgress = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        coroutineScope {
-            slices.forEachIndexed { index, slice ->
-                launch {
-                    delay(index * 150L)
-                    slice.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
-                    )
-                }
-            }
-        }
-        formation.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(dampingRatio = 0.78f, stiffness = 460f)
-        )
+        arcProgress.animateTo(1f, tween(1050, easing = FastOutSlowInEasing))
+        logoProgress.animateTo(1f, tween(480, easing = FastOutSlowInEasing))
+        delay(120)
+        nameProgress.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
     }
 
-    Box(
-        modifier = Modifier
-            .size(logoSize)
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.22f))
-    ) {
-        val logoPainter = painterResource(R.drawable.login_recycling_mark)
-        slices.forEachIndexed { index, slice ->
-            val dropProgress = slice.value
-            val formProgress = formation.value
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(logoSize)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.22f)),
+            contentAlignment = Alignment.Center
+        ) {
             Image(
-                painter = logoPainter,
-                contentDescription = null,
+                painter = painterResource(R.drawable.login_recycling_mark),
+                contentDescription = "Logo daur ulang Smart Waste",
                 colorFilter = SplashLogoFilter,
                 modifier = Modifier
-                    .offset(y = -(logoSize * ((1f - dropProgress) * 0.88f)))
-                    .size(logoSize)
+                    .fillMaxSize()
                     .graphicsLayer {
-                        alpha = dropProgress
-                        rotationZ = startRotations[index] * (1f - formProgress)
-                        val scale = 0.94f + formProgress * 0.06f
+                        alpha = logoProgress.value
+                        val scale = 0.90f + 0.10f * logoProgress.value
                         scaleX = scale
                         scaleY = scale
                     }
-                    .drawWithContent {
-                        val bandHeight = size.height / sliceCount
-                        clipRect(
-                            top = bandHeight * index,
-                            bottom = bandHeight * (index + 1)
-                        ) {
-                            this@drawWithContent.drawContent()
-                        }
-                    }
             )
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val progress = arcProgress.value.coerceIn(0f, 1f)
+                val arcRotation = (1f - progress) * 45f
+                val arcSweep = 22f + progress * 158f
+                val arcAlpha = 1f - logoProgress.value
+                val inset = 4.dp.toPx()
+                val arcBounds = Offset(inset, inset)
+                val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
+                val arcStroke = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round)
+
+                drawArc(
+                    color = SplashLeaf.copy(alpha = arcAlpha),
+                    startAngle = -90f - arcRotation,
+                    sweepAngle = arcSweep,
+                    useCenter = false,
+                    topLeft = arcBounds,
+                    size = arcSize,
+                    style = arcStroke
+                )
+                drawArc(
+                    color = SplashForest.copy(alpha = arcAlpha),
+                    startAngle = 90f - arcRotation,
+                    sweepAngle = arcSweep,
+                    useCenter = false,
+                    topLeft = arcBounds,
+                    size = arcSize,
+                    style = arcStroke
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(if (compactScreen) 14.dp else 18.dp))
+        Text(
+            text = "Smart Waste",
+            color = SplashForest,
+            fontSize = if (compactScreen) 21.sp else 23.sp,
+            fontFamily = InterFont,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.1.sp,
+            modifier = Modifier.graphicsLayer {
+                alpha = nameProgress.value
+                translationY = (1f - nameProgress.value) * 7.dp.toPx()
+            }
+        )
     }
 }
 
