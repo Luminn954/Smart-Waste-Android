@@ -15,6 +15,8 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
+class SessionExpiredException(message: String) : IllegalStateException(message)
+
 /** REST client Android untuk ruang Admin dan Petugas Smart Waste. */
 object SmartWasteApi {
     // Gunakan alamat build terlebih dahulu, lalu temukan ulang server jika IP laptop berubah.
@@ -61,6 +63,11 @@ object SmartWasteApi {
                         val json = JSONObject(text)
                         json.optString("message").ifBlank { json.optString("detail") }
                     }.getOrNull().orEmpty()
+                    if (code == HttpURLConnection.HTTP_UNAUTHORIZED && authToken != null) {
+                        throw SessionExpiredException(
+                            message.ifBlank { "Sesi login sudah berakhir. Silakan masuk kembali." }
+                        )
+                    }
                     throw IllegalStateException(message.ifBlank { "Server mengembalikan error ($code)." })
                 }
                 JSONObject(text)
@@ -150,6 +157,7 @@ object SmartWasteApi {
     ): JSONObject = withContext(Dispatchers.IO) {
         val host = LanServerResolver.resolveHost(configuredApiUrl)
         val boundary = "SmartWaste-${System.nanoTime()}"
+        val authToken = token
         val connection = (URL("${LanServerResolver.apiBaseUrl(host)}$path").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
@@ -158,7 +166,7 @@ object SmartWasteApi {
             doOutput = true
             setRequestProperty("Accept", "application/json")
             setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-            token?.let { setRequestProperty("Authorization", "Bearer $it") }
+            authToken?.let { setRequestProperty("Authorization", "Bearer $it") }
         }
         try {
             DataOutputStream(connection.outputStream).use { output ->
@@ -183,6 +191,12 @@ object SmartWasteApi {
             }.orEmpty()
             if (code !in 200..299) {
                 val message = runCatching { JSONObject(response).optString("message") }.getOrNull()
+                if (code == HttpURLConnection.HTTP_UNAUTHORIZED && authToken != null) {
+                    throw SessionExpiredException(
+                        message?.takeIf { it.isNotBlank() }
+                            ?: "Sesi login sudah berakhir. Silakan masuk kembali."
+                    )
+                }
                 throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "Foto bukti gagal dikirim ($code).")
             }
             JSONObject(response)

@@ -35,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import com.uoi.pratikumwithbunafla.data.model.*
 import com.uoi.pratikumwithbunafla.data.remote.LanAppUpdate
 import com.uoi.pratikumwithbunafla.data.remote.LanAppUpdater
+import com.uoi.pratikumwithbunafla.data.remote.SessionExpiredException
 import com.uoi.pratikumwithbunafla.data.remote.SmartWasteApi
 import com.uoi.pratikumwithbunafla.domain.WasteFlow
 import com.uoi.pratikumwithbunafla.ui.admin.*
@@ -112,6 +113,7 @@ class MainActivity : ComponentActivity() {
                 var dailyRangeDays by rememberSaveable { mutableIntStateOf(30) }
                 var statistics by remember { mutableStateOf(AdminStatistics()) }
                 var errorMessage by remember { mutableStateOf("") }
+                var loginNotice by remember { mutableStateOf("") }
                 var hasLoadedWorkspace by remember { mutableStateOf(false) }
                 var isRefreshingWorkspace by remember { mutableStateOf(false) }
                 val workspaceRefreshMutex = remember { Mutex() }
@@ -124,14 +126,49 @@ class MainActivity : ComponentActivity() {
                 var downloadedUpdate by remember { mutableStateOf<File?>(null) }
                 var updateMessage by remember { mutableStateOf("") }
 
+                fun signOut(message: String? = null) {
+                    scope.launch { SmartWasteApi.logout() }
+                    activeAccount = null
+                    reports = emptyList()
+                    archivedReports = emptyList()
+                    incomingReports = emptyList()
+                    tasks = emptyList()
+                    archivedPetugasTasks = emptyList()
+                    workers = emptyList()
+                    completionReviews = emptyList()
+                    vehicles = emptyList()
+                    vehicleRepairs = emptyList()
+                    facilities = emptyList()
+                    capacityClearanceRequests = emptyList()
+                    dailyReports = emptyList()
+                    statistics = AdminStatistics()
+                    summary = AdminDashboardSummary()
+                    errorMessage = ""
+                    loginNotice = message.orEmpty()
+                    hasLoadedWorkspace = false
+                    selectedStatus = null
+                    selectedReportView = "verify"
+                    selectedOpsTab = "petugas"
+                    navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                }
+
                 suspend fun refreshWorkspace() {
                     val account = activeAccount ?: return
                     if (!workspaceRefreshMutex.tryLock()) return
                     isRefreshingWorkspace = true
                     val loadErrors = mutableListOf<String>()
                     try {
-                        runCatching { SmartWasteApi.currentAccount() }
-                            .getOrNull()
+                        val refreshedAccount = try {
+                            SmartWasteApi.currentAccount()
+                        } catch (expired: SessionExpiredException) {
+                            signOut("Sesi login sudah berakhir. Silakan masuk kembali.")
+                            return
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            null
+                        }
+                        refreshedAccount
                             ?.takeIf { activeAccount?.username == account.username }
                             ?.let { activeAccount = it }
                         if (account.role == UserRole.ADMIN) {
@@ -212,35 +249,12 @@ class MainActivity : ComponentActivity() {
                         errorMessage = loadErrors.take(4).joinToString("\n") +
                                 if (loadErrors.size > 4) "\n+ ${loadErrors.size - 4} data lain gagal dimuat" else ""
                         hasLoadedWorkspace = true
+                    } catch (expired: SessionExpiredException) {
+                        signOut("Sesi login sudah berakhir. Silakan masuk kembali.")
                     } finally {
                         isRefreshingWorkspace = false
                         workspaceRefreshMutex.unlock()
                     }
-                }
-
-                fun signOut() {
-                    scope.launch { SmartWasteApi.logout() }
-                    activeAccount = null
-                    reports = emptyList()
-                    archivedReports = emptyList()
-                    incomingReports = emptyList()
-                    tasks = emptyList()
-                    archivedPetugasTasks = emptyList()
-                    workers = emptyList()
-                    completionReviews = emptyList()
-                    vehicles = emptyList()
-                    vehicleRepairs = emptyList()
-                    facilities = emptyList()
-                    capacityClearanceRequests = emptyList()
-                    dailyReports = emptyList()
-                    statistics = AdminStatistics()
-                    summary = AdminDashboardSummary()
-                    errorMessage = ""
-                    hasLoadedWorkspace = false
-                    selectedStatus = null
-                    selectedReportView = "verify"
-                    selectedOpsTab = "petugas"
-                    navController.navigate("login") { popUpTo(0) { inclusive = true } }
                 }
 
                 fun navigateAdminRoute(route: String) {
@@ -326,6 +340,7 @@ class MainActivity : ComponentActivity() {
                         composable("login") {
                             LoginScreen(
                                 initialDarkMode = isDarkMode,
+                                initialMessage = loginNotice,
                                 onAuthenticate = { username, password, selectedRole ->
                                     val account = SmartWasteApi.login(username.trim(), password)
                                     if (account.role != selectedRole) {
@@ -336,6 +351,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                     hasLoadedWorkspace = false
                                     errorMessage = ""
+                                    loginNotice = ""
                                     activeAccount = account
                                     selectedStatus = null
                                     selectedReportView = "verify"
@@ -868,6 +884,8 @@ private suspend fun <T> loadOrKeep(
     load()
 } catch (cancelled: CancellationException) {
     throw cancelled
+} catch (expired: SessionExpiredException) {
+    throw expired
 } catch (error: Exception) {
     errors += "$label: ${error.message ?: "gagal dimuat."}"
     currentValue

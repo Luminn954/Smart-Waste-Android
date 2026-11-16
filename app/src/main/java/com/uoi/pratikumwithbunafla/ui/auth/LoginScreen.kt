@@ -374,6 +374,7 @@ fun LoginScreen(
     onCheckConnection: suspend () -> String,
     onLoginSuccess: () -> Unit,
     initialDarkMode: Boolean = false,
+    initialMessage: String = "",
     onThemeModeChange: (Boolean) -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
@@ -399,7 +400,7 @@ fun LoginScreen(
     var selectedRole by rememberSaveable { mutableStateOf<UserRole?>(null) }
     var isDarkMode by rememberSaveable(initialDarkMode) { mutableStateOf(initialDarkMode) }
     var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf(initialMessage) }
     var showForgotDialog by remember { mutableStateOf(false) }
     var serverReachable by remember { mutableStateOf<Boolean?>(null) }
     val scope = rememberCoroutineScope()
@@ -418,6 +419,10 @@ fun LoginScreen(
         ),
         label = "login-logo-drift"
     )
+
+    LaunchedEffect(initialMessage) {
+        errorMessage = initialMessage
+    }
 
     LaunchedEffect(Unit) {
         runCatching { onCheckConnection() }
