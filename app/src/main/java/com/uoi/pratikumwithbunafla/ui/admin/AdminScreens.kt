@@ -6760,6 +6760,7 @@ private fun SmartWasteSearchField(
                     textStyle = TextStyle(
                         color = AppText,
                         fontFamily = InterFont,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
                     ),
@@ -6828,6 +6829,7 @@ private fun SmartWasteSearchField(
                             text = suggestionText,
                             color = AppText,
                             fontFamily = InterFont,
+                            fontWeight = FontWeight.Medium,
                             fontSize = 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
