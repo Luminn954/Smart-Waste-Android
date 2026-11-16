@@ -229,18 +229,7 @@ fun SmartWasteSplash() {
                 verticalArrangement = Arrangement.Center
             ) {
                 SplashLogoAssembly(compactScreen)
-                Spacer(modifier = Modifier.height(if (compactScreen) 20.dp else 24.dp))
-                Text(
-                    text = "Kelola sampah lebih mudah, mulai dari lingkungan sekitar.",
-                    color = SplashMuted,
-                    fontSize = 15.sp,
-                    fontFamily = InterFont,
-                    fontWeight = FontWeight.Medium,
-                    lineHeight = 21.sp,
-                    letterSpacing = 0.05.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(30.dp))
+                Spacer(modifier = Modifier.height(if (compactScreen) 28.dp else 36.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.Center,
