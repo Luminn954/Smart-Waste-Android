@@ -648,10 +648,11 @@ fun UserAvatar(
             }
         }
     }
+    val avatarShape = if (photo != null) RoundedCornerShape(10.dp) else CircleShape
     Box(
         modifier = modifier
             .size(42.dp)
-            .clip(CircleShape)
+            .clip(avatarShape)
             .background(if (photo != null) AppSurface else WasteGreenDark),
         contentAlignment = Alignment.Center
     ) {
