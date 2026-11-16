@@ -86,6 +86,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -943,6 +944,15 @@ private fun MorningAtmosphere(modifier: Modifier = Modifier) {
         ),
         label = "morning-birds"
     )
+    val butterflyFlight by morningMotion.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 11000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "morning-butterflies"
+    )
 
     Canvas(modifier = modifier) {
         // A broad, cool morning sky with a soft warm horizon; no circular light source.
@@ -1030,6 +1040,113 @@ private fun MorningAtmosphere(modifier: Modifier = Modifier) {
                 )
             ),
             size = size
+        )
+
+        val butterflyPhase = butterflyFlight * 2f * PI.toFloat()
+        val firstBeat = 0.5f + 0.5f * sin(butterflyPhase * 7f)
+        val secondBeat = 0.5f + 0.5f * sin(butterflyPhase * 7f + PI.toFloat() / 2f)
+        val firstButterfly = Offset(
+            x = size.width * 0.14f + sin(butterflyPhase) * 14.dp.toPx(),
+            y = size.height * 0.13f + cos(butterflyPhase) * 6.dp.toPx()
+        )
+        val secondButterfly = Offset(
+            x = size.width * 0.86f + sin(butterflyPhase + PI.toFloat()) * 12.dp.toPx(),
+            y = size.height * 0.19f + cos(butterflyPhase + PI.toFloat()) * 5.dp.toPx()
+        )
+        drawSoftButterfly(
+            center = firstButterfly,
+            span = 18.dp.toPx(),
+            wingBeat = firstBeat,
+            tilt = sin(butterflyPhase) * 5f,
+            color = Color(0xFF4E8B65).copy(alpha = 0.54f)
+        )
+        drawSoftButterfly(
+            center = secondButterfly,
+            span = 15.dp.toPx(),
+            wingBeat = secondBeat,
+            tilt = sin(butterflyPhase + PI.toFloat()) * 4f,
+            color = Color(0xFF9C805A).copy(alpha = 0.48f)
+        )
+    }
+}
+
+private fun DrawScope.drawSoftButterfly(
+    center: Offset,
+    span: Float,
+    wingBeat: Float,
+    tilt: Float,
+    color: Color
+) {
+    val wingReach = span * (0.72f + wingBeat * 0.16f)
+    val wingHeight = span * (0.50f + wingBeat * 0.10f)
+
+    rotate(degrees = tilt, pivot = center) {
+        val upperLeft = Path().apply {
+            moveTo(center.x, center.y)
+            cubicTo(
+                center.x - wingReach * 0.20f, center.y - wingHeight * 0.92f,
+                center.x - wingReach * 0.86f, center.y - wingHeight * 1.14f,
+                center.x - wingReach, center.y - wingHeight * 0.30f
+            )
+            cubicTo(
+                center.x - wingReach * 0.92f, center.y + wingHeight * 0.12f,
+                center.x - wingReach * 0.30f, center.y + wingHeight * 0.08f,
+                center.x, center.y
+            )
+            close()
+        }
+        val upperRight = Path().apply {
+            moveTo(center.x, center.y)
+            cubicTo(
+                center.x + wingReach * 0.20f, center.y - wingHeight * 0.92f,
+                center.x + wingReach * 0.86f, center.y - wingHeight * 1.14f,
+                center.x + wingReach, center.y - wingHeight * 0.30f
+            )
+            cubicTo(
+                center.x + wingReach * 0.92f, center.y + wingHeight * 0.12f,
+                center.x + wingReach * 0.30f, center.y + wingHeight * 0.08f,
+                center.x, center.y
+            )
+            close()
+        }
+        val lowerLeft = Path().apply {
+            moveTo(center.x, center.y + wingHeight * 0.08f)
+            cubicTo(
+                center.x - wingReach * 0.34f, center.y + wingHeight * 0.02f,
+                center.x - wingReach * 0.70f, center.y + wingHeight * 0.34f,
+                center.x - wingReach * 0.54f, center.y + wingHeight * 0.78f
+            )
+            cubicTo(
+                center.x - wingReach * 0.20f, center.y + wingHeight * 0.80f,
+                center.x - wingReach * 0.10f, center.y + wingHeight * 0.34f,
+                center.x, center.y + wingHeight * 0.20f
+            )
+            close()
+        }
+        val lowerRight = Path().apply {
+            moveTo(center.x, center.y + wingHeight * 0.08f)
+            cubicTo(
+                center.x + wingReach * 0.34f, center.y + wingHeight * 0.02f,
+                center.x + wingReach * 0.70f, center.y + wingHeight * 0.34f,
+                center.x + wingReach * 0.54f, center.y + wingHeight * 0.78f
+            )
+            cubicTo(
+                center.x + wingReach * 0.20f, center.y + wingHeight * 0.80f,
+                center.x + wingReach * 0.10f, center.y + wingHeight * 0.34f,
+                center.x, center.y + wingHeight * 0.20f
+            )
+            close()
+        }
+
+        drawPath(upperLeft, color)
+        drawPath(upperRight, color)
+        drawPath(lowerLeft, color.copy(alpha = color.alpha * 0.82f))
+        drawPath(lowerRight, color.copy(alpha = color.alpha * 0.82f))
+        drawLine(
+            color = color.copy(alpha = color.alpha * 0.92f),
+            start = Offset(center.x, center.y - wingHeight * 0.24f),
+            end = Offset(center.x, center.y + wingHeight * 0.64f),
+            strokeWidth = 0.8.dp.toPx()
         )
     }
 }
