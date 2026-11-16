@@ -3088,257 +3088,262 @@ fun AdminOperationsScreen(
                 }
             }
             "petugas" -> {
-                SectionTitle("Data petugas")
-                AppButton(
-                    "＋ Tambah akun petugas",
-                    { adding = true },
-                    containerColor = LoginAccent
-                )
-                SmartWasteSearchField(
-                    value = workerSearch,
-                    onValueChange = { workerSearch = it.take(80) },
-                    placeholder = "Cari nama, username, atau zona",
-                    suggestionSource = workerSearchSuggestions
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    workerFilters.forEach { (filter, label) ->
-                        val selected = workerFilter == filter
-                        TextButton(
-                            onClick = { workerFilter = filter },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                horizontal = 10.dp,
-                                vertical = 5.dp
-                            ),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (selected) LoginAccent else AppTextMuted,
-                                containerColor = if (selected) RoleAccentSurface else AppSurfaceMuted
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
-                    }
-                }
-                if (workers.isEmpty()) EmptyAdminState("Belum ada data petugas.")
-                else if (visibleWorkers.isEmpty()) {
-                    EmptyAdminState(
-                        if (workerSearchQuery.isNotBlank()) "Petugas tidak ditemukan."
-                        else "Tidak ada petugas pada filter ini."
+                    SectionTitle("Data petugas")
+                    AppButton(
+                        "＋ Tambah akun petugas",
+                        { adding = true },
+                        containerColor = LoginAccent
                     )
-                }
-                visibleWorkers.forEach { item ->
-                    val isDarkMode = LocalSmartWasteAppearance.current.darkMode
-                    val workerCardColor = AppCardSurface
-                    val workerTextColor = if (isDarkMode) AppText else Color(0xFF202820)
-                    val workerDetailColor = AppTextMuted
-                    val workerActionColor = if (isDarkMode) LoginAccent else Color(0xFF176B49)
-                    val workerWarningColor = if (isDarkMode) RoleRed else Color(0xFF963E45)
-                    val accountState = when {
-                        !item.hasAccount -> "Tanpa akun"
-                        item.active -> "Aktif"
-                        else -> "Nonaktif"
-                    }
-                    val accountStateColor = when {
-                        !item.hasAccount -> workerWarningColor
-                        item.active -> if (isDarkMode) RoleGreen else Color(0xFF236B49)
-                        else -> workerWarningColor
-                    }
-                    AppCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = workerCardColor,
-                        borderColor = AppBorder,
-                        accentColor = if (item.active && item.hasAccount) LoginAccent else RoleRed
+                    SmartWasteSearchField(
+                        value = workerSearch,
+                        onValueChange = { workerSearch = it.take(80) },
+                        placeholder = "Cari nama, username, atau zona",
+                        suggestionSource = workerSearchSuggestions
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        workerFilters.forEach { (filter, label) ->
+                            val selected = workerFilter == filter
+                            TextButton(
+                                onClick = { workerFilter = filter },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 12.dp,
+                                    vertical = 6.dp
+                                ),
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = if (selected) LoginAccent else AppTextMuted,
+                                    containerColor = if (selected) RoleAccentSurface else AppSurfaceMuted
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                        }
+                    }
+                    if (workers.isEmpty()) EmptyAdminState("Belum ada data petugas.")
+                    else if (visibleWorkers.isEmpty()) {
+                        EmptyAdminState(
+                            if (workerSearchQuery.isNotBlank()) "Petugas tidak ditemukan."
+                            else "Tidak ada petugas pada filter ini."
+                        )
+                    }
+                    visibleWorkers.forEach { item ->
+                        val isDarkMode = LocalSmartWasteAppearance.current.darkMode
+                        val workerCardColor = AppCardSurface
+                        val workerTextColor = if (isDarkMode) AppText else Color(0xFF202820)
+                        val workerDetailColor = AppTextMuted
+                        val workerActionColor = if (isDarkMode) LoginAccent else Color(0xFF176B49)
+                        val workerWarningColor = if (isDarkMode) RoleRed else Color(0xFF963E45)
+                        val accountState = when {
+                            !item.hasAccount -> "Tanpa akun"
+                            item.active -> "Aktif"
+                            else -> "Nonaktif"
+                        }
+                        val accountStateColor = when {
+                            !item.hasAccount -> workerWarningColor
+                            item.active -> if (isDarkMode) RoleGreen else Color(0xFF236B49)
+                            else -> workerWarningColor
+                        }
+                        AppCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = workerCardColor,
+                            borderColor = AppBorder,
+                            accentColor = if (item.active && item.hasAccount) LoginAccent else RoleRed
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                val canEditWorkerPhoto = account.role == UserRole.ADMIN && item.hasAccount
-                                val openWorkerPhotoPicker: () -> Unit = {
-                                    photoTarget = item
-                                    workerPhotoPicker.launch("image/*")
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .clickable(
-                                            enabled = canEditWorkerPhoto && uploadingPhotoWorkerId == null,
-                                            role = Role.Button,
-                                            onClick = openWorkerPhotoPicker
-                                        )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
-                                    UserAvatar(
-                                        item.name.displayPersonName(),
-                                        modifier = Modifier.fillMaxSize(),
-                                        photoUrl = item.profilePhotoUrl
-                                    )
-                                    if (canEditWorkerPhoto) {
-                                        IconButton(
-                                            onClick = openWorkerPhotoPicker,
-                                            enabled = uploadingPhotoWorkerId == null,
-                                            modifier = Modifier
-                                                .align(Alignment.BottomEnd)
-                                                .offset(x = 6.dp, y = 6.dp)
-                                                .size(22.dp)
-                                        ) {
-                                            if (uploadingPhotoWorkerId == item.id) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(15.dp),
-                                                    strokeWidth = 2.dp,
-                                                    color = LoginAccent
-                                                )
-                                            } else {
-                                                Icon(
-                                                    imageVector = Icons.Filled.PhotoCamera,
-                                                    contentDescription = "Ganti foto profil ${item.name}",
-                                                    tint = if (isDarkMode) Color.White else LoginAccent,
-                                                    modifier = Modifier.size(17.dp)
-                                                )
+                                    val canEditWorkerPhoto = account.role == UserRole.ADMIN && item.hasAccount
+                                    val openWorkerPhotoPicker: () -> Unit = {
+                                        photoTarget = item
+                                        workerPhotoPicker.launch("image/*")
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(56.dp)
+                                            .clickable(
+                                                enabled = canEditWorkerPhoto && uploadingPhotoWorkerId == null,
+                                                role = Role.Button,
+                                                onClick = openWorkerPhotoPicker
+                                            )
+                                    ) {
+                                        UserAvatar(
+                                            item.name.displayPersonName(),
+                                            modifier = Modifier.fillMaxSize(),
+                                            photoUrl = item.profilePhotoUrl
+                                        )
+                                        if (canEditWorkerPhoto) {
+                                            IconButton(
+                                                onClick = openWorkerPhotoPicker,
+                                                enabled = uploadingPhotoWorkerId == null,
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .offset(x = 6.dp, y = 6.dp)
+                                                    .size(22.dp)
+                                            ) {
+                                                if (uploadingPhotoWorkerId == item.id) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(15.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = LoginAccent
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.PhotoCamera,
+                                                        contentDescription = "Ganti foto profil ${item.name}",
+                                                        tint = if (isDarkMode) Color.White else LoginAccent,
+                                                        modifier = Modifier.size(17.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    Text(
-                                        item.name.displayPersonName(),
-                                        color = AppText,
-                                        fontSize = 16.sp,
-                                        lineHeight = 22.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        if (item.hasAccount) "@${item.username}" else "Belum ada akun Android",
-                                        color = if (item.hasAccount) workerDetailColor else workerWarningColor,
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50.dp))
-                                        .background(accountStateColor.copy(alpha = 0.12f))
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        accountState,
-                                        color = accountStateColor,
-                                        fontSize = 11.sp,
-                                        lineHeight = 14.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-
-                            Text(
-                                "Zona · ${item.zone.ifBlank { "Belum ditentukan" }}",
-                                color = workerDetailColor,
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text("Disetujui", color = workerDetailColor, fontSize = 12.sp)
-                                    Text(
-                                        "${item.completedTasks} tugas · ${item.completedWeightKg.pretty()} kg",
-                                        color = workerTextColor,
-                                        fontSize = 14.sp,
-                                        lineHeight = 19.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text("Aktif · bukti menunggu", color = workerDetailColor, fontSize = 12.sp)
-                                    Text(
-                                        "${item.activeTasks} tugas · ${item.pendingConfirmations} bukti",
-                                        color = workerTextColor,
-                                        fontSize = 14.sp,
-                                        lineHeight = 19.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            AppCardDivider()
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(onClick = { editingWorker = item }) {
-                                    Text("Ubah zona", color = workerActionColor, fontSize = 13.sp)
-                                }
-                                Spacer(modifier = Modifier.weight(1f))
-                                if (item.hasAccount) {
-                                    TextButton(
-                                        onClick = {
-                                            scope.launch {
-                                                if (updatingWorkerId != null) return@launch
-                                                updatingWorkerId = item.id
-                                                actionError = ""
-                                                try {
-                                                    onUpdateWorker(item, !item.active)
-                                                } catch (cancelled: CancellationException) {
-                                                    throw cancelled
-                                                } catch (error: Exception) {
-                                                    actionError = error.message
-                                                        ?: "Status petugas gagal diperbarui."
-                                                } finally {
-                                                    updatingWorkerId = null
-                                                }
-                                            }
-                                        },
-                                        enabled = updatingWorkerId == null
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
                                         Text(
-                                            when {
-                                                updatingWorkerId == item.id -> "Menyimpan…"
-                                                item.active -> "Nonaktifkan"
-                                                else -> "Aktifkan"
-                                            },
-                                            color = if (item.active) workerWarningColor else workerActionColor,
-                                            fontSize = 13.sp
+                                            item.name.displayPersonName(),
+                                            color = AppText,
+                                            fontSize = 16.sp,
+                                            lineHeight = 22.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            if (item.hasAccount) "@${item.username}" else "Belum ada akun Android",
+                                            color = if (item.hasAccount) workerDetailColor else workerWarningColor,
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
-                                    IconButton(
-                                        onClick = { deletingWorker = item },
-                                        modifier = Modifier.size(48.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50.dp))
+                                            .background(accountStateColor.copy(alpha = 0.12f))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
-                                        Icon(
-                                            Icons.Filled.Delete,
-                                            contentDescription = "Hapus akun petugas",
-                                            tint = RoleRed,
-                                            modifier = Modifier.size(18.dp)
+                                        Text(
+                                            accountState,
+                                            color = accountStateColor,
+                                            fontSize = 11.sp,
+                                            lineHeight = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
                                         )
                                     }
-                                } else {
-                                    Text("Akun sudah dihapus", color = workerDetailColor, fontSize = 12.sp)
+                                }
+
+                                Text(
+                                    "Zona · ${item.zone.ifBlank { "Belum ditentukan" }}",
+                                    color = workerDetailColor,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text("Disetujui", color = workerDetailColor, fontSize = 12.sp)
+                                        Text(
+                                            "${item.completedTasks} tugas · ${item.completedWeightKg.pretty()} kg",
+                                            color = workerTextColor,
+                                            fontSize = 14.sp,
+                                            lineHeight = 19.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text("Aktif · bukti menunggu", color = workerDetailColor, fontSize = 12.sp)
+                                        Text(
+                                            "${item.activeTasks} tugas · ${item.pendingConfirmations} bukti",
+                                            color = workerTextColor,
+                                            fontSize = 14.sp,
+                                            lineHeight = 19.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                AppCardDivider()
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextButton(onClick = { editingWorker = item }) {
+                                        Text("Ubah zona", color = workerActionColor, fontSize = 13.sp)
+                                    }
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    if (item.hasAccount) {
+                                        TextButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    if (updatingWorkerId != null) return@launch
+                                                    updatingWorkerId = item.id
+                                                    actionError = ""
+                                                    try {
+                                                        onUpdateWorker(item, !item.active)
+                                                    } catch (cancelled: CancellationException) {
+                                                        throw cancelled
+                                                    } catch (error: Exception) {
+                                                        actionError = error.message
+                                                            ?: "Status petugas gagal diperbarui."
+                                                    } finally {
+                                                        updatingWorkerId = null
+                                                    }
+                                                }
+                                            },
+                                            enabled = updatingWorkerId == null
+                                        ) {
+                                            Text(
+                                                when {
+                                                    updatingWorkerId == item.id -> "Menyimpan…"
+                                                    item.active -> "Nonaktifkan"
+                                                    else -> "Aktifkan"
+                                                },
+                                                color = if (item.active) workerWarningColor else workerActionColor,
+                                                fontSize = 13.sp
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { deletingWorker = item },
+                                            modifier = Modifier.size(48.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.Delete,
+                                                contentDescription = "Hapus akun petugas",
+                                                tint = RoleRed,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    } else {
+                                        Text("Akun sudah dihapus", color = workerDetailColor, fontSize = 12.sp)
+                                    }
                                 }
                             }
                         }
