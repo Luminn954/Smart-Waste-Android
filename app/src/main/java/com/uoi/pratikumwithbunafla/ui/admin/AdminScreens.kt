@@ -93,7 +93,6 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
@@ -6875,13 +6874,6 @@ private fun SmartWasteSearchField(
                     keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() })
                 )
             }
-            Spacer(Modifier.width(10.dp))
-            Icon(
-                Icons.Filled.Mic,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(22.dp)
-            )
         }
 
         AnimatedVisibility(
