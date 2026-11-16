@@ -68,10 +68,14 @@ internal object LanServerResolver {
             setRequestProperty("Connection", "close")
         }
         try {
-            if (connection.responseCode !in 200..299) return false
-            val body = connection.inputStream.bufferedReader().use { it.readText() }
-            JSONObject(body).optString("status") == "ok" &&
-                JSONObject(body).optString("service") == "Smart Waste REST API"
+            val responseCode = connection.responseCode
+            val responseStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+            val body = responseStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            JSONObject(body).optString("service") == "Smart Waste REST API"
         } finally {
             connection.disconnect()
         }

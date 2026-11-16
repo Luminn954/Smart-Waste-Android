@@ -213,11 +213,16 @@ object SmartWasteApi {
         val result = request("GET", "/health")
         val apiStatus = result.optString("status")
         val databaseStatus = result.optString("database")
+        if (databaseStatus != "connected") {
+            val message = when (databaseStatus) {
+                "unavailable" -> "Server API ditemukan, tetapi MySQL belum dapat dijangkau. Pastikan MySQL XAMPP aktif."
+                "integrity_issue" -> "Server API aktif, tetapi ada tabel database yang perlu dipulihkan."
+                else -> "API aktif, tetapi MySQL belum terhubung."
+            }
+            throw IllegalStateException(message)
+        }
         if (apiStatus != "ok") {
             throw IllegalStateException("API merespons dengan status: ${apiStatus.ifBlank { "tidak diketahui" }}.")
-        }
-        if (databaseStatus != "connected") {
-            throw IllegalStateException("API aktif, tetapi MySQL belum terhubung.")
         }
         return "Apache :8080 dan MySQL terhubung"
     }
