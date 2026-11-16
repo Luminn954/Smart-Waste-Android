@@ -7065,7 +7065,7 @@ private fun StaffAccountFormDialog(
                     fontSize = 11.sp
                 )
                 Text("Role akun · Petugas", color = AppTextMuted, fontSize = 11.sp)
-                FormField(name, { name = it }, "Nama lengkap")
+                FormField(name, { name = it.normalizePersonNameInput() }, "Nama lengkap")
                 FormField(username, { username = it }, "Username")
                 FormField(email, { email = it }, "Email akun")
                 FormField(password, { password = it }, "Password awal (minimal 8 karakter)")
@@ -7081,7 +7081,7 @@ private fun StaffAccountFormDialog(
                         saveError = ""
                         try {
                             onSave(
-                                name.trim(),
+                                name.displayPersonName(),
                                 username.trim(),
                                 email.trim(),
                                 password,
@@ -7838,6 +7838,15 @@ private fun String.displayPersonName(): String {
     val locale = java.util.Locale.forLanguageTag("id-ID")
     return value.split(' ').joinToString(" ") { word ->
         word.split('-').joinToString("-") { part ->
+            part.lowercase(locale).replaceFirstChar { first -> first.titlecase(locale) }
+        }
+    }
+}
+
+private fun String.normalizePersonNameInput(): String {
+    val locale = java.util.Locale.forLanguageTag("id-ID")
+    return Regex("\\S+").replace(this) { match ->
+        match.value.split('-').joinToString("-") { part ->
             part.lowercase(locale).replaceFirstChar { first -> first.titlecase(locale) }
         }
     }
