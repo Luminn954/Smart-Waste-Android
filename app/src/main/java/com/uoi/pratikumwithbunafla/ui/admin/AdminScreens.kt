@@ -3102,7 +3102,8 @@ fun AdminOperationsScreen(
                         value = workerSearch,
                         onValueChange = { workerSearch = it.take(80) },
                         placeholder = "Cari nama, username, atau zona",
-                        suggestionSource = workerSearchSuggestions
+                        suggestionSource = workerSearchSuggestions,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
