@@ -39,6 +39,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -155,6 +158,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.SpanStyle
@@ -2920,7 +2924,22 @@ fun AdminOperationsScreen(
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
         if (actionError.isNotBlank()) InlineError(actionError)
+        val operationsListState = rememberLazyListState()
         val operationsTabPositions = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
+        var operationsRowRootX by remember { mutableStateOf(0f) }
+        val selectedOperationsIndex = operationsTabs.indexOfFirst { it.first == tab }
+        LaunchedEffect(selectedOperationsIndex) {
+            if (selectedOperationsIndex >= 0) {
+                val selectedItem = operationsListState.layoutInfo.visibleItemsInfo
+                    .firstOrNull { it.index == selectedOperationsIndex }
+                val isFullyVisible = selectedItem != null &&
+                    selectedItem.offset >= operationsListState.layoutInfo.viewportStartOffset &&
+                    selectedItem.offset + selectedItem.size <= operationsListState.layoutInfo.viewportEndOffset
+                if (!isFullyVisible) {
+                    operationsListState.animateScrollToItem(selectedOperationsIndex)
+                }
+            }
+        }
         val activeTabBounds = operationsTabPositions[tab]
         val activeTabAccent = when (tab) {
             "petugas" -> RoleGreen
@@ -2943,58 +2962,66 @@ fun AdminOperationsScreen(
             animationSpec = tween(360, easing = FastOutSlowInEasing),
             label = "operations-tab-indicator-width"
         )
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .drawBehind {
-                    if (indicatorWidth > 0f) {
-                        drawRoundRect(
-                            color = indicatorColor,
-                            topLeft = Offset(indicatorX, 0f),
-                            size = Size(indicatorWidth, size.height),
-                            cornerRadius = CornerRadius(13.dp.toPx())
-                        )
-                    }
-                },
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                .onGloballyPositioned { operationsRowRootX = it.positionInRoot().x }
         ) {
-            operationsTabs.forEach { (key, label) ->
-                val selected = tab == key
-                val tabAccent = when (key) {
-                    "petugas" -> RoleGreen
-                    "armada" -> RoleOrange
-                    "pengosongan" -> RoleTeal
-                    else -> RolePurple
-                }
-                val tabContent by animateColorAsState(
-                    targetValue = if (selected) LoginAccent else LoginMuted,
-                    animationSpec = tween(220, easing = FastOutSlowInEasing),
-                    label = "operations-tab-$key-content"
-                )
-                val tabSurface by animateColorAsState(
-                    targetValue = tabAccent.copy(alpha = if (selected) 0f else 0.08f),
-                    animationSpec = tween(240, easing = FastOutSlowInEasing),
-                    label = "operations-tab-$key-surface"
-                )
-                TextButton(
-                    onClick = {
-                        tab = key
-                        onTabSelected(key)
-                    },
-                    modifier = Modifier.onGloballyPositioned { coordinates ->
-                        val bounds = coordinates.positionInParent().x to coordinates.size.width.toFloat()
-                        if (operationsTabPositions[key] != bounds) {
-                            operationsTabPositions[key] = bounds
+            LazyRow(
+                state = operationsListState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .drawBehind {
+                        if (indicatorWidth > 0f) {
+                            drawRoundRect(
+                                color = indicatorColor,
+                                topLeft = Offset(indicatorX, 0f),
+                                size = Size(indicatorWidth, size.height),
+                                cornerRadius = CornerRadius(13.dp.toPx())
+                            )
                         }
                     },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = tabContent,
-                        containerColor = tabSurface
-                    ),
-                    shape = RoundedCornerShape(13.dp)
-                ) {
-                    Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(end = 12.dp)
+            ) {
+                itemsIndexed(operationsTabs, key = { _, item -> item.first }) { _, (key, label) ->
+                    val selected = tab == key
+                    val tabAccent = when (key) {
+                        "petugas" -> RoleGreen
+                        "armada" -> RoleOrange
+                        "pengosongan" -> RoleTeal
+                        else -> RolePurple
+                    }
+                    val tabContent by animateColorAsState(
+                        targetValue = if (selected) LoginAccent else LoginMuted,
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        label = "operations-tab-$key-content"
+                    )
+                    val tabSurface by animateColorAsState(
+                        targetValue = tabAccent.copy(alpha = if (selected) 0f else 0.08f),
+                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                        label = "operations-tab-$key-surface"
+                    )
+                    TextButton(
+                        onClick = {
+                            tab = key
+                            onTabSelected(key)
+                        },
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            val bounds =
+                                (coordinates.positionInRoot().x - operationsRowRootX) to coordinates.size.width.toFloat()
+                            if (operationsTabPositions[key] != bounds) {
+                                operationsTabPositions[key] = bounds
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = tabContent,
+                            containerColor = tabSurface
+                        ),
+                        shape = RoundedCornerShape(13.dp)
+                    ) {
+                        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
