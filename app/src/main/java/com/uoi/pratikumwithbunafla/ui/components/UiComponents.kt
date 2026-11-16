@@ -659,7 +659,7 @@ fun UserAvatar(
             Image(
                 bitmap = photo!!.asImageBitmap(),
                 contentDescription = "Foto profil $name",
-                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
