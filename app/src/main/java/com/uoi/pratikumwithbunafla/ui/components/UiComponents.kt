@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -537,9 +538,10 @@ fun AppHeader(compact: Boolean = false) {
 fun AppCard(
     modifier: Modifier = Modifier,
     containerColor: Color = AppCardSurface,
-    borderColor: Color = AppBorder,
+    borderColor: Color? = AppBorder,
     accentColor: Color? = null,
     elevation: Dp = 1.dp,
+    shape: Shape = RoundedCornerShape(24.dp),
     content: @Composable () -> Unit
 ) {
     val resolvedSurface = if (
@@ -551,12 +553,11 @@ fun AppCard(
     }
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
+        shape = shape,
         colors = CardDefaults.cardColors(containerColor = resolvedSurface),
-        border = BorderStroke(
-            1.dp,
-            borderColor.copy(alpha = borderColor.alpha * if (accentColor == null) 0.36f else 0.42f)
-        ),
+        border = borderColor?.let {
+            BorderStroke(1.dp, it.copy(alpha = it.alpha * if (accentColor == null) 0.36f else 0.42f))
+        },
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
         content()

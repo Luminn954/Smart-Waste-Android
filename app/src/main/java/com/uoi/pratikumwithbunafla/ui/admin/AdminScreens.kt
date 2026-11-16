@@ -514,19 +514,20 @@ private fun OperationalMetric(
 ) {
     Column(
         modifier = modifier
+            .clip(RoundedCornerShape(15.dp))
+            .background(AppSurface)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 9.dp),
+            .padding(horizontal = 9.dp, vertical = 11.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Text(
             label,
             color = AppTextMuted,
-            fontSize = 11.sp,
-            lineHeight = 15.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1
         )
-        Text(value, color = LoginInk, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = LoginInk, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
@@ -1160,7 +1161,10 @@ fun AdminDashboardScreen(
         }
         AppCard(
             modifier = Modifier.fillMaxWidth(),
-            containerColor = AppSurface
+            containerColor = AppSurfaceMuted,
+            borderColor = null,
+            elevation = 0.dp,
+            shape = RoundedCornerShape(18.dp)
         ) {
             val pendingReportCount = reports.count { it.status == WasteFlow.WAITING }
             val totalPendingActions = pendingReportCount + pendingProofCount +
@@ -1189,7 +1193,6 @@ fun AdminDashboardScreen(
                         Modifier.weight(1f)
                     ) { onNavigate("ops:petugas") }
                 }
-                AppCardDivider()
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1251,53 +1254,40 @@ fun AdminDashboardScreen(
         SectionTitle("Laporan terbaru", "Ringkasan laporan warga")
         val latest = reports.take(3)
         if (latest.isEmpty()) {
-            EmptyAdminState("Belum ada laporan dari warga.")
+            EmptyAdminState("Belum ada laporan dari warga.", useCompactCardStyle = true)
         } else {
             AppCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = AppSurface,
-                borderColor = AppBorder
+                containerColor = AppSurface.copy(alpha = 0.98f),
+                borderColor = null,
+                elevation = 0.dp,
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 4.dp)
                 ) {
-                    latest.forEachIndexed { index, report ->
+                    latest.forEach { report ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(13.dp))
-                                    .background(reportAccent(report.status).copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.Assignment,
-                                    contentDescription = null,
-                                    tint = reportAccent(report.status),
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     report.code,
                                     color = AppText,
-                                    fontSize = 13.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     "${report.type} · ${report.location}",
                                     color = AppTextMuted,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp,
-                                    maxLines = 2,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                             StatusPill(report.status, reportAccent(report.status))
                         }
-                        if (index < latest.lastIndex) AppCardDivider()
                     }
                 }
             }
@@ -7795,11 +7785,13 @@ private fun InlineError(message: String) {
 }
 
 @Composable
-private fun EmptyAdminState(message: String) {
+private fun EmptyAdminState(message: String, useCompactCardStyle: Boolean = false) {
     AppCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = AppSurface,
-        borderColor = AppBorder
+        containerColor = if (useCompactCardStyle) AppSurface.copy(alpha = 0.98f) else AppSurface,
+        borderColor = if (useCompactCardStyle) null else AppBorder,
+        elevation = if (useCompactCardStyle) 0.dp else 1.dp,
+        shape = if (useCompactCardStyle) RoundedCornerShape(18.dp) else RoundedCornerShape(24.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(23.dp),
