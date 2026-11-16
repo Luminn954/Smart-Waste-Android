@@ -43,12 +43,17 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
@@ -88,6 +93,7 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
@@ -146,14 +152,20 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.LocalTextStyle
@@ -1732,6 +1744,11 @@ fun AdminVerificationScreen(
     ).any { it.lowercase().contains(searchQuery) }
     val filteredReports = visibleReports.filter(::matchesSearch)
     val filteredArchivedReports = archivedReports.filter { matchesSearch(it.report) }
+    val reportSearchSuggestions = remember(reports, archivedReports) {
+        (reports + archivedReports.map { it.report }).flatMap { report ->
+            listOf(report.code, report.type, report.location, report.reportedBy, report.workerName)
+        }
+    }
     val reportLoadFailed = errorMessage.lineSequence().any { it.startsWith("Laporan:") }
     val archiveLoadFailed = errorMessage.lineSequence().any { it.startsWith("Arsip laporan:") }
     val reportFilters = listOf(
@@ -1884,23 +1901,11 @@ fun AdminVerificationScreen(
             }
         }
 
-        OutlinedTextField(
+        SmartWasteSearchField(
             value = reportSearch,
             onValueChange = { reportSearch = it.take(100) },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Cari kode, jenis, lokasi, atau petugas") },
-            leadingIcon = {
-                Icon(Icons.Filled.Search, contentDescription = null, tint = AppTextMuted)
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color.Transparent,
-                unfocusedBorderColor = Color.Transparent,
-                focusedContainerColor = AppSurface.copy(alpha = 0.92f),
-                unfocusedContainerColor = AppSurface.copy(alpha = 0.82f)
-            )
+            placeholder = "Cari kode, jenis, lokasi, atau petugas",
+            suggestionSource = reportSearchSuggestions
         )
 
         SectionTitle(
@@ -2807,6 +2812,9 @@ fun AdminOperationsScreen(
         }
     }
     val workerSearchQuery = workerSearch.trim().lowercase()
+    val workerSearchSuggestions = remember(workers) {
+        workers.flatMap { worker -> listOf(worker.name, worker.username, worker.zone) }
+    }
     val workersNeedingAttention = workers.count { it.pendingConfirmations > 0 || it.activeTasks > 0 }
     val workerFilters = listOf(
         "semua" to "Semua · ${workers.size}",
@@ -3028,23 +3036,11 @@ fun AdminOperationsScreen(
                     { adding = true },
                     containerColor = LoginAccent
                 )
-                OutlinedTextField(
+                SmartWasteSearchField(
                     value = workerSearch,
                     onValueChange = { workerSearch = it.take(80) },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Cari nama, username, atau zona") },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Search, contentDescription = null, tint = AppTextMuted)
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = AppSurface.copy(alpha = 0.92f),
-                        unfocusedContainerColor = AppSurface.copy(alpha = 0.82f)
-                    )
+                    placeholder = "Cari nama, username, atau zona",
+                    suggestionSource = workerSearchSuggestions
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -3307,13 +3303,13 @@ fun AdminOperationsScreen(
             }
 
             "bukti" -> {
-                OutlinedTextField(
+                SmartWasteSearchField(
                     value = proofSearch,
                     onValueChange = { proofSearch = it.take(120) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Cari bukti kerja") },
-                    placeholder = { Text("Kode laporan, petugas, atau lokasi") },
-                    singleLine = true
+                    placeholder = "Kode laporan, petugas, atau lokasi",
+                    suggestionSource = reports
+                        .filter { !it.locationEvidencePhotoUrl.isNullOrBlank() }
+                        .flatMap { listOf(it.code, it.workerName, it.location) }
                 )
                 val query = proofSearch.trim().lowercase()
                 val visibleLocationEvidence = reports
@@ -4292,7 +4288,8 @@ fun PetugasTasksScreen(
                         PetugasQueueSearch(
                             query = incomingSearch,
                             onQueryChange = { incomingSearch = it.take(100) },
-                            placeholder = "Cari kode, jenis, atau lokasi"
+                            placeholder = "Cari kode, jenis, atau lokasi",
+                            suggestionSource = newReports.flatMap { listOf(it.code, it.type, it.location) }
                         )
                         if (isInitialLoading && newReports.isEmpty()) {
                             PetugasLoadingState("Memuat laporan", "Mengambil antrean terbaru dari server.")
@@ -4328,7 +4325,10 @@ fun PetugasTasksScreen(
                         PetugasQueueSearch(
                             query = activeTaskSearch,
                             onQueryChange = { activeTaskSearch = it.take(100) },
-                            placeholder = "Cari kode, lokasi, armada, atau TPA"
+                            placeholder = "Cari kode, lokasi, armada, atau TPA",
+                            suggestionSource = activeTasks.flatMap {
+                                listOf(it.code, it.location, it.vehiclePlate, it.tpaName)
+                            }
                         )
                         PetugasFilterGrid(
                             choices = listOf(
@@ -4600,7 +4600,10 @@ fun PetugasTasksScreen(
                 PetugasQueueSearch(
                     query = historySearch,
                     onQueryChange = { historySearch = it.take(100) },
-                    placeholder = if (showingTaskArchive) "Cari arsip kode, lokasi, atau TPA" else "Cari kode, lokasi, atau TPA"
+                    placeholder = if (showingTaskArchive) "Cari arsip kode, lokasi, atau TPA" else "Cari kode, lokasi, atau TPA",
+                    suggestionSource = (historyFilterRows + archivedTasks.map { it.report }).flatMap {
+                        listOf(it.code, it.location, it.vehiclePlate, it.tpaName)
+                    }
                 )
                 if (archiveActionError.isNotBlank()) InlineError(archiveActionError)
                 if (showingTaskArchive) {
@@ -6684,33 +6687,172 @@ private fun PetugasTaskCard(
 private fun PetugasQueueSearch(
     query: String,
     onQueryChange: (String) -> Unit,
-    placeholder: String
+    placeholder: String,
+    suggestionSource: List<String>
 ) {
-    OutlinedTextField(
+    SmartWasteSearchField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text(placeholder, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        leadingIcon = {
-            Icon(Icons.Filled.Search, contentDescription = null, tint = AppTextMuted, modifier = Modifier.size(19.dp))
-        },
-        trailingIcon = if (query.isNotBlank()) {
-            {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Filled.Close, contentDescription = "Hapus pencarian", tint = AppTextMuted)
+        placeholder = placeholder,
+        suggestionSource = suggestionSource
+    )
+}
+
+@Composable
+private fun SmartWasteSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    suggestionSource: List<String>,
+    modifier: Modifier = Modifier
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val darkMode = LocalSmartWasteAppearance.current.darkMode
+    val fieldSurface = if (darkMode) Color(0xFF26372D) else Color.White
+    val hintColor = if (darkMode) Color(0xFF9EADA2) else Color(0xFF969E99)
+    val iconTint = if (darkMode) Color(0xFFB2BEB5) else Color(0xFF68736D)
+    val normalizedQuery = value.trim()
+    val suggestions = remember(suggestionSource, normalizedQuery) {
+        searchSuggestions(suggestionSource, normalizedQuery)
+    }
+    val showSuggestions = isFocused && normalizedQuery.length >= 2 && suggestions.isNotEmpty()
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .shadow(4.dp, CircleShape)
+                .clip(CircleShape)
+                .background(fieldSurface)
+                .padding(start = 17.dp, end = 15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.Search,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty()) {
+                    Text(
+                        placeholder,
+                        color = hintColor,
+                        fontFamily = InterFont,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { isFocused = it.isFocused },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = AppText,
+                        fontFamily = InterFont,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() })
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Icon(
+                Icons.Filled.Mic,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showSuggestions,
+            enter = fadeIn(animationSpec = tween(150)) +
+                expandVertically(animationSpec = tween(190, easing = FastOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(110)) +
+                shrinkVertically(animationSpec = tween(150, easing = FastOutSlowInEasing))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .shadow(7.dp, RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(fieldSurface)
+                    .padding(vertical = 7.dp)
+            ) {
+                suggestions.forEach { suggestion ->
+                    val matchStart = suggestion.indexOf(normalizedQuery, ignoreCase = true)
+                    val suggestionText = buildAnnotatedString {
+                        if (matchStart >= 0) {
+                            val matchEnd = matchStart + normalizedQuery.length
+                            append(suggestion.substring(0, matchStart))
+                            withStyle(SpanStyle(color = hintColor)) {
+                                append(suggestion.substring(matchStart, matchEnd))
+                            }
+                            append(suggestion.substring(matchEnd))
+                        } else {
+                            append(suggestion)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 44.dp)
+                            .clickable {
+                                onValueChange(suggestion)
+                                focusManager.clearFocus()
+                            }
+                            .padding(horizontal = 18.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = hintColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = suggestionText,
+                            color = AppText,
+                            fontFamily = InterFont,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
-        } else null,
-        singleLine = true,
-        shape = RoundedCornerShape(16.dp),
-        textStyle = TextStyle(fontFamily = InterFont, fontSize = 12.sp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color.Transparent,
-            unfocusedBorderColor = Color.Transparent,
-            focusedContainerColor = AppSurface.copy(alpha = 0.92f),
-            unfocusedContainerColor = AppSurface.copy(alpha = 0.82f)
+        }
+    }
+}
+
+private fun searchSuggestions(source: List<String>, query: String): List<String> {
+    if (query.length < 2) return emptyList()
+
+    return source.asSequence()
+        .map { it.trim() }
+        .filter { candidate ->
+            candidate.length > query.length && candidate.contains(query, ignoreCase = true)
+        }
+        .distinctBy { it.lowercase() }
+        .sortedWith(
+            compareBy<String>({ if (it.startsWith(query, ignoreCase = true)) 0 else 1 }, { it.length })
         )
-    )
+        .take(4)
+        .toList()
 }
 
 @Composable
