@@ -20,6 +20,7 @@ val WasteCoral = Color(0xFFF0DDE4)
 data class SmartWastePalette(
     val background: Color,
     val surface: Color,
+    val cardSurface: Color,
     val surfaceMuted: Color,
     val border: Color,
     val text: Color,
@@ -29,6 +30,7 @@ data class SmartWastePalette(
 val LightSmartWastePalette = SmartWastePalette(
     background = Color.White,
     surface = Color(0xFFF2F5EE),
+    cardSurface = Color.White,
     surfaceMuted = Color(0xFFDDEAD5),
     border = Color(0xFFB2D0B2),
     text = Color(0xFF1D3527),
@@ -38,6 +40,7 @@ val LightSmartWastePalette = SmartWastePalette(
 val DarkSmartWastePalette = SmartWastePalette(
     background = Color(0xFF151E19),
     surface = Color(0xFF213128),
+    cardSurface = Color(0xFF26372D),
     surfaceMuted = Color(0xFF2B3B30),
     border = Color(0xFF3D5646),
     text = Color(0xFFEAF2EB),
@@ -48,6 +51,7 @@ val LocalSmartWastePalette = staticCompositionLocalOf { LightSmartWastePalette }
 
 val AppBackground: Color @Composable get() = LocalSmartWastePalette.current.background
 val AppSurface: Color @Composable get() = LocalSmartWastePalette.current.surface
+val AppCardSurface: Color @Composable get() = LocalSmartWastePalette.current.cardSurface
 val AppSurfaceMuted: Color @Composable get() = LocalSmartWastePalette.current.surfaceMuted
 val AppBorder: Color @Composable get() = LocalSmartWastePalette.current.border
 val AppText: Color @Composable get() = LocalSmartWastePalette.current.text

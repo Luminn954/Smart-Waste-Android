@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -82,6 +83,7 @@ import java.net.URL
 import com.uoi.pratikumwithbunafla.R
 import com.uoi.pratikumwithbunafla.ui.theme.AppBackground
 import com.uoi.pratikumwithbunafla.ui.theme.AppBorder
+import com.uoi.pratikumwithbunafla.ui.theme.AppCardSurface
 import com.uoi.pratikumwithbunafla.ui.theme.AppSurface
 import com.uoi.pratikumwithbunafla.ui.theme.AppText
 import com.uoi.pratikumwithbunafla.ui.theme.AppTextMuted
@@ -534,26 +536,41 @@ fun AppHeader(compact: Boolean = false) {
 @Composable
 fun AppCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = AppSurface,
+    containerColor: Color = AppCardSurface,
     borderColor: Color = AppBorder,
     accentColor: Color? = null,
-    elevation: Dp = 0.dp,
+    elevation: Dp = 1.dp,
     content: @Composable () -> Unit
 ) {
-    val glassSurface = if (containerColor == Color.White || containerColor == AppSurface) {
-        AppSurface.copy(alpha = 0.98f)
+    val resolvedSurface = if (
+        containerColor == Color.White || containerColor == AppSurface || containerColor == AppCardSurface
+    ) {
+        AppCardSurface
     } else {
         containerColor
     }
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = glassSurface),
-        border = null,
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = resolvedSurface),
+        border = BorderStroke(
+            1.dp,
+            borderColor.copy(alpha = borderColor.alpha * if (accentColor == null) 0.36f else 0.42f)
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
         content()
     }
+}
+
+@Composable
+fun AppCardDivider(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(AppBorder.copy(alpha = 0.38f))
+    )
 }
 
 @Composable
@@ -664,7 +681,6 @@ fun SummaryCard(
     containerColor: Color = Color.White,
     icon: ImageVector,
     iconBackgroundColor: Color = accent.copy(alpha = 0.15f),
-    iconBackgroundEndColor: Color = iconBackgroundColor,
     onClick: (() -> Unit)? = null
 ) {
     AppCard(
@@ -674,29 +690,18 @@ fun SummaryCard(
         accentColor = accent
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = value,
-                    color = accent,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.weight(1f))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    iconBackgroundColor,
-                                    iconBackgroundEndColor
-                                )
-                            )
-                        ),
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(iconBackgroundColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -706,14 +711,23 @@ fun SummaryCard(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+                Text(
+                    text = label,
+                    modifier = Modifier.weight(1f),
+                    color = AppText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+            AppCardDivider()
             Text(
-                text = label,
-                color = AppTextMuted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                text = value,
+                color = accent,
+                fontSize = 23.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 27.sp
             )
         }
     }

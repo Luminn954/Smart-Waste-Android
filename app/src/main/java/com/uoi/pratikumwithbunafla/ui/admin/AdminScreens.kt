@@ -173,6 +173,7 @@ import androidx.compose.ui.text.TextStyle
 import com.uoi.pratikumwithbunafla.ui.theme.AppBorder
 import com.uoi.pratikumwithbunafla.ui.theme.AppBackground
 import com.uoi.pratikumwithbunafla.R
+import com.uoi.pratikumwithbunafla.ui.theme.AppCardSurface
 import com.uoi.pratikumwithbunafla.ui.theme.AppSurface
 import com.uoi.pratikumwithbunafla.ui.theme.AppSurfaceMuted
 import com.uoi.pratikumwithbunafla.ui.theme.AppText
@@ -513,20 +514,19 @@ private fun OperationalMetric(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(15.dp))
-            .background(AppSurface)
             .clickable(onClick = onClick)
-            .padding(horizontal = 9.dp, vertical = 11.dp),
+            .padding(horizontal = 8.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Text(
             label,
             color = AppTextMuted,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1
         )
-        Text(value, color = LoginInk, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = LoginInk, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
@@ -1160,7 +1160,7 @@ fun AdminDashboardScreen(
         }
         AppCard(
             modifier = Modifier.fillMaxWidth(),
-            containerColor = AppSurfaceMuted
+            containerColor = AppSurface
         ) {
             val pendingReportCount = reports.count { it.status == WasteFlow.WAITING }
             val totalPendingActions = pendingReportCount + pendingProofCount +
@@ -1189,6 +1189,7 @@ fun AdminDashboardScreen(
                         Modifier.weight(1f)
                     ) { onNavigate("ops:petugas") }
                 }
+                AppCardDivider()
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1260,28 +1261,43 @@ fun AdminDashboardScreen(
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 4.dp)
                 ) {
-                    latest.forEach { report ->
+                    latest.forEachIndexed { index, report ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            Box(
+                                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(13.dp))
+                                    .background(reportAccent(report.status).copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Assignment,
+                                    contentDescription = null,
+                                    tint = reportAccent(report.status),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     report.code,
                                     color = AppText,
-                                    fontSize = 11.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     "${report.type} · ${report.location}",
                                     color = AppTextMuted,
-                                    fontSize = 11.sp,
-                                    maxLines = 1,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                             StatusPill(report.status, reportAccent(report.status))
                         }
+                        if (index < latest.lastIndex) AppCardDivider()
                     }
                 }
             }
@@ -1587,22 +1603,28 @@ fun NotificationCenterScreen(
         }
 
         if (isAdmin) {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(AppSurface)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Icon(Icons.Filled.Inbox, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(22.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("Ringkasan laporan", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "${summary.totalReports} laporan · ${summary.totalWeightKg.pretty()} kg tercatat",
-                        color = AppTextMuted,
-                        fontSize = 13.sp
-                    )
+            AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp))
+                            .background(LoginAccent.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Inbox, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(20.dp))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Ringkasan laporan", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${summary.totalReports} laporan · ${summary.totalWeightKg.pretty()} kg tercatat",
+                            color = AppTextMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
                 }
             }
         }
@@ -1614,79 +1636,84 @@ fun NotificationCenterScreen(
         )
 
         if (notices.isEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(AppSurface)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(Icons.Filled.Notifications, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(22.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("Belum ada notifikasi", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "Pembaruan berikutnya akan muncul di halaman ini.",
-                        color = AppTextMuted,
-                        fontSize = 13.sp
-                    )
+            AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp))
+                            .background(LoginAccent.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Notifications, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(20.dp))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Belum ada notifikasi", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Pembaruan berikutnya akan muncul di halaman ini.",
+                            color = AppTextMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
                 }
             }
         } else {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(AppSurface)
-                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                notices.forEachIndexed { index, notice ->
-                    val isRead = readRevisions[notice.id] == notice.revision
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .then(
-                                if (notice.destination != null) Modifier.clickable {
-                                    markNoticeRead(notice)
-                                    onNavigate(notice.destination)
-                                } else Modifier
-                            )
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier.size(38.dp)
-                                .clip(CircleShape)
-                                .background(notice.accent.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center
+            AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    notices.forEachIndexed { index, notice ->
+                        val isRead = readRevisions[notice.id] == notice.revision
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .then(
+                                    if (notice.destination != null) Modifier.clickable {
+                                        markNoticeRead(notice)
+                                        onNavigate(notice.destination)
+                                    } else Modifier
+                                )
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(notice.icon, contentDescription = null, tint = notice.accent, modifier = Modifier.size(19.dp))
-                        }
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(notice.title, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                            Text(notice.detail, color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    notice.timestamp.takeIf { it.isNotBlank() }?.toDisplayDateTime() ?: "Waktu belum tersedia",
-                                    color = AppTextMuted,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    if (isRead) "Sudah dilihat" else "Baru",
-                                    color = if (isRead) AppTextMuted else notice.accent,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                            Box(
+                                modifier = Modifier.size(38.dp)
+                                    .clip(RoundedCornerShape(13.dp))
+                                    .background(notice.accent.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(notice.icon, contentDescription = null, tint = notice.accent, modifier = Modifier.size(19.dp))
+                            }
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(notice.title, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(notice.detail, color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        notice.timestamp.takeIf { it.isNotBlank() }?.toDisplayDateTime() ?: "Waktu belum tersedia",
+                                        color = AppTextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                    Text(
+                                        if (isRead) "Sudah dilihat" else "Baru",
+                                        color = if (isRead) AppTextMuted else notice.accent,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(notice.count.toString(), color = notice.accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                if (notice.destination != null) {
+                                    Text("Buka", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                }
                             }
                         }
-                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(notice.count.toString(), color = notice.accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            if (notice.destination != null) {
-                                Text("Buka", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
+                        if (index < notices.lastIndex) AppCardDivider()
                     }
-                    if (index < notices.lastIndex) Spacer(Modifier.height(4.dp))
                 }
             }
         }
@@ -2126,6 +2153,20 @@ private fun AdminReportCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(accent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Assignment,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
@@ -2235,6 +2276,7 @@ private fun AdminReportCard(
                 }
             }
             if (onReject != null || onAssign != null || onArchive != null || onRestore != null) {
+                AppCardDivider()
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2582,8 +2624,7 @@ fun AdminStatsScreen(
                 RoleGreenDark,
                 Modifier.weight(1f),
                 icon = Icons.Filled.CheckCircle,
-                iconBackgroundColor = if (IsNightAdmin) Color(0xFF354A3A) else Color(0xFFE5EAD6),
-                iconBackgroundEndColor = if (IsNightAdmin) Color(0xFF435642) else Color(0xFFCDDDBB)
+                iconBackgroundColor = if (IsNightAdmin) Color(0xFF354A3A) else Color(0xFFE5EAD6)
             )
             SummaryCard(
                 periodCount.toString(),
@@ -2591,8 +2632,7 @@ fun AdminStatsScreen(
                 LoginAccent,
                 Modifier.weight(1f),
                 icon = Icons.AutoMirrored.Filled.Assignment,
-                iconBackgroundColor = if (IsNightAdmin) Color(0xFF334843) else Color(0xFFDDEBE4),
-                iconBackgroundEndColor = if (IsNightAdmin) Color(0xFF425C55) else Color(0xFFC7DDD3)
+                iconBackgroundColor = if (IsNightAdmin) Color(0xFF334843) else Color(0xFFDDEBE4)
             )
         }
         AppCard(
@@ -3087,11 +3127,21 @@ fun AdminOperationsScreen(
                 }
                 visibleWorkers.forEach { item ->
                     val isDarkMode = LocalSmartWasteAppearance.current.darkMode
-                    val workerCardColor = if (isDarkMode) AppSurface else Color(0xFFDCE8D9)
+                    val workerCardColor = AppCardSurface
                     val workerTextColor = if (isDarkMode) AppText else Color(0xFF202820)
                     val workerDetailColor = AppTextMuted
                     val workerActionColor = if (isDarkMode) LoginAccent else Color(0xFF176B49)
                     val workerWarningColor = if (isDarkMode) RoleRed else Color(0xFF963E45)
+                    val accountState = when {
+                        !item.hasAccount -> "Tanpa akun"
+                        item.active -> "Aktif"
+                        else -> "Nonaktif"
+                    }
+                    val accountStateColor = when {
+                        !item.hasAccount -> workerWarningColor
+                        item.active -> if (isDarkMode) RoleGreen else Color(0xFF236B49)
+                        else -> workerWarningColor
+                    }
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = workerCardColor,
@@ -3100,7 +3150,7 @@ fun AdminOperationsScreen(
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -3124,7 +3174,7 @@ fun AdminOperationsScreen(
                                                 .align(Alignment.BottomEnd)
                                                 .size(23.dp)
                                                 .clip(CircleShape)
-                                                .background(AppSurface)
+                                                .background(AppCardSurface)
                                         ) {
                                             if (uploadingPhotoWorkerId == item.id) {
                                                 CircularProgressIndicator(
@@ -3145,7 +3195,7 @@ fun AdminOperationsScreen(
                                 }
                                 Column(
                                     modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
                                 ) {
                                     Text(
                                         item.name.displayPersonName(),
@@ -3155,14 +3205,38 @@ fun AdminOperationsScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        if (item.hasAccount) "@${item.username} · ${item.zone.ifBlank { "Tanpa zona" }}"
-                                        else "Belum ada akun Android · ${item.zone.ifBlank { "Tanpa zona" }}",
+                                        if (item.hasAccount) "@${item.username}" else "Belum ada akun Android",
                                         color = if (item.hasAccount) workerDetailColor else workerWarningColor,
-                                        fontSize = 14.sp,
-                                        lineHeight = 20.sp
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50.dp))
+                                        .background(accountStateColor.copy(alpha = 0.12f))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        accountState,
+                                        color = accountStateColor,
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
                             }
+
+                            Text(
+                                "Zona · ${item.zone.ifBlank { "Belum ditentukan" }}",
+                                color = workerDetailColor,
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -3199,6 +3273,8 @@ fun AdminOperationsScreen(
                                     )
                                 }
                             }
+
+                            AppCardDivider()
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -5895,13 +5971,6 @@ private fun PetugasJourneyHero(
         it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED || it.status == WasteFlow.DONE
     }
     val active = assigned + transported
-    val heroColors = if (isDark) {
-        listOf(Color(0xFF26392F), Color(0xFF30443A))
-    } else {
-        listOf(Color(0xFF50735F), Color(0xFF426551))
-    }
-    val heroText = Color(0xFFF2F0E8)
-    val heroMuted = Color(0xFFD8E1D8)
     val progress = if (total == 0) 0 else (completed * 100 / total)
     val displayName = name.displayPersonName().ifBlank { "Petugas" }
     val readyTint = if (isDark) Color(0xFFB7C99E) else Color(0xFF5C805E)
@@ -5930,77 +5999,80 @@ private fun PetugasJourneyHero(
     val detailMuted = AppTextMuted
     val progressTint = if (isDark) Color(0xFFABC49B) else Color(0xFF52765B)
     val progressTrack = if (isDark) Color(0xFF3A4A40) else Color(0xFFDCE4D8)
+    val activeBadgeTint = if (isDark) Color(0xFF9CC6A6) else Color(0xFF24734D)
 
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(23.dp))
-            .background(AppSurface)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-                .background(Brush.linearGradient(heroColors))
-                .padding(horizontal = 17.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Text(
-                    "RUANG KERJA · PETUGAS",
-                    color = heroMuted,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.55.sp
-                )
-                Text(
-                    "Halo, $displayName",
-                    color = heroText,
-                    fontSize = 20.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    workSummary,
-                    color = heroMuted,
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Column(
-                modifier = Modifier.size(76.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.10f)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(active.toString(), color = heroText, fontSize = 27.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
-                Text("tugas aktif", color = heroMuted, fontSize = 8.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-
+    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
         Column(
-            modifier = Modifier.fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 13.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp))
+                        .background(progressTint.copy(alpha = 0.13f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = progressTint, modifier = Modifier.size(20.dp))
+                }
+                Text(
+                    "RUANG KERJA · PETUGAS",
+                    modifier = Modifier.weight(1f),
+                    color = detailMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.4.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Box(
+                    modifier = Modifier.clip(RoundedCornerShape(50.dp))
+                        .background(activeBadgeTint.copy(alpha = 0.12f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        "$active aktif",
+                        color = activeBadgeTint,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            Text(
+                "Halo, $displayName",
+                color = AppText,
+                fontSize = 20.sp,
+                lineHeight = 25.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                workSummary,
+                color = detailMuted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            AppCardDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 PetugasHeroStat(assigned.toString(), "Siap angkut", readyTint, detailMuted, Modifier.weight(1f))
                 PetugasHeroStat(inRoute.toString(), "Dalam rute", routeTint, detailMuted, Modifier.weight(1f))
                 PetugasHeroStat(needsAttention.toString(), "Perlu dicek", attentionTint, detailMuted, Modifier.weight(1f))
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            AppCardDivider()
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Penyelesaian", color = detailMuted, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+                    Text("Penyelesaian", color = detailMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                     Text(
                         when {
                             isInitialLoading -> "Memperbarui antrean…"
@@ -6008,7 +6080,7 @@ private fun PetugasJourneyHero(
                             else -> "Belum ada pekerjaan yang selesai"
                         },
                         color = detailText,
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -6016,13 +6088,13 @@ private fun PetugasJourneyHero(
                 }
                 TextButton(
                     onClick = onOpenTasks,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 8.dp, end = 0.dp, top = 2.dp, bottom = 2.dp)
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 8.dp, end = 0.dp, top = 4.dp, bottom = 4.dp)
                 ) {
-                    Text("$actionLabel  ›", color = progressTint, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Text("$actionLabel  ›", color = progressTint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             Box(
-                modifier = Modifier.fillMaxWidth().height(4.dp)
+                modifier = Modifier.fillMaxWidth().height(6.dp)
                     .clip(CircleShape)
                     .background(progressTrack)
             ) {
@@ -6046,10 +6118,10 @@ private fun PetugasHeroStat(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(value, color = tint, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = tint, fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             Box(Modifier.size(6.dp).clip(CircleShape).background(tint))
-            Text(label, color = labelColor, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, color = labelColor, fontSize = 10.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -6065,52 +6137,58 @@ private fun PetugasOperationalOverview(tasks: List<WasteRecord>) {
     val destination = activeTasks.firstOrNull { it.tpaName.isNotBlank() }?.tpaName
     val accent = if (isDark) Color(0xFFB9D4BE) else Color(0xFF286947)
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(AppSurface)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text("Ringkasan muatan", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Text("Pekerjaan yang sedang kamu tangani", color = AppTextMuted, fontSize = 11.sp)
+    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp))
+                        .background(accent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Ringkasan muatan", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Pekerjaan yang sedang kamu tangani", color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                }
             }
-        }
-
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(activeWeight.pretty(), color = AppText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(5.dp))
-            Text("kg muatan aktif", color = AppTextMuted, fontSize = 11.sp, modifier = Modifier.padding(bottom = 3.dp))
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PetugasSummaryFact(
-                icon = Icons.Filled.Inbox,
-                text = "$activeTypes jenis sampah",
-                tint = if (isDark) Color(0xFF91CDBD) else Color(0xFF287B69),
-                modifier = Modifier.weight(1f)
-            )
-            PetugasSummaryFact(
-                icon = Icons.Filled.LocalShipping,
-                text = "${activeTasks.size} tugas aktif",
-                tint = if (isDark) Color(0xFF91CDBD) else Color(0xFF287B69),
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(Icons.Filled.Place, contentDescription = null, tint = accent, modifier = Modifier.size(15.dp))
-            Text("Tujuan", color = AppTextMuted, fontSize = 11.sp)
-            Text(
-                destination ?: "Belum ditentukan",
-                modifier = Modifier.weight(1f),
-                color = AppText,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            AppCardDivider()
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(activeWeight.pretty(), color = AppText, fontSize = 26.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(6.dp))
+                Text("kg muatan aktif", color = AppTextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                PetugasSummaryFact(
+                    icon = Icons.Filled.Inbox,
+                    text = "$activeTypes jenis sampah",
+                    tint = if (isDark) Color(0xFF91CDBD) else Color(0xFF287B69),
+                    modifier = Modifier.weight(1f)
+                )
+                PetugasSummaryFact(
+                    icon = Icons.Filled.LocalShipping,
+                    text = "${activeTasks.size} tugas aktif",
+                    tint = if (isDark) Color(0xFF91CDBD) else Color(0xFF287B69),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            AppCardDivider()
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Icon(Icons.Filled.Place, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+                Text("Tujuan", color = AppTextMuted, fontSize = 12.sp)
+                Text(
+                    destination ?: "Belum ditentukan",
+                    modifier = Modifier.weight(1f),
+                    color = AppText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -6243,8 +6321,6 @@ private fun AccountProfileSettings(
 ) {
     val appearance = LocalSmartWasteAppearance.current
     val isDark = appearance.darkMode
-    val cardShape = RoundedCornerShape(24.dp)
-    val surface = AppSurface.copy(alpha = if (isDark) 0.88f else 0.92f)
     var showNameDialog by rememberSaveable(account.username) { mutableStateOf(false) }
     var nameDraft by rememberSaveable(account.username) { mutableStateOf(account.name) }
     var nameError by remember { mutableStateOf("") }
@@ -6278,93 +6354,100 @@ private fun AccountProfileSettings(
             subtitle = "Informasi akun dan preferensi aplikasi."
         )
 
-        Column(
-            modifier = Modifier.fillMaxWidth()
-                .clip(cardShape)
-                .background(surface)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                UserAvatar(account.name, Modifier.size(58.dp), account.profilePhotoUrl)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        account.name.displayPersonName(),
-                        color = AppText,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        account.role.description,
-                        color = AppTextMuted,
-                        fontSize = 13.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            ProfileInfoRow("Username", "@${account.username}")
-            ProfileInfoRow("Peran", account.role.label)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+        AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (onUpdateProfilePhoto != null) {
-                    TextButton(
-                        onClick = { profilePhotoPicker.launch("image/*") },
-                        enabled = !savingPhoto && !savingName
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    UserAvatar(account.name, Modifier.size(58.dp), account.profilePhotoUrl)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        if (savingPhoto) {
-                            Text("Menyimpan…", color = LoginAccent, fontWeight = FontWeight.SemiBold)
-                        } else {
-                            Icon(
-                                Icons.Filled.PhotoCamera,
-                                contentDescription = null,
-                                tint = LoginAccent,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(5.dp))
-                            Text("Ganti foto", color = LoginAccent, fontWeight = FontWeight.SemiBold)
-                        }
+                        Text(
+                            account.name.displayPersonName(),
+                            color = AppText,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            account.role.description,
+                            color = AppTextMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                TextButton(
-                    onClick = {
-                        nameDraft = account.name
-                        nameError = ""
-                        showNameDialog = true
-                    },
-                    enabled = !savingName && !savingPhoto
+                AppCardDivider()
+                ProfileInfoRow("Username", "@${account.username}")
+                ProfileInfoRow("Peran", account.role.label)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Ubah nama profil", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                    if (onUpdateProfilePhoto != null) {
+                        TextButton(
+                            onClick = { profilePhotoPicker.launch("image/*") },
+                            enabled = !savingPhoto && !savingName
+                        ) {
+                            if (savingPhoto) {
+                                Text("Menyimpan…", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                            } else {
+                                Icon(
+                                    Icons.Filled.PhotoCamera,
+                                    contentDescription = null,
+                                    tint = LoginAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text("Ganti foto", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            nameDraft = account.name
+                            nameError = ""
+                            showNameDialog = true
+                        },
+                        enabled = !savingName && !savingPhoto
+                    ) {
+                        Text("Ubah nama profil", color = LoginAccent, fontWeight = FontWeight.SemiBold)
+                    }
                 }
-            }
-            if (photoError.isNotBlank()) {
-                Text(photoError, color = RoleRed, fontSize = 11.sp)
+                if (photoError.isNotBlank()) {
+                    Text(photoError, color = RoleRed, fontSize = 11.sp)
+                }
             }
         }
 
-        Column(
-            modifier = Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(surface)
-                .clickable(onClick = appearance.onToggleTheme)
-                .padding(horizontal = 16.dp, vertical = 15.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        AppCard(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = appearance.onToggleTheme),
+            containerColor = AppSurface
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(
-                    imageVector = if (isDark) Icons.Rounded.NightsStay else Icons.Rounded.WbSunny,
-                    contentDescription = null,
-                    tint = LoginAccent,
-                    modifier = Modifier.size(22.dp)
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp))
+                        .background(LoginAccent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isDark) Icons.Rounded.NightsStay else Icons.Rounded.WbSunny,
+                        contentDescription = null,
+                        tint = LoginAccent,
+                        modifier = Modifier.size(21.dp)
+                    )
+                }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("Tampilan aplikasi", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(if (isDark) "Mode malam aktif" else "Mode terang aktif", color = AppTextMuted, fontSize = 12.sp)
@@ -6505,14 +6588,14 @@ private fun PetugasTaskCard(
         else -> "Ambil muatan dengan ${report.vehiclePlate.ifBlank { "armada yang ditetapkan" }}, lalu mulai pengangkutan."
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(AppSurface)
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = AppSurface,
+        borderColor = AppBorder,
+        accentColor = statusAccent
     ) {
         Column(
-            modifier = Modifier.padding(
+            modifier = Modifier.fillMaxWidth().padding(
                 horizontal = if (compactHistory) 14.dp else 16.dp,
                 vertical = if (compactHistory) 13.dp else 16.dp
             ),
@@ -6522,6 +6605,20 @@ private fun PetugasTaskCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(statusAccent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.LocalShipping,
+                        contentDescription = null,
+                        tint = statusAccent,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(report.code, color = AppText, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold)
                     Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
@@ -6554,6 +6651,7 @@ private fun PetugasTaskCard(
                     Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
+            if (!isRejected) AppCardDivider()
             if (compactHistory) {
                 val historyNote = when {
                     isComplete -> "Bukti disetujui Admin"
@@ -6660,6 +6758,9 @@ private fun PetugasTaskCard(
                 ) {
                     Text("Arsipkan", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
+            }
+            if (!compactHistory && (onMarkTransported != null || onComplete != null)) {
+                AppCardDivider()
             }
             when {
                 report.status == WasteFlow.ASSIGNED && onMarkTransported != null ->
@@ -7046,37 +7147,62 @@ private fun VehicleRepairCard(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(vehicleRepairAccent(repair.status).copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Build,
+                        contentDescription = null,
+                        tint = vehicleRepairAccent(repair.status),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(repair.plate, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text("Dilaporkan ${repair.reporterName.displayPersonName()} · ${repair.reportedAt}", color = AppTextMuted, fontSize = 10.sp)
+                    Text(repair.plate, color = AppText, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "${repair.reporterName.displayPersonName()} · ${repair.reportedAt}",
+                        color = AppTextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
                 Box(
                     modifier = Modifier.clip(RoundedCornerShape(50.dp))
                         .background(vehicleRepairAccent(repair.status).copy(alpha = 0.12f))
                         .padding(horizontal = 9.dp, vertical = 5.dp)
                 ) {
-                    Text(repair.statusLabel, color = vehicleRepairAccent(repair.status), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Text(repair.statusLabel, color = vehicleRepairAccent(repair.status), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
-            Text("Penyebab · ${repair.cause}", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text(repair.details, color = AppTextMuted, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            Text("Penyebab · ${repair.cause}", color = AppText, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(repair.details, color = AppTextMuted, fontSize = 12.sp, lineHeight = 18.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
             if (repair.activeTaskCount > 0) {
                 Text(
                     "Ada ${repair.activeTaskCount} tugas aktif terkait armada ini; cek penugasannya sebelum kendaraan dipakai lagi.",
                     color = RoleRed,
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
                 )
             }
+            if (timelineEvents.isNotEmpty()) AppCardDivider()
             (if (showFullTimeline) timelineEvents else timelineEvents.takeLast(3)).forEach { event ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         vehicleRepairEventLabel(event.action),
                         color = AppText,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
@@ -7084,12 +7210,13 @@ private fun VehicleRepairCard(
                             .filter(String::isNotBlank)
                             .joinToString(" · "),
                         color = AppTextMuted,
-                        fontSize = 9.sp,
-                        maxLines = 1,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     if (event.note.isNotBlank()) {
-                        Text(event.note, color = AppTextMuted, fontSize = 10.sp, lineHeight = 14.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text(event.note, color = AppTextMuted, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -7104,7 +7231,7 @@ private fun VehicleRepairCard(
                 }
             }
             if (repair.adminNote.isNotBlank() && repair.timeline.lastOrNull()?.note != repair.adminNote) {
-                Text("Keputusan Admin · ${repair.adminNote}", color = RoleOrange, fontSize = 10.sp, lineHeight = 14.sp)
+                Text("Keputusan Admin · ${repair.adminNote}", color = RoleOrange, fontSize = 11.sp, lineHeight = 16.sp)
             }
             actions(repair)
         }
