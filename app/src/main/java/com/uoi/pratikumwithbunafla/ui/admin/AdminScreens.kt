@@ -277,7 +277,7 @@ private data class PetugasAssistantChatMessage(
 
 @Composable
 private fun ScrollableDialogContent(
-    spacing: Dp = 6.dp,
+    spacing: Dp = 8.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val maxHeight = (LocalConfiguration.current.screenHeightDp.dp - 300.dp)
@@ -403,10 +403,11 @@ private fun AdminPage(
                                             Column(
                                                 modifier = Modifier.fillMaxWidth()
                                                     .padding(horizontal = horizontalPadding)
-                                                    .padding(top = 11.dp, bottom = 11.dp)
+                                                    .padding(top = 11.dp, bottom = 11.dp),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
                                                 content()
-                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Spacer(modifier = Modifier.height(4.dp))
                                             }
                                         }
                                     }
@@ -431,7 +432,7 @@ private fun AdminSectionHeading(eyebrow: String, title: String, subtitle: String
     val compact = LocalConfiguration.current.screenWidthDp < 360
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         Text(
             eyebrow,
@@ -2096,26 +2097,32 @@ private fun AdminReportCard(
         borderColor = AppBorder
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
                     Text(
                         report.code,
                         color = AppText,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
+                        lineHeight = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
                     if (reportMeta.isNotBlank()) {
                         Text(
                             reportMeta,
                             color = AppTextMuted,
-                            fontSize = 10.sp,
-                            maxLines = 1,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
@@ -2124,7 +2131,10 @@ private fun AdminReportCard(
             }
             Text(
                 "${report.type}${if (report.weightKg > 0) "  •  ${report.weightKg.pretty()} kg" else ""}",
-                color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                color = AppText,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.SemiBold
             )
             if (report.location.isNotBlank() && report.location != "-") {
                 Row(
@@ -2141,7 +2151,8 @@ private fun AdminReportCard(
                         report.location.trim(),
                         color = AppTextMuted,
                         fontSize = 12.sp,
-                        maxLines = 1,
+                        lineHeight = 17.sp,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -2152,7 +2163,8 @@ private fun AdminReportCard(
                     Text(
                         assignmentSummary,
                         color = LoginMuted,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2160,9 +2172,9 @@ private fun AdminReportCard(
                 if (report.description.isNotBlank()) Text(
                     report.description,
                     color = AppTextMuted,
-                    fontSize = 10.sp,
-                    lineHeight = 15.sp,
-                    maxLines = 3,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (!report.photoUrl.isNullOrBlank()) {
@@ -2170,7 +2182,7 @@ private fun AdminReportCard(
                         Text(
                             "Lihat foto TKP",
                             color = LoginAccent,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -2183,7 +2195,7 @@ private fun AdminReportCard(
                     Text(
                         "Lihat detail ↓",
                         color = LoginAccent,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -2196,7 +2208,7 @@ private fun AdminReportCard(
                     Text(
                         "Tutup detail ↑",
                         color = LoginMuted,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -2204,7 +2216,8 @@ private fun AdminReportCard(
             if (onReject != null || onAssign != null || onArchive != null || onRestore != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Spacer(modifier = Modifier.weight(1f))
                     if (onReject != null) {
@@ -2212,7 +2225,7 @@ private fun AdminReportCard(
                             onClick = onReject,
                             colors = ButtonDefaults.textButtonColors(contentColor = RoleRed)
                         ) {
-                            Text("Tolak", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Tolak", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     if (onAssign != null) {
@@ -2220,7 +2233,7 @@ private fun AdminReportCard(
                             onClick = onAssign,
                             colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
                         ) {
-                            Text(assignmentLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(assignmentLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     if (onArchive != null) {
@@ -2228,7 +2241,7 @@ private fun AdminReportCard(
                             onClick = onArchive,
                             colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
                         ) {
-                            Text("Arsipkan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Arsipkan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     if (onRestore != null) {
@@ -2236,7 +2249,7 @@ private fun AdminReportCard(
                             onClick = onRestore,
                             colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
                         ) {
-                            Text("Pulihkan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Pulihkan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -6481,25 +6494,30 @@ private fun PetugasTaskCard(
     ) {
         Column(
             modifier = Modifier.padding(
-                horizontal = if (compactHistory) 13.dp else 15.dp,
-                vertical = if (compactHistory) 11.dp else 14.dp
+                horizontal = if (compactHistory) 14.dp else 16.dp,
+                vertical = if (compactHistory) 13.dp else 16.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 6.dp else 9.dp)
+            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 8.dp else 10.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text(report.code, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 11.sp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(report.code, color = AppText, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold)
+                    Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
                 }
                 StatusPill(report.status, statusAccent)
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.Place, contentDescription = null, tint = statusAccent, modifier = Modifier.size(15.dp))
                 Text(
                     report.location.ifBlank { "Lokasi belum dicatat" },
+                    modifier = Modifier.weight(1f),
                     color = AppTextMuted,
-                    fontSize = 11.sp,
-                    maxLines = 1,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -6509,12 +6527,12 @@ private fun PetugasTaskCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("ARMADA", color = AppTextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                    Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("ARMADA", color = AppTextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                    Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (compactHistory) {
@@ -6526,58 +6544,64 @@ private fun PetugasTaskCard(
                 Text(
                     historyNote,
                     color = if (isComplete) statusAccent else AppTextMuted,
-                    fontSize = 11.sp,
-                    maxLines = 1,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(guidanceTitle, color = guidanceAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(guidanceTitle, color = guidanceAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         guidanceMessage,
                         color = AppTextMuted,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp,
-                        maxLines = 2,
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalAlignment = Alignment.Start
             ) {
                 if (!report.photoUrl.isNullOrBlank()) {
                     TextButton(
                         onClick = { onOpenPhoto(report.photoUrl) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 2.dp)
                     ) {
-                        Text("Foto awal · warga", color = statusAccent, fontSize = 11.sp)
+                        Text("Foto awal · warga", color = statusAccent, fontSize = 12.sp)
                     }
                 }
                 if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         report.locationEvidenceSubmittedAt.takeIf { it.isNotBlank() }?.let {
                             Text(
                                 "Foto lokasi · ${it.toDisplayDateTime()}",
-                                modifier = Modifier.weight(1f),
                                 color = AppTextMuted,
-                                fontSize = 11.sp,
-                                fontFamily = InterFont
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp,
+                                fontFamily = InterFont,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        TextButton(onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) }) {
-                            Text("Foto progres lokasi", color = LoginAccent, fontSize = 11.sp, fontFamily = InterFont)
+                        TextButton(
+                            onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 2.dp)
+                        ) {
+                            Text("Foto progres lokasi", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
                         }
                     }
                 }
                 if (!report.completionProofPhotoUrl.isNullOrBlank()) {
                     TextButton(
                         onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 4.dp)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 2.dp)
                     ) {
-                        Text("Foto akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 11.sp)
+                        Text("Foto akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
                     }
                 }
             }
@@ -7417,13 +7441,13 @@ private fun reportAccent(status: String): Color = when (status) {
 
 @Composable
 private fun SectionTitle(title: String, subtitle: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, color = AppText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, color = AppText, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold)
         Text(
             subtitle,
             color = AppTextMuted,
-            fontSize = 12.sp,
-            lineHeight = 18.sp
+            fontSize = 13.sp,
+            lineHeight = 19.sp
         )
     }
 }
