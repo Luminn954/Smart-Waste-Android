@@ -446,13 +446,29 @@ private fun AdminSectionHeading(eyebrow: String, title: String, subtitle: String
         modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Text(
-            eyebrow,
-            color = LoginAccent,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
-        )
+        Row(
+            modifier = Modifier
+                .clip(CircleShape)
+                .border(1.dp, AppBorder.copy(alpha = 0.78f), CircleShape)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(9.dp)
+                    .border(1.dp, LoginAccent, CircleShape)
+                    .padding(2.dp)
+                    .background(LoginAccent, CircleShape)
+            )
+            Text(
+                eyebrow,
+                color = LoginAccent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.6.sp
+            )
+        }
         Text(
             title,
             color = LoginInk,
