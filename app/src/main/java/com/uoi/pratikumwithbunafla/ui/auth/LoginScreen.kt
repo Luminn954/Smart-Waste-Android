@@ -281,12 +281,12 @@ private fun SmartWasteBackdrop(
         val farHill = if (darkMode) {
             Color(0xFF273B2F).copy(alpha = 0.88f)
         } else {
-            Color(0xFFF8FAF7)
+            LightLoginPalette.background
         }
         val nearHill = if (darkMode) {
             Color(0xFF17251C).copy(alpha = 0.96f)
         } else {
-            Color(0xFFEAF1ED)
+            LightLoginPalette.backgroundBottom
         }
         drawPath(
             path = Path().apply {
