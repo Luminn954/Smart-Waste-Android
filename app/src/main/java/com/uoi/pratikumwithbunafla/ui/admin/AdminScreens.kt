@@ -3188,9 +3188,8 @@ fun AdminOperationsScreen(
                                             enabled = uploadingPhotoWorkerId == null,
                                             modifier = Modifier
                                                 .align(Alignment.BottomEnd)
-                                                .size(23.dp)
-                                                .clip(CircleShape)
-                                                .background(AppCardSurface)
+                                                .offset(x = 6.dp, y = 6.dp)
+                                                .size(20.dp)
                                         ) {
                                             if (uploadingPhotoWorkerId == item.id) {
                                                 CircularProgressIndicator(
@@ -3201,8 +3200,8 @@ fun AdminOperationsScreen(
                                             } else {
                                                 Icon(
                                                     imageVector = Icons.Filled.PhotoCamera,
-                                                    contentDescription = "Tambah atau ganti foto profil ${item.name}",
-                                                    tint = LoginAccent,
+                                                    contentDescription = "Ganti foto profil ${item.name}",
+                                                    tint = if (isDarkMode) Color.White else LoginAccent,
                                                     modifier = Modifier.size(14.dp)
                                                 )
                                             }
