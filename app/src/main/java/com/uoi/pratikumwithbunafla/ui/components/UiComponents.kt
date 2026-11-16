@@ -652,14 +652,14 @@ fun UserAvatar(
         modifier = modifier
             .size(42.dp)
             .clip(CircleShape)
-            .background(WasteGreenDark),
+            .background(if (photo != null) AppSurface else WasteGreenDark),
         contentAlignment = Alignment.Center
     ) {
         if (photo != null) {
             Image(
                 bitmap = photo!!.asImageBitmap(),
                 contentDescription = "Foto profil $name",
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
