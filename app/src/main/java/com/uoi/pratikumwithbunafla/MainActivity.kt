@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(appearancePreferences.getBoolean("dark_mode", false))
             }
             var activeAccount by remember { mutableStateOf<UserAccount?>(null) }
+            var roleEntryKey by rememberSaveable { mutableIntStateOf(0) }
             var showSplash by rememberSaveable { mutableStateOf(true) }
             var keepSplashSystemBars by remember { mutableStateOf(true) }
             SmartWasteTheme(
@@ -365,6 +366,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onCheckConnection = { SmartWasteApi.checkConnection() },
                                 onLoginSuccess = {
+                                    roleEntryKey++
                                     val destination =
                                         if (activeAccount?.role == UserRole.PETUGAS) "tasks" else "dashboard"
                                     navController.navigate(destination) {
@@ -385,7 +387,7 @@ class MainActivity : ComponentActivity() {
                                     "tasks"
                                 )
                             }
-                            else RoleEntryAnimation {
+                            else RoleEntryAnimation(entryKey = roleEntryKey) {
                                 AdminDashboardScreen(
                                     summary = summary,
                                     reports = reports,
@@ -609,7 +611,7 @@ class MainActivity : ComponentActivity() {
                                     "dashboard"
                                 )
                             }
-                            else RoleEntryAnimation {
+                            else RoleEntryAnimation(entryKey = roleEntryKey) {
                                 PetugasTasksScreen(
                                     tasks = tasks,
                                     archivedTasks = archivedPetugasTasks,
@@ -915,21 +917,21 @@ private suspend fun <T> loadOrKeep(
 }
 
 @Composable
-private fun RoleEntryAnimation(content: @Composable () -> Unit) {
-    val entryState = remember {
+private fun RoleEntryAnimation(entryKey: Int, content: @Composable () -> Unit) {
+    val entryState = remember(entryKey) {
         MutableTransitionState(false).apply { targetState = true }
     }
-    val entryAnimation = tween<Float>(durationMillis = 560, easing = FastOutSlowInEasing)
+    val entryAnimation = tween<Float>(durationMillis = 800, easing = FastOutSlowInEasing)
 
     AnimatedVisibility(
         visibleState = entryState,
         enter = fadeIn(animationSpec = entryAnimation) +
             slideInVertically(
-                animationSpec = tween(durationMillis = 560, easing = FastOutSlowInEasing),
-                initialOffsetY = { fullHeight -> (fullHeight * 0.025f).toInt() }
+                animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+                initialOffsetY = { fullHeight -> (fullHeight * 0.075f).toInt() }
             ) +
             scaleIn(
-                initialScale = 0.985f,
+                initialScale = 0.93f,
                 animationSpec = entryAnimation
             )
     ) {
