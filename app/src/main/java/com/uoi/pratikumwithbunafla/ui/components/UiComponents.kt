@@ -183,7 +183,8 @@ fun AppScreen(content: @Composable () -> Unit) {
 
 private val SplashForest = Color(0xFF1B714C)
 private val SplashLeaf = Color(0xFF4A9B68)
-private val SplashArcGreen = Color(0xFF0A9660)
+private val SplashArcSage = Color(0xFF6B9678)
+private val SplashArcForest = Color(0xFF397653)
 
 @Composable
 fun SmartWasteSplash() {
@@ -246,9 +247,10 @@ private fun SplashLogoAssembly(compactScreen: Boolean) {
     val nameProgress = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        arcProgress.animateTo(1f, tween(1_700, easing = FastOutSlowInEasing))
-        logoProgress.animateTo(1f, tween(680, easing = FastOutSlowInEasing))
-        delay(150)
+        arcProgress.animateTo(1f, tween(1_950, easing = FastOutSlowInEasing))
+        delay(120)
+        logoProgress.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
+        delay(120)
         nameProgress.animateTo(1f, tween(480, easing = FastOutSlowInEasing))
     }
 
@@ -264,62 +266,26 @@ private fun SplashLogoAssembly(compactScreen: Boolean) {
                 val inset = 13.dp.toPx()
                 val arcBounds = Offset(inset, inset)
                 val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
-                val sweep = 18f + progress * 142f
-                val rotation = (1f - progress) * 28f
-                val glowStroke = Stroke(width = 15.dp.toPx(), cap = StrokeCap.Round)
-                val softStroke = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
-                val coreStroke = Stroke(width = 4.5.dp.toPx(), cap = StrokeCap.Round)
+                val sweep = 20f + progress * 160f
+                val rotation = (1f - progress) * 42f
+                val lineStroke = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
 
-                fun drawSweep(startAngle: Float, turn: Float) {
+                fun drawSweep(startAngle: Float, turn: Float, color: Color) {
                     rotate(turn, center) {
                         drawArc(
-                            color = SplashForest.copy(alpha = 0.15f * arcAlpha),
+                            color = color.copy(alpha = arcAlpha),
                             startAngle = startAngle,
                             sweepAngle = sweep,
                             useCenter = false,
                             topLeft = arcBounds,
                             size = arcSize,
-                            style = glowStroke
-                        )
-                        drawArc(
-                            color = SplashArcGreen.copy(alpha = 0.34f * arcAlpha),
-                            startAngle = startAngle,
-                            sweepAngle = sweep,
-                            useCenter = false,
-                            topLeft = arcBounds,
-                            size = arcSize,
-                            style = softStroke
-                        )
-                        drawArc(
-                            color = SplashArcGreen.copy(alpha = arcAlpha),
-                            startAngle = startAngle,
-                            sweepAngle = sweep,
-                            useCenter = false,
-                            topLeft = arcBounds,
-                            size = arcSize,
-                            style = coreStroke
-                        )
-
-                        val tipAngle = Math.toRadians((startAngle + sweep).toDouble())
-                        val tip = Offset(
-                            x = center.x + arcSize.width / 2f * kotlin.math.cos(tipAngle).toFloat(),
-                            y = center.y + arcSize.height / 2f * kotlin.math.sin(tipAngle).toFloat()
-                        )
-                        drawCircle(
-                            color = SplashForest.copy(alpha = 0.46f * arcAlpha),
-                            radius = 9.dp.toPx(),
-                            center = tip
-                        )
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.98f * arcAlpha),
-                            radius = 3.2.dp.toPx(),
-                            center = tip
+                            style = lineStroke
                         )
                     }
                 }
 
-                drawSweep(-162f, -rotation)
-                drawSweep(18f, rotation)
+                drawSweep(-180f, -rotation, SplashArcSage)
+                drawSweep(0f, rotation, SplashArcForest)
             }
 
             Image(
