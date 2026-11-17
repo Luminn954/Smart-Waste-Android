@@ -1298,9 +1298,8 @@ fun AdminDashboardScreen(
                 elevation = 0.dp,
                 shape = RoundedCornerShape(18.dp)
             ) {
-                val pendingReportCount = reports.count { it.status == WasteFlow.WAITING }
-                val totalPendingActions = pendingReportCount + pendingProofCount +
-                    pendingVehicleRepairActionCount + pendingCapacityClearanceCount
+                val totalPendingActions = pendingProofCount + pendingVehicleRepairActionCount +
+                    pendingCapacityClearanceCount
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(9.dp)
@@ -1325,36 +1324,21 @@ fun AdminDashboardScreen(
                             Modifier.weight(1f)
                         ) { onNavigate("ops:petugas") }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Perlu ditangani", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "$totalPendingActions tindakan",
-                            color = AppTextMuted,
-                            fontSize = 11.sp,
-                            fontFamily = InterFont
-                        )
-                    }
-                    if (totalPendingActions == 0) {
-                        Text(
-                            "Semua antrean sudah ditangani.",
-                            modifier = Modifier.padding(horizontal = 3.dp),
-                            color = AppTextMuted,
-                            fontSize = 12.sp
-                        )
-                    } else {
+                    if (totalPendingActions > 0) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Perlu ditangani", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "$totalPendingActions tindakan",
+                                color = AppTextMuted,
+                                fontSize = 11.sp,
+                                fontFamily = InterFont
+                            )
+                        }
                         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            if (pendingReportCount > 0) {
-                                DashboardPriorityAction(
-                                    title = "$pendingReportCount laporan menunggu verifikasi",
-                                    detail = "Periksa laporan warga yang baru masuk",
-                                    icon = Icons.Filled.Inbox,
-                                    tint = RoleOrange
-                                ) { onNavigate("status:${WasteFlow.WAITING}") }
-                            }
                             if (pendingProofCount > 0) {
                                 DashboardPriorityAction(
                                     title = "$pendingProofCount bukti kerja menunggu",
