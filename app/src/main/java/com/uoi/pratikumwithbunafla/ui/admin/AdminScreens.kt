@@ -4448,9 +4448,9 @@ fun PetugasTasksScreen(
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             PetugasSectionHeading(
-                                eyebrow = "SHIFT LAPANGAN",
-                                title = "Aktivitas hari ini",
-                                subtitle = "Akses cepat ke antrean dan perlengkapan kerja.",
+                                eyebrow = "AKSES LAPANGAN",
+                                title = "Pusat operasional",
+                                subtitle = "Buka antrean, armada, dan riwayat kerja.",
                                 modifier = Modifier.weight(1f),
                                 icon = Icons.Filled.Place
                             )
@@ -5882,16 +5882,14 @@ private fun PetugasTopBar(
     account: UserAccount,
     onOpenProfile: () -> Unit,
     onOpenNotifications: () -> Unit,
-    onLogout: () -> Unit,
-    isOnHero: Boolean = false
+    onLogout: () -> Unit
 ) {
     var profileMenuExpanded by remember(account.username) { mutableStateOf(false) }
     val appearance = LocalSmartWasteAppearance.current
     val compact = LocalConfiguration.current.screenWidthDp < 350
-    val foreground = if (isOnHero) Color(0xFFF5F4E8) else AppText
-    val subdued = if (isOnHero) Color(0xFFE0E9DE) else AppTextMuted
-    val roleIconTint = if (isOnHero) Color(0xFFF5F4E8) else PetugasAccent
-    val controlSurface = if (isOnHero) Color.White.copy(alpha = 0.12f) else AppSurfaceMuted
+    val foreground = AppText
+    val subdued = AppTextMuted
+    val roleIconTint = PetugasAccent
     val themeTint by animateColorAsState(
         targetValue = if (appearance.darkMode) Color(0xFFB8C8BA) else PetugasAccent,
         animationSpec = tween(380, easing = FastOutSlowInEasing),
@@ -5904,14 +5902,7 @@ private fun PetugasTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier.size(if (compact) 32.dp else 36.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(controlSurface),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = roleIconTint, modifier = Modifier.size(20.dp))
-            }
+            PetugasRouteEmblem(Modifier.size(if (compact) 34.dp else 38.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     "SMART WASTE",
@@ -5988,18 +5979,53 @@ private fun PetugasTopBar(
             Box(
                 modifier = Modifier.size(30.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(controlSurface),
+                    .background(AppSurfaceMuted),
                 contentAlignment = Alignment.Center
             ) {
                 Crossfade(targetState = appearance.darkMode, animationSpec = tween(340), label = "petugas-theme-icon") { dark ->
                     Icon(
                         imageVector = if (dark) Icons.Rounded.WbSunny else Icons.Rounded.NightsStay,
                         contentDescription = if (dark) "Aktifkan mode terang" else "Aktifkan mode gelap",
-                        tint = if (isOnHero) Color(0xFFF4EACB) else themeTint,
+                        tint = themeTint,
                         modifier = Modifier.size(17.dp)
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PetugasRouteEmblem(modifier: Modifier = Modifier) {
+    val isDark = LocalSmartWasteAppearance.current.darkMode
+    val routeColor = if (isDark) Color(0xFFB8C8BA) else Color(0xFF315B43)
+    val emblemSurface = if (isDark) Color(0xFF304338) else Color(0xFFE4EBE1)
+
+    Box(
+        modifier = modifier.clip(CircleShape).background(emblemSurface),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize().padding(7.dp)) {
+            val start = Offset(size.width * 0.22f, size.height * 0.76f)
+            val end = Offset(size.width * 0.78f, size.height * 0.24f)
+            val route = Path().apply {
+                moveTo(start.x, start.y)
+                cubicTo(
+                    size.width * 0.18f,
+                    size.height * 0.42f,
+                    size.width * 0.82f,
+                    size.height * 0.62f,
+                    end.x,
+                    end.y
+                )
+            }
+            drawPath(
+                path = route,
+                color = routeColor,
+                style = Stroke(width = size.minDimension * 0.075f, cap = StrokeCap.Round)
+            )
+            drawCircle(routeColor, radius = size.minDimension * 0.12f, center = start)
+            drawCircle(routeColor, radius = size.minDimension * 0.12f, center = end)
         }
     }
 }
@@ -6049,132 +6075,113 @@ private fun PetugasJourneyHero(
         incomingReportCount > 0 -> "Tinjau laporan"
         else -> "Buka antrean"
     }
-    val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val heroHeaderHeight = statusBarInset + 64.dp
-    val heroHeight = 318.dp + heroHeaderHeight
-    val contentWidth = if (LocalConfiguration.current.screenWidthDp < 360) 0.76f else 0.70f
-    val bannerText = Color(0xFFF5F4E8)
-    val bannerMuted = Color(0xFFE2E9D9)
-    val statusSurface = Color(0xFF102D22).copy(alpha = if (isDark) 0.76f else 0.64f)
-    val readyTint = if (isDark) Color(0xFFC6D7A6) else Color(0xFFD8E8C5)
-    val routeTint = if (isDark) Color(0xFFA8D0C2) else Color(0xFFB9DED0)
-    val attentionTint = if (isDark) Color(0xFFE3C98E) else Color(0xFFFFD28A)
+    val isCompact = LocalConfiguration.current.screenWidthDp < 360
+    val imageSize = if (isCompact) 64.dp else 76.dp
+    val backgroundBitmap = ImageBitmap.imageResource(R.drawable.petugas_hero_background)
+    val backgroundPainter = remember(backgroundBitmap) {
+        BitmapPainter(backgroundBitmap, filterQuality = FilterQuality.High)
+    }
 
-    Box(
-        modifier = Modifier.fillMaxWidth()
-            .height(heroHeight)
-            .clip(HeroBottomCurveShape)
-            .background(if (isDark) Color(0xFF1C3025) else Color(0xFF286B4D))
-    ) {
-        val backgroundBitmap = ImageBitmap.imageResource(R.drawable.petugas_hero_background)
-        val backgroundPainter = remember(backgroundBitmap) {
-            BitmapPainter(backgroundBitmap, filterQuality = FilterQuality.High)
-        }
-        Image(
-            painter = backgroundPainter,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-        Box(
-            modifier = Modifier.fillMaxSize()
-                .background(
-                    Color(0xFF102D22).copy(alpha = if (isDark) 0.38f else 0.16f)
-                )
-        )
-        val textSideShade = if (isDark) Color(0xFF17271E) else Color(0xFF103F30)
-        Box(
-            modifier = Modifier.fillMaxSize().background(
-                Brush.horizontalGradient(
-                    0f to textSideShade.copy(alpha = 0.86f),
-                    0.48f to textSideShade.copy(alpha = 0.62f),
-                    0.76f to Color.Transparent,
-                    1f to Color.Transparent
-                )
-            )
-        )
+    Column(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier.fillMaxWidth()
-                .align(Alignment.TopCenter)
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 20.dp, vertical = 11.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             PetugasTopBar(
                 account = account,
                 onOpenProfile = onOpenProfile,
                 onOpenNotifications = onOpenNotifications,
-                onLogout = onLogout,
-                isOnHero = true
+                onLogout = onLogout
             )
         }
+
         Column(
-            modifier = Modifier.fillMaxWidth(contentWidth)
-                .align(Alignment.TopStart)
-                .padding(start = 18.dp, top = heroHeaderHeight + 10.dp, bottom = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(AppSurfaceMuted)
+                .padding(if (isCompact) 14.dp else 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                "RUANG KERJA · PETUGAS",
-                color = bannerMuted,
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.55.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
-                color = bannerText,
-                fontSize = 22.sp,
-                lineHeight = 27.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    active.toString(),
-                    color = bannerText,
-                    fontSize = 39.sp,
-                    lineHeight = 45.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("tugas aktif", color = bannerText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text(
+                        "SHIFT HARI INI",
+                        color = PetugasAccent,
+                        fontSize = 10.sp,
+                        lineHeight = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.7.sp,
+                        maxLines = 1
+                    )
+                    Text(
+                        "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
+                        color = AppText,
+                        fontSize = if (isCompact) 20.sp else 22.sp,
+                        lineHeight = 27.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Text(
                         workSummary,
-                        color = bannerMuted,
+                        color = AppTextMuted,
                         fontSize = 12.sp,
-                        lineHeight = 16.sp,
+                        lineHeight = 17.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                Box(
+                    modifier = Modifier.size(imageSize)
+                        .clip(RoundedCornerShape(18.dp))
+                ) {
+                    Image(
+                        painter = backgroundPainter,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize()
+                            .background(if (isDark) Color(0x66364C41) else Color(0x33364C41))
+                    )
+                }
             }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                PetugasHeroStat(assigned.toString(), "Siap angkut", readyTint, bannerMuted, Modifier.weight(1f))
-                PetugasHeroStat(inRoute.toString(), "Dalam rute", routeTint, bannerMuted, Modifier.weight(1f))
-                PetugasHeroStat(needsAttention.toString(), "Perlu dicek", attentionTint, bannerMuted, Modifier.weight(1f))
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(17.dp))
-                    .background(statusSurface)
-                    .padding(start = 13.dp, end = 7.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                PetugasShiftMetric(assigned.toString(), "Siap angkut", Modifier.weight(1f))
+                Box(Modifier.width(1.dp).height(42.dp).background(AppBorder.copy(alpha = 0.55f)))
+                PetugasShiftMetric(inRoute.toString(), "Dalam rute", Modifier.weight(1f))
+                Box(Modifier.width(1.dp).height(42.dp).background(AppBorder.copy(alpha = 0.55f)))
+                PetugasShiftMetric(needsAttention.toString(), "Perlu dicek", Modifier.weight(1f))
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
-                        if (total > 0) "$completed dari $total selesai · ${completed * 100 / total}%" else "Belum ada pekerjaan selesai",
-                        color = bannerText,
+                        if (total > 0) "$completed dari $total selesai · ${completed * 100 / total}%"
+                        else "Belum ada pekerjaan selesai",
+                        color = AppTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
                         fontWeight = FontWeight.Medium,
@@ -6184,22 +6191,40 @@ private fun PetugasJourneyHero(
                     Box(
                         modifier = Modifier.fillMaxWidth().height(5.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.18f))
+                            .background(AppBorder.copy(alpha = 0.65f))
                     ) {
                         if (progressFraction > 0f) {
                             Box(
                                 modifier = Modifier.fillMaxWidth(progressFraction).fillMaxHeight()
                                     .clip(CircleShape)
-                                    .background(readyTint)
+                                    .background(PetugasAccent)
                             )
                         }
                     }
                 }
-                TextButton(
-                    onClick = onOpenTasks,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 5.dp)
+                Row(
+                    modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                        .background(PetugasAccent)
+                        .clickable(role = Role.Button, onClick = onOpenTasks)
+                        .padding(horizontal = 12.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("$actionLabel  ›", color = bannerText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text(
+                        actionLabel,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(15.dp)
+                    )
                 }
             }
         }
@@ -6207,19 +6232,14 @@ private fun PetugasJourneyHero(
 }
 
 @Composable
-private fun PetugasHeroStat(
+private fun PetugasShiftMetric(
     value: String,
     label: String,
-    tint: Color,
-    labelColor: Color,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(value, color = tint, fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            Box(Modifier.size(6.dp).clip(CircleShape).background(tint))
-            Text(label, color = labelColor, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        Text(value, color = AppText, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
+        Text(label, color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
