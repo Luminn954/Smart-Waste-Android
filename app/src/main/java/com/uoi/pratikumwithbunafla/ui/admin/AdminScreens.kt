@@ -1378,82 +1378,13 @@ fun AdminDashboardScreen(
             if (latest.isEmpty()) {
                 EmptyAdminState("Belum ada laporan dari warga.", useCompactCardStyle = true)
             } else {
-                AppCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    containerColor = AppSurface.copy(alpha = 0.98f),
-                    borderColor = null,
-                    elevation = 0.dp,
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 4.dp)
-                    ) {
-                        latest.forEach { report ->
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        report.code,
-                                        modifier = Modifier.weight(1f)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onNavigate("status:${report.status}") },
-                                        color = AppText,
-                                        fontFamily = InterFont,
-                                        fontSize = 12.sp,
-                                        lineHeight = 15.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    StatusPill(report.status, reportAccent(report.status))
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        "${report.type} · ${report.location}",
-                                        modifier = Modifier.weight(1f)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onNavigate("status:${report.status}") },
-                                        color = AppTextMuted,
-                                        fontFamily = InterFont,
-                                        fontSize = 11.sp,
-                                        lineHeight = 15.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (report.status == WasteFlow.WAITING) {
-                                        TextButton(
-                                            onClick = { assigningReport = report },
-                                            modifier = Modifier.width(74.dp),
-                                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                                horizontal = 5.dp,
-                                                vertical = 0.dp
-                                            )
-                                        ) {
-                                            Text(
-                                                "Tugaskan",
-                                                color = LoginAccent,
-                                                fontFamily = InterFont,
-                                                fontSize = 11.sp,
-                                                lineHeight = 14.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    } else {
-                                        Spacer(Modifier.width(74.dp))
-                                    }
-                                }
-                            }
-                        }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    latest.forEach { report ->
+                        AdminLatestReportCard(
+                            report = report,
+                            onOpen = { onNavigate("status:${report.status}") },
+                            onAssign = { assigningReport = report }
+                        )
                     }
                 }
             }
@@ -1472,6 +1403,201 @@ fun AdminDashboardScreen(
                 assigningReport = null
             }
         )
+    }
+}
+
+private data class AdminReportProgress(
+    val fraction: Float,
+    val valueLabel: String,
+    val stageLabel: String,
+    val stepLabel: String
+)
+
+private fun adminReportProgress(status: String): AdminReportProgress = when (status) {
+    WasteFlow.WAITING -> AdminReportProgress(0.25f, "25%", "Menunggu verifikasi", "Tahap 1 dari 4")
+    WasteFlow.PROCESSING, WasteFlow.ASSIGNED ->
+        AdminReportProgress(0.50f, "50%", "Petugas ditugaskan", "Tahap 2 dari 4")
+    WasteFlow.TRANSPORTED ->
+        AdminReportProgress(0.75f, "75%", "Sedang diangkut", "Tahap 3 dari 4")
+    WasteFlow.DONE -> AdminReportProgress(1f, "100%", "Penanganan selesai", "Tahap 4 dari 4")
+    WasteFlow.REJECTED -> AdminReportProgress(0f, "Ditolak", "Proses dihentikan", "Tidak dilanjutkan")
+    else -> AdminReportProgress(0f, "—", "Status belum tersedia", "Tahap belum diketahui")
+}
+
+@Composable
+private fun AdminLatestReportCard(
+    report: WasteRecord,
+    onOpen: () -> Unit,
+    onAssign: () -> Unit
+) {
+    val accent = reportAccent(report.status)
+    val progress = adminReportProgress(report.status)
+
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = AppSurface,
+        borderColor = null,
+        elevation = 0.dp,
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(13.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier.size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(accent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Assignment,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onOpen),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            report.code,
+                            modifier = Modifier.weight(1f),
+                            color = AppText,
+                            fontFamily = InterFont,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        StatusPill(report.status, accent)
+                    }
+                    Text(
+                        "${report.type} · ${report.weightKg.pretty()} kg",
+                        color = AppTextMuted,
+                        fontFamily = InterFont,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        report.location,
+                        color = AppTextMuted,
+                        fontFamily = InterFont,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AppSurfaceMuted)
+                    .padding(11.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Progress penanganan",
+                        modifier = Modifier.weight(1f),
+                        color = AppTextMuted,
+                        fontFamily = InterFont,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        progress.valueLabel,
+                        color = accent,
+                        fontFamily = InterFont,
+                        fontSize = 12.sp,
+                        lineHeight = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .height(6.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.16f))
+                ) {
+                    if (progress.fraction > 0f) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(progress.fraction)
+                                .fillMaxHeight()
+                                .background(accent)
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        progress.stageLabel,
+                        modifier = Modifier.weight(1f),
+                        color = AppText,
+                        fontFamily = InterFont,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        progress.stepLabel,
+                        color = AppTextMuted,
+                        fontFamily = InterFont,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                        textAlign = TextAlign.End,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            if (report.status == WasteFlow.WAITING) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(
+                        onClick = onAssign,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 8.dp,
+                            vertical = 0.dp
+                        )
+                    ) {
+                        Text(
+                            "Tugaskan",
+                            color = LoginAccent,
+                            fontFamily = InterFont,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
