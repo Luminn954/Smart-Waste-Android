@@ -201,6 +201,7 @@ import com.uoi.pratikumwithbunafla.ui.theme.DarkSmartWastePalette
 import com.uoi.pratikumwithbunafla.ui.theme.LightSmartWastePalette
 import com.uoi.pratikumwithbunafla.ui.theme.LocalSmartWasteAppearance
 import com.uoi.pratikumwithbunafla.ui.theme.LocalSmartWastePalette
+import com.uoi.pratikumwithbunafla.ui.theme.SmartWastePalette
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -248,6 +249,40 @@ private val AdminNightPalette = DarkSmartWastePalette.copy(
     text = Color(0xFFE7EEE8),
     textMuted = Color(0xFFB3C1B6)
 )
+
+private val PetugasDayPalette = LightSmartWastePalette.copy(
+    background = Color(0xFFF2F4ED),
+    surface = Color(0xFFE7EEE5),
+    cardSurface = Color(0xFFFBFCF7),
+    surfaceMuted = Color(0xFFDCE7DD),
+    border = Color(0xFFB9CDBE),
+    text = Color(0xFF203A2D),
+    textMuted = Color(0xFF50675A)
+)
+
+private val PetugasNightPalette = DarkSmartWastePalette.copy(
+    background = Color(0xFF17231D),
+    surface = Color(0xFF202E26),
+    cardSurface = Color(0xFF26372D),
+    surfaceMuted = Color(0xFF304338),
+    border = Color(0xFF435B4C),
+    text = Color(0xFFE9F0E7),
+    textMuted = Color(0xFFB8C8BA)
+)
+
+private val PetugasAccent: Color
+    @Composable get() = if (LocalSmartWasteAppearance.current.darkMode) {
+        Color(0xFF52765B)
+    } else {
+        Color(0xFF3E6C53)
+    }
+
+private val PetugasSignal: Color
+    @Composable get() = if (LocalSmartWasteAppearance.current.darkMode) {
+        Color(0xFFD7B975)
+    } else {
+        Color(0xFF9C7537)
+    }
 
 private val AdminNightColorScheme = darkColorScheme(
     primary = Color(0xFF9DBDA4),
@@ -333,6 +368,8 @@ private fun AdminPage(
     showNotificationsButton: Boolean = true,
     backgroundContent: @Composable BoxScope.() -> Unit = {},
     fullBleedContent: (@Composable ColumnScope.() -> Unit)? = null,
+    topBarContent: (@Composable () -> Unit)? = null,
+    workspacePaletteOverride: SmartWastePalette? = null,
     showTopBar: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -345,7 +382,8 @@ private fun AdminPage(
     }
     val isAdmin = account.role == UserRole.ADMIN
     val isNightAdmin = isAdmin && LocalSmartWasteAppearance.current.darkMode
-    val workspacePalette = if (isNightAdmin) AdminNightPalette else LocalSmartWastePalette.current
+    val workspacePalette = workspacePaletteOverride
+        ?: if (isNightAdmin) AdminNightPalette else LocalSmartWastePalette.current
     val workspaceColorScheme = if (isNightAdmin) AdminNightColorScheme else MaterialTheme.colorScheme
 
     CompositionLocalProvider(
@@ -400,16 +438,20 @@ private fun AdminPage(
                                                 modifier = Modifier.fillMaxWidth()
                                                     .padding(horizontal = horizontalPadding, vertical = 11.dp)
                                             ) {
-                                                AdminTopBar(
-                                                    account = account,
-                                                    onLogout = onLogout,
-                                                    onOpenProfile = { onNavigate("profile") },
-                                                    showNotificationsButton = showNotificationsButton,
-                                                    onOpenNotifications = {
-                                                        onOpenNotifications?.invoke()
-                                                            ?: onNavigate("notifications")
-                                                    }
-                                                )
+                                                if (topBarContent != null) {
+                                                    topBarContent()
+                                                } else {
+                                                    AdminTopBar(
+                                                        account = account,
+                                                        onLogout = onLogout,
+                                                        onOpenProfile = { onNavigate("profile") },
+                                                        showNotificationsButton = showNotificationsButton,
+                                                        onOpenNotifications = {
+                                                            onOpenNotifications?.invoke()
+                                                                ?: onNavigate("notifications")
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                         if (isInitialLoading) {
@@ -4331,6 +4373,19 @@ fun PetugasTasksScreen(
         onNavigate = {},
         onLogout = onLogout,
         onOpenNotifications = onOpenNotifications,
+        topBarContent = {
+            PetugasTopBar(
+                account = account,
+                onOpenProfile = { selectedSection = "profil" },
+                onOpenNotifications = onOpenNotifications,
+                onLogout = onLogout
+            )
+        },
+        workspacePaletteOverride = if (LocalSmartWasteAppearance.current.darkMode) {
+            PetugasNightPalette
+        } else {
+            PetugasDayPalette
+        },
         showTopBar = currentSection != "ringkasan",
         fullBleedContent = if (currentSection == "ringkasan") {
             {
@@ -4399,13 +4454,13 @@ fun PetugasTasksScreen(
                         PetugasLoadFailure("Ringkasan belum dapat dimuat.", onRefresh)
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(
+                            PetugasSectionHeading(
+                                eyebrow = "SHIFT LAPANGAN",
+                                title = "Aktivitas hari ini",
+                                subtitle = "Akses cepat ke antrean dan perlengkapan kerja.",
                                 modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Text("Ruang kerja Petugas", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Tugas, armada, dan progres kerja", color = AppTextMuted, fontSize = 12.sp)
-                            }
+                                icon = Icons.Filled.Place
+                            )
                             TextButton(
                                 onClick = {
                                     selectedSection = "tugas"
@@ -4413,26 +4468,26 @@ fun PetugasTasksScreen(
                                 },
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 4.dp)
                             ) {
-                                Text("Semua tugas  ›", color = LoginAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Semua tugas  ›", color = PetugasAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(78.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            AdminTaskTile("Laporan", Icons.Filled.Inbox, TaskAmber, Modifier.weight(1f)) {
+                            PetugasActionTile("Masuk", newReports.size, Icons.Filled.Inbox, PetugasSignal, Modifier.weight(1f)) {
                                 selectedSection = "tugas"
                                 selectedWorkArea = "laporan"
                             }
-                            AdminTaskTile("Tugas", Icons.Rounded.TaskAlt, TaskPurple, Modifier.weight(1f)) {
+                            PetugasActionTile("Aktif", activeTasks.size, Icons.Rounded.TaskAlt, PetugasAccent, Modifier.weight(1f)) {
                                 selectedSection = "tugas"
                                 selectedWorkArea = "aktif"
                             }
-                            AdminTaskTile("Armada", Icons.Filled.LocalShipping, TaskTeal, Modifier.weight(1f)) {
+                            PetugasActionTile("Armada", vehicles.size, Icons.Filled.LocalShipping, RoleTeal, Modifier.weight(1f)) {
                                 selectedSection = "tugas"
                                 selectedWorkArea = "armada"
                             }
-                            AdminTaskTile("Riwayat", Icons.Rounded.History, TaskGreen, Modifier.weight(1f)) {
+                            PetugasActionTile("Riwayat", historyTasks.size, Icons.Rounded.History, RoleNavy, Modifier.weight(1f)) {
                                 selectedSection = "riwayat"
                                 showingTaskArchive = false
                             }
@@ -4441,16 +4496,17 @@ fun PetugasTasksScreen(
                         PetugasAssistantEntry(onClick = { showAssistantDialog = true })
                         when {
                             nextTask != null -> {
-                                AdminSectionHeading(
-                                    "PETUGAS · PRIORITAS",
-                                    "Lanjutkan pekerjaan",
-                                    if (nextTask.completionStatus == "perlu_perbaikan") {
+                                PetugasSectionHeading(
+                                    eyebrow = "PRIORITAS LAPANGAN",
+                                    title = "Lanjutkan pekerjaan",
+                                    subtitle = if (nextTask.completionStatus == "perlu_perbaikan") {
                                         "Admin meminta perbaikan bukti. Tugas ini perlu ditangani lebih dulu."
                                     } else if (nextTask.status == WasteFlow.TRANSPORTED) {
                                         "Muatan sedang diangkut. Kirim bukti saat sudah diterima di TPA."
                                     } else {
                                         "Tugas aktif didahulukan sebelum laporan baru."
-                                    }
+                                    },
+                                    icon = Icons.Rounded.TaskAlt
                                 )
                                 PetugasTaskCard(
                                     report = nextTask,
@@ -4471,11 +4527,16 @@ fun PetugasTasksScreen(
                                     },
                                     modifier = Modifier.align(Alignment.CenterHorizontally)
                                 ) {
-                                    Text("Lihat semua tugas aktif", color = LoginAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                    Text("Lihat semua tugas aktif", color = PetugasAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                                 }
                             }
                             nextReport != null -> {
-                                AdminSectionHeading("PETUGAS · ANTREAN", "Laporan baru", "Tinjau laporan warga dan siapkan penanganannya.")
+                                PetugasSectionHeading(
+                                    eyebrow = "ANTREAN MASUK",
+                                    title = "Laporan baru",
+                                    subtitle = "Tinjau kondisi dan siapkan penanganannya.",
+                                    icon = Icons.Filled.Inbox
+                                )
                                 AdminReportCard(
                                     report = nextReport,
                                     onOpenPhoto = onOpenPhoto,
@@ -4490,10 +4551,11 @@ fun PetugasTasksScreen(
                                 )
                             }
                             tasksWaitingForAdmin.isNotEmpty() -> {
-                                AdminSectionHeading(
-                                    "PETUGAS · TINJAUAN",
-                                    "Bukti menunggu Admin",
-                                    "${tasksWaitingForAdmin.size} tugas sudah dikirim untuk diperiksa. Petugas tidak perlu mengirim ulang."
+                                PetugasSectionHeading(
+                                    eyebrow = "KONFIRMASI KERJA",
+                                    title = "Bukti menunggu Admin",
+                                    subtitle = "${tasksWaitingForAdmin.size} tugas sudah dikirim untuk diperiksa. Petugas tidak perlu mengirim ulang.",
+                                    icon = Icons.Filled.CheckCircle
                                 )
                                 PetugasTaskCard(
                                     report = tasksWaitingForAdmin.first(),
@@ -4507,7 +4569,7 @@ fun PetugasTasksScreen(
                                     },
                                     modifier = Modifier.align(Alignment.CenterHorizontally)
                                 ) {
-                                    Text("Lihat bukti terkirim", color = LoginAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                    Text("Lihat bukti terkirim", color = PetugasAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                                 }
                             }
                             else -> PetugasEmptyState(
@@ -4527,7 +4589,18 @@ fun PetugasTasksScreen(
                     "perbaikan" -> "Proses perbaikan" to "Catat penyebab, progres, lalu kirim hasil untuk ditinjau Admin."
                     else -> "TPA" to "Pantau kapasitas tujuan sebelum mengatur pengangkutan."
                 }
-                AdminSectionHeading("PETUGAS · OPERASIONAL", workAreaHeading.first, workAreaHeading.second)
+                PetugasSectionHeading(
+                    eyebrow = "POS OPERASIONAL",
+                    title = workAreaHeading.first,
+                    subtitle = workAreaHeading.second,
+                    icon = when (selectedWorkArea) {
+                        "laporan" -> Icons.Filled.Inbox
+                        "aktif" -> Icons.Rounded.TaskAlt
+                        "armada" -> Icons.Filled.LocalShipping
+                        "perbaikan" -> Icons.Filled.Build
+                        else -> Icons.Filled.Place
+                    }
+                )
                 PetugasFilterGrid(
                     choices = listOf(
                         PetugasFilterOption("laporan", "Masuk", newReports.size),
@@ -4798,11 +4871,12 @@ fun PetugasTasksScreen(
             }
 
             "riwayat" -> {
-                AdminSectionHeading(
-                    "PETUGAS · CATATAN",
-                    if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
-                    if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan."
-                    else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak"
+                PetugasSectionHeading(
+                    eyebrow = "CATATAN SHIFT",
+                    title = if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
+                    subtitle = if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan."
+                    else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
+                    icon = Icons.Rounded.History
                 )
                 PetugasFilterGrid(
                     choices = listOf(
@@ -5718,6 +5792,233 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
 }
 
 @Composable
+private fun PetugasSectionHeading(
+    eyebrow: String,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Filled.LocalShipping
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+            Box(
+                modifier = Modifier.size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(PetugasAccent.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = PetugasAccent, modifier = Modifier.size(19.dp))
+                Box(
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(PetugasSignal)
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    eyebrow,
+                    color = PetugasAccent,
+                    fontSize = 10.sp,
+                    lineHeight = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.65.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    title,
+                    color = AppText,
+                    fontSize = if (LocalConfiguration.current.screenWidthDp < 360) 19.sp else 21.sp,
+                    lineHeight = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Text(
+            subtitle,
+            color = AppTextMuted,
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun PetugasActionTile(
+    label: String,
+    count: Int,
+    icon: ImageVector,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(15.dp)
+    Column(
+        modifier = modifier.height(82.dp)
+            .clip(shape)
+            .background(AppCardSurface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(28.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(accent.copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+            }
+            Spacer(Modifier.weight(1f))
+            Text(count.toString(), color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
+        Text(
+            label,
+            color = AppText,
+            fontSize = 10.sp,
+            lineHeight = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun PetugasTopBar(
+    account: UserAccount,
+    onOpenProfile: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    onLogout: () -> Unit,
+    isOnHero: Boolean = false
+) {
+    var profileMenuExpanded by remember(account.username) { mutableStateOf(false) }
+    val appearance = LocalSmartWasteAppearance.current
+    val compact = LocalConfiguration.current.screenWidthDp < 350
+    val foreground = if (isOnHero) Color(0xFFF5F4E8) else AppText
+    val subdued = if (isOnHero) Color(0xFFE0E9DE) else AppTextMuted
+    val roleIconTint = if (isOnHero) Color(0xFFF5F4E8) else PetugasAccent
+    val controlSurface = if (isOnHero) Color.White.copy(alpha = 0.12f) else AppSurfaceMuted
+    val themeTint by animateColorAsState(
+        targetValue = if (appearance.darkMode) Color(0xFFD7B975) else PetugasAccent,
+        animationSpec = tween(380, easing = FastOutSlowInEasing),
+        label = "petugas-theme-tint"
+    )
+
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                modifier = Modifier.size(if (compact) 32.dp else 36.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(controlSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = roleIconTint, modifier = Modifier.size(20.dp))
+                Box(
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(PetugasSignal)
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    "SMART WASTE",
+                    color = subdued,
+                    fontSize = 8.sp,
+                    lineHeight = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.85.sp
+                )
+                Text(
+                    "Petugas lapangan",
+                    color = foreground,
+                    fontSize = if (compact) 13.sp else 14.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onOpenNotifications, modifier = Modifier.size(36.dp)) {
+            Icon(
+                Icons.Filled.Notifications,
+                contentDescription = "Buka notifikasi",
+                tint = roleIconTint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Box {
+            IconButton(onClick = { profileMenuExpanded = true }, modifier = Modifier.size(38.dp)) {
+                UserAvatar(
+                    account.name,
+                    modifier = Modifier.size(if (compact) 29.dp else 32.dp),
+                    photoUrl = account.profilePhotoUrl
+                )
+            }
+            DropdownMenu(
+                expanded = profileMenuExpanded,
+                onDismissRequest = { profileMenuExpanded = false },
+                shape = RoundedCornerShape(18.dp),
+                containerColor = AppSurface,
+                tonalElevation = 0.dp,
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier.width(220.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text("Petugas aktif", color = AppTextMuted, fontSize = 11.sp)
+                    Text(account.name.displayPersonName(), color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("@${account.username}", color = AppTextMuted, fontSize = 11.sp)
+                }
+                DropdownMenuItem(
+                    text = { Text("Profil petugas") },
+                    leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                    onClick = {
+                        profileMenuExpanded = false
+                        onOpenProfile()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Ganti akun") },
+                    leadingIcon = { Icon(Icons.Filled.SwitchAccount, contentDescription = null) },
+                    onClick = {
+                        profileMenuExpanded = false
+                        onLogout()
+                    }
+                )
+            }
+        }
+        IconButton(onClick = appearance.onToggleTheme, modifier = Modifier.size(36.dp)) {
+            Box(
+                modifier = Modifier.size(30.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(controlSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Crossfade(targetState = appearance.darkMode, animationSpec = tween(340), label = "petugas-theme-icon") { dark ->
+                    Icon(
+                        imageVector = if (dark) Icons.Rounded.WbSunny else Icons.Rounded.NightsStay,
+                        contentDescription = if (dark) "Aktifkan mode terang" else "Aktifkan mode gelap",
+                        tint = if (isOnHero) Color(0xFFF4EACB) else themeTint,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun PetugasJourneyHero(
     account: UserAccount,
     tasks: List<WasteRecord>,
@@ -5812,11 +6113,11 @@ private fun PetugasJourneyHero(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 20.dp, vertical = 11.dp)
         ) {
-            AdminTopBar(
+            PetugasTopBar(
                 account = account,
-                onLogout = onLogout,
                 onOpenProfile = onOpenProfile,
                 onOpenNotifications = onOpenNotifications,
+                onLogout = onLogout,
                 isOnHero = true
             )
         }
@@ -6049,7 +6350,7 @@ private fun PetugasFilterChoice(
 ) {
     val shape = RoundedCornerShape(15.dp)
     val containerColor by animateColorAsState(
-        targetValue = if (selected) LoginAccent else AppSurfaceMuted,
+        targetValue = if (selected) PetugasAccent else AppSurfaceMuted,
         animationSpec = tween(280, easing = FastOutSlowInEasing),
         label = "petugas-filter-${choice.key}-surface"
     )
@@ -6094,7 +6395,74 @@ private fun PetugasNavigationBar(selectedSection: String, onSectionSelected: (St
         Triple("riwayat", "Riwayat", Icons.Rounded.History),
         Triple("profil", "Profil", Icons.Rounded.Person)
     )
-    FloatingRoleNavigationBar(selectedSection, destinations, onSectionSelected)
+    val selectedIndex = destinations.indexOfFirst { it.first == selectedSection }.coerceAtLeast(0)
+    val navSurface by animateColorAsState(
+        targetValue = AppSurface,
+        animationSpec = tween(320, easing = FastOutSlowInEasing),
+        label = "petugas-nav-surface"
+    )
+    val selectedSurface by animateColorAsState(
+        targetValue = PetugasAccent,
+        animationSpec = tween(360, easing = FastOutSlowInEasing),
+        label = "petugas-nav-active"
+    )
+    val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    Column(modifier = Modifier.fillMaxWidth().background(navSurface)) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth().height(70.dp).padding(horizontal = 8.dp)
+        ) {
+            val itemWidth = maxWidth / destinations.size
+            val activeOffset by animateDpAsState(
+                targetValue = itemWidth * selectedIndex + 4.dp,
+                animationSpec = tween(480, easing = FastOutSlowInEasing),
+                label = "petugas-nav-indicator"
+            )
+            Box(
+                modifier = Modifier.align(Alignment.CenterStart)
+                    .offset(x = activeOffset)
+                    .width(itemWidth - 8.dp)
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(selectedSurface)
+            )
+            Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                destinations.forEachIndexed { index, (route, label, icon) ->
+                    val selected = index == selectedIndex
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                            .selectable(
+                                selected = selected,
+                                role = Role.Tab,
+                                onClick = { onSectionSelected(route) }
+                            ),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (selected) Color.White else AppTextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = label,
+                            color = if (selected) Color.White else AppTextMuted,
+                            fontSize = 10.sp,
+                            lineHeight = 13.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(
+            modifier = Modifier.fillMaxWidth()
+                .height(navigationBarInset)
+                .background(navSurface)
+        )
+    }
 }
 
 @Composable
@@ -6133,11 +6501,20 @@ private fun AccountProfileSettings(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        AdminSectionHeading(
-            eyebrow = "AKUN DAN PREFERENSI",
-            title = "Profil ${account.role.label.lowercase()}",
-            subtitle = "Informasi akun dan preferensi aplikasi."
-        )
+        if (account.role == UserRole.ADMIN) {
+            AdminSectionHeading(
+                eyebrow = "AKUN DAN PREFERENSI",
+                title = "Profil ${account.role.label.lowercase()}",
+                subtitle = "Informasi akun dan preferensi aplikasi."
+            )
+        } else {
+            PetugasSectionHeading(
+                eyebrow = "AKUN LAPANGAN",
+                title = "Profil petugas",
+                subtitle = "Identitas dan preferensi akun kerja.",
+                icon = Icons.Rounded.Person
+            )
+        }
 
         AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
             Column(
