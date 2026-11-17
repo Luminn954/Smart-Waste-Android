@@ -1389,46 +1389,67 @@ fun AdminDashboardScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 4.dp)
                     ) {
                         latest.forEach { report ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier.weight(1f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { onNavigate("status:${report.status}") }
-                                        .padding(vertical = 3.dp),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
                                         report.code,
+                                        modifier = Modifier.weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable { onNavigate("status:${report.status}") },
                                         color = AppText,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        "${report.type} · ${report.location}",
-                                        color = AppTextMuted,
-                                        fontSize = 11.sp,
+                                        fontFamily = InterFont,
+                                        fontSize = 12.sp,
+                                        lineHeight = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                }
-                                Column(
-                                    horizontalAlignment = Alignment.End,
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
                                     StatusPill(report.status, reportAccent(report.status))
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        "${report.type} · ${report.location}",
+                                        modifier = Modifier.weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable { onNavigate("status:${report.status}") },
+                                        color = AppTextMuted,
+                                        fontFamily = InterFont,
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                     if (report.status == WasteFlow.WAITING) {
                                         TextButton(
                                             onClick = { assigningReport = report },
+                                            modifier = Modifier.width(74.dp),
                                             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                                                 horizontal = 5.dp,
-                                                vertical = 1.dp
+                                                vertical = 0.dp
                                             )
                                         ) {
-                                            Text("Tugaskan", color = LoginAccent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                "Tugaskan",
+                                                color = LoginAccent,
+                                                fontFamily = InterFont,
+                                                fontSize = 11.sp,
+                                                lineHeight = 14.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
                                         }
+                                    } else {
+                                        Spacer(Modifier.width(74.dp))
                                     }
                                 }
                             }
