@@ -277,13 +277,6 @@ private val PetugasAccent: Color
         Color(0xFF3E6C53)
     }
 
-private val PetugasSignal: Color
-    @Composable get() = if (LocalSmartWasteAppearance.current.darkMode) {
-        Color(0xFFD7B975)
-    } else {
-        Color(0xFF9C7537)
-    }
-
 private val AdminNightColorScheme = darkColorScheme(
     primary = Color(0xFF9DBDA4),
     onPrimary = Color(0xFF17231A),
@@ -4475,19 +4468,19 @@ fun PetugasTasksScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            PetugasActionTile("Masuk", newReports.size, Icons.Filled.Inbox, PetugasSignal, Modifier.weight(1f)) {
+                            PetugasActionTile("Masuk", newReports.size, Icons.Filled.Inbox, Modifier.weight(1f)) {
                                 selectedSection = "tugas"
                                 selectedWorkArea = "laporan"
                             }
-                            PetugasActionTile("Aktif", activeTasks.size, Icons.Rounded.TaskAlt, PetugasAccent, Modifier.weight(1f)) {
+                            PetugasActionTile("Aktif", activeTasks.size, Icons.Rounded.TaskAlt, Modifier.weight(1f)) {
                                 selectedSection = "tugas"
                                 selectedWorkArea = "aktif"
                             }
-                            PetugasActionTile("Armada", vehicles.size, Icons.Filled.LocalShipping, RoleTeal, Modifier.weight(1f)) {
+                            PetugasActionTile("Armada", vehicles.size, Icons.Filled.LocalShipping, Modifier.weight(1f)) {
                                 selectedSection = "tugas"
                                 selectedWorkArea = "armada"
                             }
-                            PetugasActionTile("Riwayat", historyTasks.size, Icons.Rounded.History, RoleNavy, Modifier.weight(1f)) {
+                            PetugasActionTile("Riwayat", historyTasks.size, Icons.Rounded.History, Modifier.weight(1f)) {
                                 selectedSection = "riwayat"
                                 showingTaskArchive = false
                             }
@@ -5808,20 +5801,13 @@ private fun PetugasSectionHeading(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = PetugasAccent, modifier = Modifier.size(19.dp))
-                Box(
-                    modifier = Modifier.align(Alignment.BottomEnd)
-                        .offset(x = 2.dp, y = 2.dp)
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(PetugasSignal)
-                )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     eyebrow,
                     color = PetugasAccent,
-                    fontSize = 10.sp,
-                    lineHeight = 13.sp,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.65.sp,
                     maxLines = 1,
@@ -5854,13 +5840,13 @@ private fun PetugasActionTile(
     label: String,
     count: Int,
     icon: ImageVector,
-    accent: Color,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val accent = PetugasAccent
     val shape = RoundedCornerShape(15.dp)
     Column(
-        modifier = modifier.height(82.dp)
+        modifier = modifier.height(86.dp)
             .clip(shape)
             .background(AppCardSurface)
             .clickable(onClick = onClick)
@@ -5869,21 +5855,21 @@ private fun PetugasActionTile(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(30.dp)
                     .clip(RoundedCornerShape(9.dp))
                     .background(accent.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(17.dp))
             }
             Spacer(Modifier.weight(1f))
-            Text(count.toString(), color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(count.toString(), color = accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
         Text(
             label,
             color = AppText,
-            fontSize = 10.sp,
-            lineHeight = 13.sp,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -5907,13 +5893,17 @@ private fun PetugasTopBar(
     val roleIconTint = if (isOnHero) Color(0xFFF5F4E8) else PetugasAccent
     val controlSurface = if (isOnHero) Color.White.copy(alpha = 0.12f) else AppSurfaceMuted
     val themeTint by animateColorAsState(
-        targetValue = if (appearance.darkMode) Color(0xFFD7B975) else PetugasAccent,
+        targetValue = if (appearance.darkMode) Color(0xFFB8C8BA) else PetugasAccent,
         animationSpec = tween(380, easing = FastOutSlowInEasing),
         label = "petugas-theme-tint"
     )
 
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Box(
                 modifier = Modifier.size(if (compact) 32.dp else 36.dp)
                     .clip(RoundedCornerShape(12.dp))
@@ -5921,21 +5911,17 @@ private fun PetugasTopBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = roleIconTint, modifier = Modifier.size(20.dp))
-                Box(
-                    modifier = Modifier.align(Alignment.BottomEnd)
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(PetugasSignal)
-                )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     "SMART WASTE",
                     color = subdued,
-                    fontSize = 8.sp,
-                    lineHeight = 10.sp,
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.85.sp
+                    letterSpacing = 0.85.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     "Petugas lapangan",
@@ -5943,11 +5929,11 @@ private fun PetugasTopBar(
                     fontSize = if (compact) 13.sp else 14.sp,
                     lineHeight = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
-        Spacer(Modifier.weight(1f))
         IconButton(onClick = onOpenNotifications, modifier = Modifier.size(36.dp)) {
             Icon(
                 Icons.Filled.Notifications,
