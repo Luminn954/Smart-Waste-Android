@@ -6683,18 +6683,18 @@ private fun PetugasTaskCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("ARMADA", color = AppTextMuted, fontSize = 10.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Armada", color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
                     Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 10.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("TPA", color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
                     Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (!isRejected) AppCardDivider()
             if (compactHistory) {
                 val historyNote = when {
-                    isComplete -> "Bukti disetujui Admin"
+                    isComplete -> "Disetujui Admin"
                     report.workerDecisionNote.isNotBlank() -> report.workerDecisionNote
                     else -> "Laporan tidak diteruskan ke pengangkutan"
                 }
@@ -6725,7 +6725,7 @@ private fun PetugasTaskCard(
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     Text(
-                        "Bukti foto",
+                        "Foto bukti",
                         color = AppTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
@@ -6736,7 +6736,7 @@ private fun PetugasTaskCard(
                             it.isNotBlank() && !report.locationEvidencePhotoUrl.isNullOrBlank()
                         }?.let {
                             Text(
-                                "Progres dikirim · ${it.toDisplayDateTime()}",
+                                "Progres · ${it.toDisplayDateTime()}",
                                 color = AppTextMuted,
                                 fontSize = 11.sp,
                                 lineHeight = 14.sp,
@@ -6755,7 +6755,7 @@ private fun PetugasTaskCard(
                                     onClick = { onOpenPhoto(report.photoUrl) },
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                                 ) {
-                                    Text("Foto awal · warga", color = statusAccent, fontSize = 12.sp)
+                                    Text("Awal · warga", color = statusAccent, fontSize = 12.sp)
                                 }
                             }
                             if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
@@ -6763,7 +6763,7 @@ private fun PetugasTaskCard(
                                     onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) },
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                                 ) {
-                                    Text("Foto progres lokasi", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
+                                    Text("Lokasi · petugas", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
                                 }
                             }
                             if (!report.completionProofPhotoUrl.isNullOrBlank()) {
@@ -6771,7 +6771,7 @@ private fun PetugasTaskCard(
                                     onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                                 ) {
-                                    Text("Foto akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
+                                    Text("Akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
                                 }
                             }
                         }
