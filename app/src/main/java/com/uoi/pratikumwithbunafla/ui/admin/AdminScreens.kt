@@ -161,6 +161,7 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -191,6 +192,7 @@ import com.uoi.pratikumwithbunafla.ui.theme.WastePurple
 import com.uoi.pratikumwithbunafla.ui.theme.WasteRed
 import com.uoi.pratikumwithbunafla.ui.theme.WasteTeal
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.uoi.pratikumwithbunafla.data.model.*
 import com.uoi.pratikumwithbunafla.data.remote.SmartWasteApi
@@ -1114,6 +1116,42 @@ fun AdminProfileScreen(
 }
 
 @Composable
+private fun ColumnScope.RoleEntrySection(
+    entryKey: Int,
+    order: Int,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(0.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    var revealed by rememberSaveable(entryKey, order) { mutableStateOf(false) }
+    LaunchedEffect(entryKey, order) {
+        delay(order * 150L)
+        revealed = true
+    }
+    val progress by animateFloatAsState(
+        targetValue = if (revealed) 1f else 0f,
+        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
+        label = "role-entry-section-$order"
+    )
+    val entryOffsetPx = with(LocalDensity.current) { 40.dp.toPx() }
+
+    Box(
+        modifier = Modifier.fillMaxWidth().graphicsLayer {
+            alpha = progress
+            translationY = entryOffsetPx * (1f - progress)
+            scaleX = 0.96f + 0.04f * progress
+            scaleY = 0.96f + 0.04f * progress
+        }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = verticalArrangement
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
 fun AdminDashboardScreen(
     summary: AdminDashboardSummary,
     reports: List<WasteRecord>,
@@ -1126,7 +1164,8 @@ fun AdminDashboardScreen(
     pendingCapacityClearanceCount: Int = 0,
     isInitialLoading: Boolean = false,
     isRefreshing: Boolean = false,
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    entryKey: Int = 0
 ) {
     AdminPage(
         current = "dashboard",
@@ -1138,186 +1177,208 @@ fun AdminDashboardScreen(
         onRefresh = onRefresh,
         showTopBar = false,
         fullBleedContent = {
-            DashboardHeroBanner(
-                summary = summary,
-                pendingProofCount = pendingProofCount,
-                account = account,
-                onLogout = onLogout,
-                onOpenProfile = { onNavigate("profile") },
-                isRefreshing = isRefreshing,
-                onRefresh = onRefresh,
-                onClick = onNavigate
-            )
-        }
-    ) {
-        if (errorMessage.isNotBlank()) InlineError(errorMessage)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("Ruang kerja Admin", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Laporan, petugas, dan pemantauan kinerja",
-                    color = if (LocalSmartWasteAppearance.current.darkMode) AppTextMuted else Color(0xFF26382D),
-                    fontFamily = InterFont,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Normal
+            RoleEntrySection(entryKey = entryKey, order = 0) {
+                DashboardHeroBanner(
+                    summary = summary,
+                    pendingProofCount = pendingProofCount,
+                    account = account,
+                    onLogout = onLogout,
+                    onOpenProfile = { onNavigate("profile") },
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
+                    onClick = onNavigate
                 )
             }
-            Text(
-                "Semua laporan →",
-                modifier = Modifier.clip(RoundedCornerShape(10.dp))
-                    .clickable { onNavigate("status:semua") }.padding(6.dp),
-                color = LoginAccent,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold
-            )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(78.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.weight(1f)) {
-                    onNavigate("reports")
+    ) {
+        RoleEntrySection(
+            entryKey = entryKey,
+            order = 1,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (errorMessage.isNotBlank()) InlineError(errorMessage)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Ruang kerja Admin", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Laporan, petugas, dan pemantauan kinerja",
+                        color = if (LocalSmartWasteAppearance.current.darkMode) AppTextMuted else Color(0xFF26382D),
+                        fontFamily = InterFont,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal
+                    )
                 }
-                AdminTaskTile("Petugas", Icons.Filled.AdminPanelSettings, TaskPurple, Modifier.weight(1f)) {
-                    onNavigate("ops:petugas")
-                }
-                AdminTaskTile("Statistik", Icons.Filled.BarChart, TaskIndigo, Modifier.weight(1f)) {
-                    onNavigate("stats")
-                }
-                AdminTaskTile("Bukti kerja", Icons.Filled.CheckCircle, TaskTeal, Modifier.weight(1f)) {
-                    onNavigate("ops:bukti")
+                Text(
+                    "Semua laporan →",
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                        .clickable { onNavigate("status:semua") }.padding(6.dp),
+                    color = LoginAccent,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        RoleEntrySection(
+            entryKey = entryKey,
+            order = 2,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(78.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.weight(1f)) {
+                        onNavigate("reports")
+                    }
+                    AdminTaskTile("Petugas", Icons.Filled.AdminPanelSettings, TaskPurple, Modifier.weight(1f)) {
+                        onNavigate("ops:petugas")
+                    }
+                    AdminTaskTile("Statistik", Icons.Filled.BarChart, TaskIndigo, Modifier.weight(1f)) {
+                        onNavigate("stats")
+                    }
+                    AdminTaskTile("Bukti kerja", Icons.Filled.CheckCircle, TaskTeal, Modifier.weight(1f)) {
+                        onNavigate("ops:bukti")
+                    }
                 }
             }
         }
-        AppCard(
-            modifier = Modifier.fillMaxWidth(),
-            containerColor = AppSurfaceMuted,
-            borderColor = null,
-            elevation = 0.dp,
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            val pendingReportCount = reports.count { it.status == WasteFlow.WAITING }
-            val totalPendingActions = pendingReportCount + pendingProofCount +
-                pendingVehicleRepairActionCount + pendingCapacityClearanceCount
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
+        RoleEntrySection(entryKey = entryKey, order = 3) {
+            AppCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = AppSurfaceMuted,
+                borderColor = null,
+                elevation = 0.dp,
+                shape = RoundedCornerShape(18.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                val pendingReportCount = reports.count { it.status == WasteFlow.WAITING }
+                val totalPendingActions = pendingReportCount + pendingProofCount +
+                    pendingVehicleRepairActionCount + pendingCapacityClearanceCount
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
-                    OperationalMetric(
-                        "Total laporan",
-                        summary.totalReports.toString(),
-                        Modifier.weight(1f)
-                    ) { onNavigate("reports") }
-                    OperationalMetric(
-                        "Menunggu",
-                        summary.waiting.toString(),
-                        Modifier.weight(1f)
-                    ) { onNavigate("reports") }
-                    OperationalMetric(
-                        "Petugas aktif",
-                        summary.activeWorkers.toString(),
-                        Modifier.weight(1f)
-                    ) { onNavigate("ops:petugas") }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Perlu ditangani", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "$totalPendingActions tindakan",
-                        color = AppTextMuted,
-                        fontSize = 11.sp,
-                        fontFamily = InterFont
-                    )
-                }
-                if (totalPendingActions == 0) {
-                    Text(
-                        "Semua antrean sudah ditangani.",
-                        modifier = Modifier.padding(horizontal = 3.dp),
-                        color = AppTextMuted,
-                        fontSize = 12.sp
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        if (pendingReportCount > 0) {
-                            DashboardPriorityAction(
-                                title = "$pendingReportCount laporan menunggu verifikasi",
-                                detail = "Periksa laporan warga yang baru masuk",
-                                icon = Icons.Filled.Inbox,
-                                tint = RoleOrange
-                            ) { onNavigate("status:${WasteFlow.WAITING}") }
-                        }
-                        if (pendingProofCount > 0) {
-                            DashboardPriorityAction(
-                                title = "$pendingProofCount bukti kerja menunggu",
-                                detail = "Tinjau foto penyelesaian petugas",
-                                icon = Icons.Filled.CheckCircle,
-                                tint = RoleGreenDark
-                            ) { onNavigate("ops:bukti") }
-                        }
-                        if (pendingVehicleRepairActionCount > 0) {
-                            DashboardPriorityAction(
-                                title = "$pendingVehicleRepairActionCount proses armada menunggu",
-                                detail = "Tinjau laporan atau hasil perbaikan",
-                                icon = Icons.Filled.Build,
-                                tint = RoleOrange
-                            ) { onNavigate("ops:armada") }
-                        }
-                        if (pendingCapacityClearanceCount > 0) {
-                            DashboardPriorityAction(
-                                title = "$pendingCapacityClearanceCount permintaan kapasitas",
-                                detail = "Periksa bukti sebelum menyetujui reset",
-                                icon = Icons.Filled.LocalShipping,
-                                tint = RoleTeal
-                            ) { onNavigate("ops:pengosongan") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OperationalMetric(
+                            "Total laporan",
+                            summary.totalReports.toString(),
+                            Modifier.weight(1f)
+                        ) { onNavigate("reports") }
+                        OperationalMetric(
+                            "Menunggu",
+                            summary.waiting.toString(),
+                            Modifier.weight(1f)
+                        ) { onNavigate("reports") }
+                        OperationalMetric(
+                            "Petugas aktif",
+                            summary.activeWorkers.toString(),
+                            Modifier.weight(1f)
+                        ) { onNavigate("ops:petugas") }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Perlu ditangani", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "$totalPendingActions tindakan",
+                            color = AppTextMuted,
+                            fontSize = 11.sp,
+                            fontFamily = InterFont
+                        )
+                    }
+                    if (totalPendingActions == 0) {
+                        Text(
+                            "Semua antrean sudah ditangani.",
+                            modifier = Modifier.padding(horizontal = 3.dp),
+                            color = AppTextMuted,
+                            fontSize = 12.sp
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            if (pendingReportCount > 0) {
+                                DashboardPriorityAction(
+                                    title = "$pendingReportCount laporan menunggu verifikasi",
+                                    detail = "Periksa laporan warga yang baru masuk",
+                                    icon = Icons.Filled.Inbox,
+                                    tint = RoleOrange
+                                ) { onNavigate("status:${WasteFlow.WAITING}") }
+                            }
+                            if (pendingProofCount > 0) {
+                                DashboardPriorityAction(
+                                    title = "$pendingProofCount bukti kerja menunggu",
+                                    detail = "Tinjau foto penyelesaian petugas",
+                                    icon = Icons.Filled.CheckCircle,
+                                    tint = RoleGreenDark
+                                ) { onNavigate("ops:bukti") }
+                            }
+                            if (pendingVehicleRepairActionCount > 0) {
+                                DashboardPriorityAction(
+                                    title = "$pendingVehicleRepairActionCount proses armada menunggu",
+                                    detail = "Tinjau laporan atau hasil perbaikan",
+                                    icon = Icons.Filled.Build,
+                                    tint = RoleOrange
+                                ) { onNavigate("ops:armada") }
+                            }
+                            if (pendingCapacityClearanceCount > 0) {
+                                DashboardPriorityAction(
+                                    title = "$pendingCapacityClearanceCount permintaan kapasitas",
+                                    detail = "Periksa bukti sebelum menyetujui reset",
+                                    icon = Icons.Filled.LocalShipping,
+                                    tint = RoleTeal
+                                ) { onNavigate("ops:pengosongan") }
+                            }
                         }
                     }
                 }
             }
         }
-        SectionTitle("Laporan terbaru", "Ringkasan laporan warga")
-        val latest = reports.take(3)
-        if (latest.isEmpty()) {
-            EmptyAdminState("Belum ada laporan dari warga.", useCompactCardStyle = true)
-        } else {
-            AppCard(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = AppSurface.copy(alpha = 0.98f),
-                borderColor = null,
-                elevation = 0.dp,
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 4.dp)
+        RoleEntrySection(
+            entryKey = entryKey,
+            order = 4,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SectionTitle("Laporan terbaru", "Ringkasan laporan warga")
+            val latest = reports.take(3)
+            if (latest.isEmpty()) {
+                EmptyAdminState("Belum ada laporan dari warga.", useCompactCardStyle = true)
+            } else {
+                AppCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = AppSurface.copy(alpha = 0.98f),
+                    borderColor = null,
+                    elevation = 0.dp,
+                    shape = RoundedCornerShape(18.dp)
                 ) {
-                    latest.forEach { report ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    report.code,
-                                    color = AppText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    "${report.type} · ${report.location}",
-                                    color = AppTextMuted,
-                                    fontSize = 11.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 4.dp)
+                    ) {
+                        latest.forEach { report ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        report.code,
+                                        color = AppText,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "${report.type} · ${report.location}",
+                                        color = AppTextMuted,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                StatusPill(report.status, reportAccent(report.status))
                             }
-                            StatusPill(report.status, reportAccent(report.status))
                         }
                     }
                 }
@@ -4023,7 +4084,8 @@ fun PetugasTasksScreen(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onOpenNotifications: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    entryKey: Int = 0
 ) {
     var selectedSection by rememberSaveable(account.username) { mutableStateOf("ringkasan") }
     var selectedWorkArea by rememberSaveable(account.username) { mutableStateOf("laporan") }
@@ -4385,21 +4447,23 @@ fun PetugasTasksScreen(
         showTopBar = currentSection != "ringkasan",
         fullBleedContent = if (currentSection == "ringkasan") {
             {
-                PetugasJourneyHero(
-                    account = account,
-                    tasks = tasks,
-                    incomingReportCount = newReports.size,
-                    onOpenTasks = {
-                        selectedSection = "tugas"
-                        selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
-                        activeTaskFilter = "semua"
-                        activeTaskSearch = ""
-                        incomingSearch = ""
-                    },
-                    onOpenNotifications = onOpenNotifications,
-                    onOpenProfile = { selectedSection = "profil" },
-                    onLogout = onLogout
-                )
+                RoleEntrySection(entryKey = entryKey, order = 0) {
+                    PetugasJourneyHero(
+                        account = account,
+                        tasks = tasks,
+                        incomingReportCount = newReports.size,
+                        onOpenTasks = {
+                            selectedSection = "tugas"
+                            selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
+                            activeTaskFilter = "semua"
+                            activeTaskSearch = ""
+                            incomingSearch = ""
+                        },
+                        onOpenNotifications = onOpenNotifications,
+                        onOpenProfile = { selectedSection = "profil" },
+                        onLogout = onLogout
+                    )
+                }
             }
         } else null,
         bottomBar = { PetugasNavigationBar(currentSection) { selectedSection = it } },
@@ -4449,142 +4513,152 @@ fun PetugasTasksScreen(
                     if (summaryUnavailable) {
                         PetugasLoadFailure("Ringkasan belum dapat dimuat.", onRefresh)
                     } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                        RoleEntrySection(entryKey = entryKey, order = 1) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    "Menu kerja",
-                                    color = AppText,
-                                    fontSize = 16.sp,
-                                    lineHeight = 21.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    "Pintasan ke tugas dan armada",
-                                    color = AppTextMuted,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        "Menu kerja",
+                                        color = AppText,
+                                        fontSize = 16.sp,
+                                        lineHeight = 21.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        "Pintasan ke tugas dan armada",
+                                        color = AppTextMuted,
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        selectedSection = "tugas"
+                                        selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
+                                    },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                                ) {
+                                    Text("Semua tugas  ›", color = PetugasAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
                             }
-                            TextButton(
-                                onClick = {
+                        }
+                        RoleEntrySection(entryKey = entryKey, order = 2) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(AppSurface)
+                                    .padding(horizontal = 4.dp, vertical = 7.dp),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                PetugasActionTile("Masuk", newReports.size, Icons.Filled.Inbox, Modifier.weight(1f)) {
                                     selectedSection = "tugas"
-                                    selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
-                                },
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 4.dp)
-                            ) {
-                                Text("Semua tugas  ›", color = PetugasAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    selectedWorkArea = "laporan"
+                                }
+                                PetugasActionTile("Aktif", activeTasks.size, Icons.Rounded.TaskAlt, Modifier.weight(1f)) {
+                                    selectedSection = "tugas"
+                                    selectedWorkArea = "aktif"
+                                }
+                                PetugasActionTile("Armada", vehicles.size, Icons.Filled.LocalShipping, Modifier.weight(1f)) {
+                                    selectedSection = "tugas"
+                                    selectedWorkArea = "armada"
+                                }
+                                PetugasActionTile("Riwayat", historyTasks.size, Icons.Rounded.History, Modifier.weight(1f)) {
+                                    selectedSection = "riwayat"
+                                    showingTaskArchive = false
+                                }
                             }
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(AppSurface)
-                                .padding(horizontal = 4.dp, vertical = 7.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        RoleEntrySection(
+                            entryKey = entryKey,
+                            order = 3,
+                            verticalArrangement = Arrangement.spacedBy(13.dp)
                         ) {
-                            PetugasActionTile("Masuk", newReports.size, Icons.Filled.Inbox, Modifier.weight(1f)) {
-                                selectedSection = "tugas"
-                                selectedWorkArea = "laporan"
-                            }
-                            PetugasActionTile("Aktif", activeTasks.size, Icons.Rounded.TaskAlt, Modifier.weight(1f)) {
-                                selectedSection = "tugas"
-                                selectedWorkArea = "aktif"
-                            }
-                            PetugasActionTile("Armada", vehicles.size, Icons.Filled.LocalShipping, Modifier.weight(1f)) {
-                                selectedSection = "tugas"
-                                selectedWorkArea = "armada"
-                            }
-                            PetugasActionTile("Riwayat", historyTasks.size, Icons.Rounded.History, Modifier.weight(1f)) {
-                                selectedSection = "riwayat"
-                                showingTaskArchive = false
-                            }
-                        }
-                        when {
-                            nextTask != null -> {
-                                Text(
-                                    "Tugas prioritas",
-                                    color = AppText,
-                                    fontSize = 16.sp,
-                                    lineHeight = 21.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                PetugasTaskCard(
-                                    report = nextTask,
-                                    onOpenPhoto = onOpenPhoto,
-                                    dense = true,
-                                    onMarkTransported = { confirmingTransportTask = it },
-                                    isTransporting = transportingTaskId == nextTask.id,
-                                    isActionEnabled = transportingTaskId == null,
-                                    onComplete = ::requestCompletionProof,
-                                    onSendLocationEvidence = ::requestLocationPhoto,
-                                    isSendingLocationEvidence = sendingLocationTaskId == nextTask.id
-                                )
-                                TextButton(
-                                    onClick = {
-                                        selectedSection = "tugas"
-                                        selectedWorkArea = "aktif"
-                                        activeTaskFilter = "semua"
-                                        activeTaskSearch = ""
-                                    },
-                                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                                ) {
-                                    Text("Lihat semua tugas aktif", color = PetugasAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            when {
+                                nextTask != null -> {
+                                    Text(
+                                        "Tugas prioritas",
+                                        color = AppText,
+                                        fontSize = 16.sp,
+                                        lineHeight = 21.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    PetugasTaskCard(
+                                        report = nextTask,
+                                        onOpenPhoto = onOpenPhoto,
+                                        dense = true,
+                                        onMarkTransported = { confirmingTransportTask = it },
+                                        isTransporting = transportingTaskId == nextTask.id,
+                                        isActionEnabled = transportingTaskId == null,
+                                        onComplete = ::requestCompletionProof,
+                                        onSendLocationEvidence = ::requestLocationPhoto,
+                                        isSendingLocationEvidence = sendingLocationTaskId == nextTask.id
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            selectedSection = "tugas"
+                                            selectedWorkArea = "aktif"
+                                            activeTaskFilter = "semua"
+                                            activeTaskSearch = ""
+                                        },
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    ) {
+                                        Text("Lihat semua tugas aktif", color = PetugasAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                    }
                                 }
-                            }
-                            nextReport != null -> {
-                                PetugasSectionHeading(
-                                    eyebrow = "ANTREAN MASUK",
-                                    title = "Laporan baru",
-                                    subtitle = "Tinjau kondisi dan siapkan penanganannya.",
-                                    icon = Icons.Filled.Inbox
-                                )
-                                AdminReportCard(
-                                    report = nextReport,
-                                    onOpenPhoto = onOpenPhoto,
-                                    onReject = {
-                                        rejectionNote = ""
-                                        rejectingReport = nextReport
-                                    },
-                                    onAssign = { assigningReport = nextReport },
-                                    compact = true,
-                                    assignmentLabel = "Terima & tugaskan",
-                                    petugasStyle = true
-                                )
-                            }
-                            tasksWaitingForAdmin.isNotEmpty() -> {
-                                PetugasSectionHeading(
-                                    eyebrow = "KONFIRMASI KERJA",
-                                    title = "Bukti menunggu Admin",
-                                    subtitle = "${tasksWaitingForAdmin.size} bukti sedang diperiksa. Tidak perlu dikirim ulang.",
-                                    icon = Icons.Filled.CheckCircle
-                                )
-                                PetugasTaskCard(
-                                    report = tasksWaitingForAdmin.first(),
-                                    onOpenPhoto = onOpenPhoto
-                                )
-                                TextButton(
-                                    onClick = {
-                                        selectedSection = "tugas"
-                                        selectedWorkArea = "aktif"
-                                        activeTaskFilter = "admin"
-                                    },
-                                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                                ) {
-                                    Text("Lihat bukti terkirim", color = PetugasAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                nextReport != null -> {
+                                    PetugasSectionHeading(
+                                        eyebrow = "ANTREAN MASUK",
+                                        title = "Laporan baru",
+                                        subtitle = "Tinjau kondisi dan siapkan penanganannya.",
+                                        icon = Icons.Filled.Inbox
+                                    )
+                                    AdminReportCard(
+                                        report = nextReport,
+                                        onOpenPhoto = onOpenPhoto,
+                                        onReject = {
+                                            rejectionNote = ""
+                                            rejectingReport = nextReport
+                                        },
+                                        onAssign = { assigningReport = nextReport },
+                                        compact = true,
+                                        assignmentLabel = "Terima & tugaskan",
+                                        petugasStyle = true
+                                    )
                                 }
+                                tasksWaitingForAdmin.isNotEmpty() -> {
+                                    PetugasSectionHeading(
+                                        eyebrow = "KONFIRMASI KERJA",
+                                        title = "Bukti menunggu Admin",
+                                        subtitle = "${tasksWaitingForAdmin.size} bukti sedang diperiksa. Tidak perlu dikirim ulang.",
+                                        icon = Icons.Filled.CheckCircle
+                                    )
+                                    PetugasTaskCard(
+                                        report = tasksWaitingForAdmin.first(),
+                                        onOpenPhoto = onOpenPhoto
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            selectedSection = "tugas"
+                                            selectedWorkArea = "aktif"
+                                            activeTaskFilter = "admin"
+                                        },
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    ) {
+                                        Text("Lihat bukti terkirim", color = PetugasAccent, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                    }
+                                }
+                                else -> PetugasEmptyState(
+                                    "Semua pekerjaan tertangani",
+                                    "Belum ada tugas aktif atau laporan baru. Tarik ke bawah untuk memperbarui."
+                                )
                             }
-                            else -> PetugasEmptyState(
-                                "Semua pekerjaan tertangani",
-                                "Belum ada tugas aktif atau laporan baru. Tarik ke bawah untuk memperbarui."
-                            )
                         }
                     }
                 }

@@ -14,16 +14,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -387,24 +381,23 @@ class MainActivity : ComponentActivity() {
                                     "tasks"
                                 )
                             }
-                            else RoleEntryAnimation(entryKey = roleEntryKey) {
-                                AdminDashboardScreen(
-                                    summary = summary,
-                                    reports = reports,
-                                    errorMessage = errorMessage,
-                                    account = account,
-                                    onNavigate = ::navigateAdminRoute,
-                                    onLogout = ::signOut,
-                                    pendingProofCount = completionReviews.size,
-                                    pendingVehicleRepairActionCount = vehicleRepairs.count {
-                                        it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"
-                                    },
-                                    pendingCapacityClearanceCount = capacityClearanceRequests.count { it.isPending },
-                                    isInitialLoading = !hasLoadedWorkspace,
-                                    isRefreshing = isRefreshingWorkspace,
-                                    onRefresh = { scope.launch { refreshWorkspace() } }
-                                )
-                            }
+                            else AdminDashboardScreen(
+                                summary = summary,
+                                reports = reports,
+                                errorMessage = errorMessage,
+                                account = account,
+                                onNavigate = ::navigateAdminRoute,
+                                onLogout = ::signOut,
+                                pendingProofCount = completionReviews.size,
+                                pendingVehicleRepairActionCount = vehicleRepairs.count {
+                                    it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"
+                                },
+                                pendingCapacityClearanceCount = capacityClearanceRequests.count { it.isPending },
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } },
+                                entryKey = roleEntryKey
+                            )
                         }
                         composable("notifications") {
                             val account = activeAccount
@@ -611,116 +604,115 @@ class MainActivity : ComponentActivity() {
                                     "dashboard"
                                 )
                             }
-                            else RoleEntryAnimation(entryKey = roleEntryKey) {
-                                PetugasTasksScreen(
-                                    tasks = tasks,
-                                    archivedTasks = archivedPetugasTasks,
-                                    incomingReports = incomingReports,
-                                    vehicles = vehicles,
-                                    vehicleRepairs = vehicleRepairs,
-                                    facilities = facilities,
-                                    capacityClearanceRequests = capacityClearanceRequests,
-                                    errorMessage = errorMessage,
-                                    account = account,
-                                    onUpdateProfile = { name ->
-                                        val updated = SmartWasteApi.updateMyProfile(name)
-                                        activeAccount = updated
-                                        refreshWorkspace()
-                                        updated
-                                    },
-                                    onOpenPhoto = { openPhoto(it) },
-                                    onArchiveTask = { report ->
-                                        SmartWasteApi.archiveWorkerTask(report.id)
-                                        refreshWorkspace()
-                                    },
-                                    onRestoreArchivedTask = { report ->
-                                        SmartWasteApi.restoreWorkerTask(report.id)
-                                        refreshWorkspace()
-                                    },
-                                    onDeleteArchivedTask = { report ->
-                                        SmartWasteApi.permanentlyDeleteArchivedWorkerTask(report.id)
-                                        refreshWorkspace()
-                                    },
-                                    onAssignReport = { report, vehicleId, tpaId ->
-                                        SmartWasteApi.assignReport(report.id, vehicleId, tpaId)
-                                        refreshWorkspace()
-                                    },
-                                    onRejectReport = { report, note ->
-                                        SmartWasteApi.updateReportStatus(report.id, WasteFlow.REJECTED, note)
-                                        refreshWorkspace()
-                                    },
-                                    onMarkTransported = { task ->
-                                        SmartWasteApi.markTaskTransported(task.id)
-                                        refreshWorkspace()
-                                    },
-                                    onSubmitProof = { task, photoUri, note ->
-                                        val photoBytes = compressEvidence(photoUri)
-                                        SmartWasteApi.submitCompletionProof(
-                                            task.id,
-                                            photoBytes,
-                                            "bukti-${task.id}.jpg",
-                                            note
-                                        )
-                                        refreshWorkspace()
-                                    },
-                                    onSubmitLocationEvidence = { task, photoUri ->
-                                        SmartWasteApi.submitLocationEvidence(
-                                            task.id,
-                                            compressEvidence(photoUri),
-                                            "lokasi-${task.id}.jpg"
-                                        )
-                                        refreshWorkspace()
-                                    },
-                                    onCreateVehicle = { plate, capacity, route ->
-                                        SmartWasteApi.createVehicle(plate, capacity, route)
-                                        refreshWorkspace()
-                                    },
-                                    onUpdateVehicle = { vehicle ->
-                                        SmartWasteApi.updateVehicle(vehicle)
-                                        refreshWorkspace()
-                                    },
-                                    onReportVehicleDamage = { vehicle, cause, details ->
-                                        SmartWasteApi.reportVehicleDamage(vehicle.id, cause, details)
-                                        refreshWorkspace()
-                                    },
-                                    onStartVehicleRepair = { repair, note ->
-                                        SmartWasteApi.startVehicleRepair(repair.id, note)
-                                        refreshWorkspace()
-                                    },
-                                    onUpdateVehicleRepairProgress = { repair, note ->
-                                        SmartWasteApi.updateVehicleRepairProgress(repair.id, note)
-                                        refreshWorkspace()
-                                    },
-                                    onSubmitVehicleRepairForInspection = { repair, note ->
-                                        SmartWasteApi.submitVehicleRepairForInspection(repair.id, note)
-                                        refreshWorkspace()
-                                    },
-                                    onCreateFacility = { name, address, capacity ->
-                                        SmartWasteApi.createFacility(name, address, capacity)
-                                        refreshWorkspace()
-                                    },
-                                    onUpdateFacility = { facility ->
-                                        SmartWasteApi.updateFacility(facility)
-                                        refreshWorkspace()
-                                    },
-                                    onRequestCapacityClearance = { targetType, targetId, photoUri, reason ->
-                                        SmartWasteApi.requestCapacityClearance(
-                                            targetType,
-                                            targetId,
-                                            compressEvidence(photoUri),
-                                            reason
-                                        )
-                                        refreshWorkspace()
-                                    },
-                                    isInitialLoading = !hasLoadedWorkspace,
-                                    isRefreshing = isRefreshingWorkspace,
-                                    onRefresh = { scope.launch { refreshWorkspace() } },
-                                    onOpenNotifications = {
-                                        navController.navigate("notifications") { launchSingleTop = true }
-                                    },
-                                    onLogout = ::signOut
-                                )
-                            }
+                            else PetugasTasksScreen(
+                                tasks = tasks,
+                                archivedTasks = archivedPetugasTasks,
+                                incomingReports = incomingReports,
+                                vehicles = vehicles,
+                                vehicleRepairs = vehicleRepairs,
+                                facilities = facilities,
+                                capacityClearanceRequests = capacityClearanceRequests,
+                                errorMessage = errorMessage,
+                                account = account,
+                                onUpdateProfile = { name ->
+                                    val updated = SmartWasteApi.updateMyProfile(name)
+                                    activeAccount = updated
+                                    refreshWorkspace()
+                                    updated
+                                },
+                                onOpenPhoto = { openPhoto(it) },
+                                onArchiveTask = { report ->
+                                    SmartWasteApi.archiveWorkerTask(report.id)
+                                    refreshWorkspace()
+                                },
+                                onRestoreArchivedTask = { report ->
+                                    SmartWasteApi.restoreWorkerTask(report.id)
+                                    refreshWorkspace()
+                                },
+                                onDeleteArchivedTask = { report ->
+                                    SmartWasteApi.permanentlyDeleteArchivedWorkerTask(report.id)
+                                    refreshWorkspace()
+                                },
+                                onAssignReport = { report, vehicleId, tpaId ->
+                                    SmartWasteApi.assignReport(report.id, vehicleId, tpaId)
+                                    refreshWorkspace()
+                                },
+                                onRejectReport = { report, note ->
+                                    SmartWasteApi.updateReportStatus(report.id, WasteFlow.REJECTED, note)
+                                    refreshWorkspace()
+                                },
+                                onMarkTransported = { task ->
+                                    SmartWasteApi.markTaskTransported(task.id)
+                                    refreshWorkspace()
+                                },
+                                onSubmitProof = { task, photoUri, note ->
+                                    val photoBytes = compressEvidence(photoUri)
+                                    SmartWasteApi.submitCompletionProof(
+                                        task.id,
+                                        photoBytes,
+                                        "bukti-${task.id}.jpg",
+                                        note
+                                    )
+                                    refreshWorkspace()
+                                },
+                                onSubmitLocationEvidence = { task, photoUri ->
+                                    SmartWasteApi.submitLocationEvidence(
+                                        task.id,
+                                        compressEvidence(photoUri),
+                                        "lokasi-${task.id}.jpg"
+                                    )
+                                    refreshWorkspace()
+                                },
+                                onCreateVehicle = { plate, capacity, route ->
+                                    SmartWasteApi.createVehicle(plate, capacity, route)
+                                    refreshWorkspace()
+                                },
+                                onUpdateVehicle = { vehicle ->
+                                    SmartWasteApi.updateVehicle(vehicle)
+                                    refreshWorkspace()
+                                },
+                                onReportVehicleDamage = { vehicle, cause, details ->
+                                    SmartWasteApi.reportVehicleDamage(vehicle.id, cause, details)
+                                    refreshWorkspace()
+                                },
+                                onStartVehicleRepair = { repair, note ->
+                                    SmartWasteApi.startVehicleRepair(repair.id, note)
+                                    refreshWorkspace()
+                                },
+                                onUpdateVehicleRepairProgress = { repair, note ->
+                                    SmartWasteApi.updateVehicleRepairProgress(repair.id, note)
+                                    refreshWorkspace()
+                                },
+                                onSubmitVehicleRepairForInspection = { repair, note ->
+                                    SmartWasteApi.submitVehicleRepairForInspection(repair.id, note)
+                                    refreshWorkspace()
+                                },
+                                onCreateFacility = { name, address, capacity ->
+                                    SmartWasteApi.createFacility(name, address, capacity)
+                                    refreshWorkspace()
+                                },
+                                onUpdateFacility = { facility ->
+                                    SmartWasteApi.updateFacility(facility)
+                                    refreshWorkspace()
+                                },
+                                onRequestCapacityClearance = { targetType, targetId, photoUri, reason ->
+                                    SmartWasteApi.requestCapacityClearance(
+                                        targetType,
+                                        targetId,
+                                        compressEvidence(photoUri),
+                                        reason
+                                    )
+                                    refreshWorkspace()
+                                },
+                                isInitialLoading = !hasLoadedWorkspace,
+                                isRefreshing = isRefreshingWorkspace,
+                                onRefresh = { scope.launch { refreshWorkspace() } },
+                                onOpenNotifications = {
+                                    navController.navigate("notifications") { launchSingleTop = true }
+                                },
+                                onLogout = ::signOut,
+                                entryKey = roleEntryKey
+                            )
                         }
                     }
                 }
@@ -914,29 +906,6 @@ private suspend fun <T> loadOrKeep(
 } catch (error: Exception) {
     errors += "$label: ${error.message ?: "gagal dimuat."}"
     currentValue
-}
-
-@Composable
-private fun RoleEntryAnimation(entryKey: Int, content: @Composable () -> Unit) {
-    val entryState = remember(entryKey) {
-        MutableTransitionState(false).apply { targetState = true }
-    }
-    val entryAnimation = tween<Float>(durationMillis = 800, easing = FastOutSlowInEasing)
-
-    AnimatedVisibility(
-        visibleState = entryState,
-        enter = fadeIn(animationSpec = entryAnimation) +
-            slideInVertically(
-                animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-                initialOffsetY = { fullHeight -> (fullHeight * 0.075f).toInt() }
-            ) +
-            scaleIn(
-                initialScale = 0.93f,
-                animationSpec = entryAnimation
-            )
-    ) {
-        content()
-    }
 }
 
 @androidx.compose.runtime.Composable
