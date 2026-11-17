@@ -290,6 +290,10 @@ object SmartWasteApi {
         request("PATCH", "/admin/arsip-laporan/$reportId/pulihkan", JSONObject())
     }
 
+    suspend fun permanentlyDeleteArchivedReport(reportId: Int) {
+        request("DELETE", "/admin/arsip-laporan/$reportId/permanen")
+    }
+
     suspend fun workerIncomingReports(): List<WasteRecord> {
         val data = request("GET", "/petugas/laporan").optJSONArray("reports") ?: JSONArray()
         return (0 until data.length()).map { index -> mapReport(data.getJSONObject(index)) }
@@ -616,6 +620,10 @@ object SmartWasteApi {
 
     suspend fun restoreWorkerTask(reportId: Int) {
         request("PATCH", "/petugas/arsip-tugas/$reportId/pulihkan", JSONObject())
+    }
+
+    suspend fun permanentlyDeleteArchivedWorkerTask(reportId: Int) {
+        request("DELETE", "/petugas/arsip-tugas/$reportId/permanen")
     }
 
     suspend fun markTaskTransported(reportId: Int) {

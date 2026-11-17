@@ -453,6 +453,10 @@ class MainActivity : ComponentActivity() {
                                     selectedStatus = null
                                     refreshWorkspace()
                                 },
+                                onDeleteArchivedReport = { report ->
+                                    SmartWasteApi.permanentlyDeleteArchivedReport(report.id)
+                                    refreshWorkspace()
+                                },
                                 onReportViewChange = { showAll ->
                                     selectedReportView = if (showAll) "all" else "verify"
                                     selectedStatus = null
@@ -620,6 +624,10 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onRestoreArchivedTask = { report ->
                                     SmartWasteApi.restoreWorkerTask(report.id)
+                                    refreshWorkspace()
+                                },
+                                onDeleteArchivedTask = { report ->
+                                    SmartWasteApi.permanentlyDeleteArchivedWorkerTask(report.id)
                                     refreshWorkspace()
                                 },
                                 onAssignReport = { report, vehicleId, tpaId ->

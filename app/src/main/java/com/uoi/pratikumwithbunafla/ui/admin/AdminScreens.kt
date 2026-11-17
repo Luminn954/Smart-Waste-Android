@@ -1766,6 +1766,7 @@ fun AdminVerificationScreen(
     onArchiveViewChange: (Boolean) -> Unit,
     onArchiveReport: suspend (WasteRecord) -> Unit,
     onRestoreArchivedReport: suspend (WasteRecord) -> Unit,
+    onDeleteArchivedReport: suspend (WasteRecord) -> Unit,
     onReportViewChange: (Boolean) -> Unit,
     onFilterChange: (String?) -> Unit,
     onNavigate: (String) -> Unit,
@@ -1776,6 +1777,7 @@ fun AdminVerificationScreen(
 ) {
     var archivingReport by remember { mutableStateOf<WasteRecord?>(null) }
     var restoringReport by remember { mutableStateOf<WasteRecord?>(null) }
+    var deletingArchivedReport by remember { mutableStateOf<WasteRecord?>(null) }
     var archiveActionError by remember { mutableStateOf("") }
     var archiveActionRunning by remember { mutableStateOf(false) }
     var reportSearch by rememberSaveable(showingArchive) { mutableStateOf("") }
@@ -2009,7 +2011,8 @@ fun AdminVerificationScreen(
                         archived.report,
                         onOpenPhoto,
                         compact = true,
-                        onRestore = { restoringReport = archived.report }
+                        onRestore = { restoringReport = archived.report },
+                        onPermanentDelete = { deletingArchivedReport = archived.report }
                     )
                     Text(
                         "Disimpan ${archived.archivedAt} · ${archived.archivedBy}",
@@ -2135,6 +2138,51 @@ fun AdminVerificationScreen(
             containerColor = AppSurface
         )
     }
+    deletingArchivedReport?.let { report ->
+        AlertDialog(
+            onDismissRequest = { if (!archiveActionRunning) deletingArchivedReport = null },
+            title = { Text("Hapus laporan permanen?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "${report.code} dan data laporan, foto, serta riwayatnya akan dihapus dari database dan tidak bisa dipulihkan. Data ini juga hilang dari akun warga dan Petugas.",
+                        color = AppTextMuted
+                    )
+                    if (archiveActionError.isNotBlank()) InlineError(archiveActionError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = {
+                        scope.launch {
+                            archiveActionRunning = true
+                            archiveActionError = ""
+                            try {
+                                onDeleteArchivedReport(report)
+                                deletingArchivedReport = null
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                archiveActionError = error.message ?: "Laporan gagal dihapus permanen."
+                            } finally {
+                                archiveActionRunning = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (archiveActionRunning) "Menghapus…" else "Hapus permanen", color = RoleRed)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = { deletingArchivedReport = null }
+                ) { Text("Batal", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
 }
 
 @Composable
@@ -2147,6 +2195,7 @@ private fun AdminReportCard(
     assignmentLabel: String = "Tugaskan",
     onArchive: (() -> Unit)? = null,
     onRestore: (() -> Unit)? = null,
+    onPermanentDelete: (() -> Unit)? = null,
     petugasStyle: Boolean = false
 ) {
     var showDetails by rememberSaveable(report.id) { mutableStateOf(!compact) }
@@ -2159,7 +2208,8 @@ private fun AdminReportCard(
             add(it.toDisplayDateTime())
         }
     }.joinToString("  ·  ")
-    val hasActions = onReject != null || onAssign != null || onArchive != null || onRestore != null
+    val hasActions = onReject != null || onAssign != null || onArchive != null ||
+        onRestore != null || onPermanentDelete != null
     AppCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = AppSurface,
@@ -2323,6 +2373,14 @@ private fun AdminReportCard(
                             colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
                         ) {
                             Text("Pulihkan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (onPermanentDelete != null) {
+                        TextButton(
+                            onClick = onPermanentDelete,
+                            colors = ButtonDefaults.textButtonColors(contentColor = RoleRed)
+                        ) {
+                            Text("Hapus permanen", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -3946,6 +4004,7 @@ fun PetugasTasksScreen(
     onOpenPhoto: (String) -> Unit,
     onArchiveTask: suspend (WasteRecord) -> Unit,
     onRestoreArchivedTask: suspend (WasteRecord) -> Unit,
+    onDeleteArchivedTask: suspend (WasteRecord) -> Unit,
     onAssignReport: suspend (WasteRecord, Int, Int) -> Unit,
     onRejectReport: suspend (WasteRecord, String) -> Unit,
     onMarkTransported: suspend (WasteRecord) -> Unit,
@@ -3977,6 +4036,7 @@ fun PetugasTasksScreen(
     var showingRepairHistory by rememberSaveable(account.username) { mutableStateOf(false) }
     var archivingHistoryTask by remember { mutableStateOf<WasteRecord?>(null) }
     var restoringHistoryTask by remember { mutableStateOf<WasteRecord?>(null) }
+    var deletingArchivedTask by remember { mutableStateOf<WasteRecord?>(null) }
     var archiveActionError by remember { mutableStateOf("") }
     var archiveActionRunning by remember { mutableStateOf(false) }
     var showVehicleForm by remember { mutableStateOf(false) }
@@ -4873,23 +4933,33 @@ fun PetugasTasksScreen(
                     }
                     filteredArchivedHistory.forEach { archived ->
                         PetugasTaskCard(archived.report, onOpenPhoto, compactHistory = true)
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
                                 "Disimpan ${archived.archivedAt.toDisplayDateTime()} · ${archived.archivedBy.displayPersonName()}",
-                                modifier = Modifier.weight(1f),
                                 color = AppTextMuted,
                                 fontSize = 10.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            TextButton(
-                                onClick = { restoringHistoryTask = archived.report },
-                                enabled = !archiveActionRunning,
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                            ) { Text("Pulihkan", color = LoginAccent, fontSize = 11.sp) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = { restoringHistoryTask = archived.report },
+                                    enabled = !archiveActionRunning,
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) { Text("Pulihkan", color = LoginAccent, fontSize = 11.sp) }
+                                TextButton(
+                                    onClick = { deletingArchivedTask = archived.report },
+                                    enabled = !archiveActionRunning,
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) { Text("Hapus permanen", color = RoleRed, fontSize = 11.sp) }
+                            }
                         }
                     }
                 } else {
@@ -5181,6 +5251,54 @@ fun PetugasTasksScreen(
                     onClick = { restoringHistoryTask = null },
                     enabled = !archiveActionRunning
                 ) { Text("Kembali", color = LoginMuted) }
+            },
+            containerColor = AppSurface
+        )
+    }
+    deletingArchivedTask?.let { task ->
+        AlertDialog(
+            onDismissRequest = { if (!archiveActionRunning) deletingArchivedTask = null },
+            title = { Text("Hapus tugas permanen?", color = LoginInk, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "${task.code}, foto, bukti, dan riwayatnya akan dihapus dari database. Laporan ini juga hilang dari akun warga dan Admin serta tidak bisa dipulihkan.",
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp
+                    )
+                    if (archiveActionError.isNotBlank()) InlineError(archiveActionError)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = {
+                        scope.launch {
+                            archiveActionRunning = true
+                            archiveActionError = ""
+                            try {
+                                onDeleteArchivedTask(task)
+                                deletingArchivedTask = null
+                                historySearch = ""
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                archiveActionError = error.message ?: "Tugas gagal dihapus permanen."
+                            } finally {
+                                archiveActionRunning = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (archiveActionRunning) "Menghapus…" else "Hapus permanen", color = RoleRed)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !archiveActionRunning,
+                    onClick = { deletingArchivedTask = null }
+                ) { Text("Batal", color = LoginMuted) }
             },
             containerColor = AppSurface
         )
