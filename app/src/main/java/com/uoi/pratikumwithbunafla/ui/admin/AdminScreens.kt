@@ -5779,25 +5779,21 @@ private fun PetugasJourneyHero(
             .clip(HeroBottomCurveShape)
             .background(if (isDark) Color(0xFF1C3025) else Color(0xFF286B4D))
     ) {
-        val illustrationBitmap = ImageBitmap.imageResource(R.drawable.hero_recycling_crew)
-        val illustrationPainter = remember(illustrationBitmap) {
-            BitmapPainter(illustrationBitmap, filterQuality = FilterQuality.High)
+        val backgroundBitmap = ImageBitmap.imageResource(R.drawable.petugas_hero_background)
+        val backgroundPainter = remember(backgroundBitmap) {
+            BitmapPainter(backgroundBitmap, filterQuality = FilterQuality.High)
         }
         Image(
-            painter = illustrationPainter,
+            painter = backgroundPainter,
             contentDescription = null,
-            contentScale = ContentScale.FillBounds,
-            modifier = Modifier.align(Alignment.BottomEnd)
-                .height(heroHeight)
-                .aspectRatio(260f / 280f)
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(
-                        brush = Brush.horizontalGradient(*heroFadeStops(0f, 0.28f)),
-                        blendMode = BlendMode.DstIn
-                    )
-                }
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier.fillMaxSize()
+                .background(
+                    Color(0xFF102D22).copy(alpha = if (isDark) 0.38f else 0.16f)
+                )
         )
         val textSideShade = if (isDark) Color(0xFF17271E) else Color(0xFF103F30)
         Box(
