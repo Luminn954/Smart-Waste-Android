@@ -4509,17 +4509,12 @@ fun PetugasTasksScreen(
                         }
                         when {
                             nextTask != null -> {
-                                PetugasSectionHeading(
-                                    eyebrow = "PRIORITAS LAPANGAN",
-                                    title = "Lanjutkan pekerjaan",
-                                    subtitle = if (nextTask.completionStatus == "perlu_perbaikan") {
-                                        "Perbaiki bukti tugas ini terlebih dahulu."
-                                    } else if (nextTask.status == WasteFlow.TRANSPORTED) {
-                                        "Kirim foto bukti setelah tiba di TPA."
-                                    } else {
-                                        "Tuntaskan tugas aktif sebelum ambil laporan baru."
-                                    },
-                                    icon = Icons.Rounded.TaskAlt
+                                Text(
+                                    "Tugas prioritas",
+                                    color = AppText,
+                                    fontSize = 16.sp,
+                                    lineHeight = 21.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                                 PetugasTaskCard(
                                     report = nextTask,
@@ -6715,22 +6710,28 @@ private fun PetugasTaskCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-            } else if (!compactHistory) {
-                Column(verticalArrangement = Arrangement.spacedBy(if (dense) 1.dp else 3.dp)) {
+            } else if (!compactHistory && (!dense || needsRevision)) {
+                if (dense) {
                     Text(
-                        if (dense) "Berikutnya" else guidanceTitle,
+                        report.completionReviewNote.ifBlank { "Perbaiki foto bukti sebelum dikirim ulang." },
                         color = guidanceAccent,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        guidanceMessage,
-                        color = AppTextMuted,
-                        fontSize = 12.sp,
                         lineHeight = 17.sp,
-                        maxLines = if (dense) 2 else 3,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(guidanceTitle, color = guidanceAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            guidanceMessage,
+                            color = AppTextMuted,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
             if (hasEvidencePhotos || canSendLocationEvidence) {
@@ -6738,15 +6739,18 @@ private fun PetugasTaskCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(if (dense) 1.dp else 3.dp)
                 ) {
-                    Text(
-                        if (dense || compactHistory) "Foto" else "Foto bukti",
-                        color = AppTextMuted,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (!dense) {
+                        Text(
+                            if (compactHistory) "Foto" else "Foto bukti",
+                            color = AppTextMuted,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     if (hasEvidencePhotos) {
                         report.locationEvidenceSubmittedAt.takeIf {
+                            !dense &&
                             it.isNotBlank() && !report.locationEvidencePhotoUrl.isNullOrBlank()
                         }?.let {
                             Text(
@@ -6769,7 +6773,7 @@ private fun PetugasTaskCard(
                                     onClick = { onOpenPhoto(report.photoUrl) },
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                                 ) {
-                                    Text("Awal · warga", color = statusAccent, fontSize = 12.sp)
+                                    Text(if (dense) "Foto warga" else "Awal · warga", color = statusAccent, fontSize = 12.sp)
                                 }
                             }
                             if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
@@ -6777,7 +6781,7 @@ private fun PetugasTaskCard(
                                     onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) },
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                                 ) {
-                                    Text("Lokasi · petugas", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
+                                    Text(if (dense) "Foto lokasi" else "Lokasi · petugas", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
                                 }
                             }
                             if (!report.completionProofPhotoUrl.isNullOrBlank()) {
@@ -6785,7 +6789,7 @@ private fun PetugasTaskCard(
                                     onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                                 ) {
-                                    Text("Akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
+                                    Text(if (dense) "Foto petugas" else "Akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
                                 }
                             }
                         }
