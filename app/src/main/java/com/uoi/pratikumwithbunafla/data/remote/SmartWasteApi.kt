@@ -618,43 +618,6 @@ object SmartWasteApi {
         request("PATCH", "/petugas/arsip-tugas/$reportId/pulihkan", JSONObject())
     }
 
-    suspend fun askPetugasAssistant(
-        question: String,
-        history: List<PetugasAssistantTurn> = emptyList()
-    ): PetugasAssistantReply {
-        val historyJson = JSONArray().apply {
-            history.takeLast(8).forEach { turn ->
-                put(JSONObject().put("role", turn.role).put("content", turn.content))
-            }
-        }
-        val response = request(
-            method = "POST",
-            path = "/petugas/asisten",
-            payload = JSONObject().put("question", question.trim()).put("history", historyJson),
-            connectTimeoutMs = 8_000,
-            readTimeoutMs = 35_000
-        )
-        val links = response.optJSONArray("task_links") ?: JSONArray()
-        val nextSteps = response.optJSONArray("next_steps") ?: JSONArray()
-        return PetugasAssistantReply(
-            message = response.optString("message", "Asisten belum mengirim jawaban."),
-            taskLinks = (0 until links.length()).mapNotNull { index ->
-                links.optJSONObject(index)?.let { item ->
-                    PetugasAssistantLink(
-                        code = item.optString("code"),
-                        statusLabel = item.optString("status_label"),
-                        pageKey = item.optString("page_key"),
-                        pageLabel = item.optString("page_label"),
-                        actionLabel = item.optString("action_label")
-                    )
-                }
-            },
-            nextSteps = (0 until nextSteps.length()).mapNotNull { index ->
-                nextSteps.optString(index).takeIf(String::isNotBlank)
-            }
-        )
-    }
-
     suspend fun markTaskTransported(reportId: Int) {
         request("PATCH", "/petugas/tugas/$reportId/diangkut", JSONObject())
     }

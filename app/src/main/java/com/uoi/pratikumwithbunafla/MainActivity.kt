@@ -613,9 +613,6 @@ class MainActivity : ComponentActivity() {
                                     refreshWorkspace()
                                     updated
                                 },
-                                onAskAssistant = { question, history ->
-                                    SmartWasteApi.askPetugasAssistant(question, history)
-                                },
                                 onOpenPhoto = { openPhoto(it) },
                                 onArchiveTask = { report ->
                                     SmartWasteApi.archiveWorkerTask(report.id)
