@@ -4513,17 +4513,18 @@ fun PetugasTasksScreen(
                                     eyebrow = "PRIORITAS LAPANGAN",
                                     title = "Lanjutkan pekerjaan",
                                     subtitle = if (nextTask.completionStatus == "perlu_perbaikan") {
-                                        "Admin meminta perbaikan bukti. Dahulukan tugas ini."
+                                        "Perbaiki bukti tugas ini terlebih dahulu."
                                     } else if (nextTask.status == WasteFlow.TRANSPORTED) {
-                                        "Muatan di perjalanan. Kirim foto setelah tiba di TPA."
+                                        "Kirim foto bukti setelah tiba di TPA."
                                     } else {
-                                        "Selesaikan tugas aktif sebelum mengambil laporan baru."
+                                        "Tuntaskan tugas aktif sebelum ambil laporan baru."
                                     },
                                     icon = Icons.Rounded.TaskAlt
                                 )
                                 PetugasTaskCard(
                                     report = nextTask,
                                     onOpenPhoto = onOpenPhoto,
+                                    dense = true,
                                     onMarkTransported = { confirmingTransportTask = it },
                                     isTransporting = transportingTaskId == nextTask.id,
                                     isActionEnabled = transportingTaskId == null,
@@ -6581,6 +6582,7 @@ private fun PetugasTaskCard(
     report: WasteRecord,
     onOpenPhoto: (String) -> Unit,
     compactHistory: Boolean = false,
+    dense: Boolean = false,
     onMarkTransported: ((WasteRecord) -> Unit)? = null,
     isTransporting: Boolean = false,
     isActionEnabled: Boolean = true,
@@ -6613,12 +6615,12 @@ private fun PetugasTaskCard(
         else -> "Langkah berikutnya"
     }
     val guidanceMessage = when {
-        needsRevision -> "${report.completionReviewNote.ifBlank { "Admin meminta foto bukti diperbaiki." }} Kirim ulang bukti setelah diperbaiki."
-        waitingForAdmin -> "Bukti sudah terkirim. Tunggu Admin memeriksa foto sebelum tugas ditutup."
-        isComplete -> "Bukti telah disetujui Admin dan pekerjaan tercatat selesai."
+        needsRevision -> "${report.completionReviewNote.ifBlank { "Admin meminta foto bukti diperbaiki." }} Kirim ulang setelah diperbaiki."
+        waitingForAdmin -> "Foto terkirim. Tunggu persetujuan Admin."
+        isComplete -> "Disetujui Admin. Tugas selesai."
         isRejected -> report.workerDecisionNote.ifBlank { "Laporan tidak diteruskan ke proses pengangkutan." }
-        report.status == WasteFlow.TRANSPORTED -> "Antar ke ${report.tpaName.ifBlank { "TPA tujuan" }}, lalu kirim foto setelah tiba."
-        else -> "Muat dengan ${report.vehiclePlate.ifBlank { "armada yang ditetapkan" }}, lalu mulai angkut."
+        report.status == WasteFlow.TRANSPORTED -> "Antar ke TPA, lalu kirim foto bukti."
+        else -> "Muat sampah, lalu mulai angkut."
     }
     val hasEvidencePhotos = !report.photoUrl.isNullOrBlank() ||
         !report.locationEvidencePhotoUrl.isNullOrBlank() ||
@@ -6636,10 +6638,18 @@ private fun PetugasTaskCard(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(
-                horizontal = if (compactHistory) 14.dp else 16.dp,
-                vertical = if (compactHistory) 13.dp else 15.dp
+                horizontal = if (compactHistory || dense) 14.dp else 16.dp,
+                vertical = when {
+                    compactHistory -> 13.dp
+                    dense -> 12.dp
+                    else -> 15.dp
+                }
             ),
-            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 8.dp else 10.dp)
+            verticalArrangement = Arrangement.spacedBy(when {
+                compactHistory -> 8.dp
+                dense -> 7.dp
+                else -> 10.dp
+            })
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -6647,7 +6657,7 @@ private fun PetugasTaskCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(if (dense) 32.dp else 36.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(statusAccent.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
@@ -6656,7 +6666,7 @@ private fun PetugasTaskCard(
                         Icons.Filled.LocalShipping,
                         contentDescription = null,
                         tint = statusAccent,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(if (dense) 16.dp else 18.dp)
                     )
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -6707,14 +6717,19 @@ private fun PetugasTaskCard(
                     overflow = TextOverflow.Ellipsis
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(guidanceTitle, color = guidanceAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Column(verticalArrangement = Arrangement.spacedBy(if (dense) 1.dp else 3.dp)) {
+                    Text(
+                        if (dense) "Berikutnya" else guidanceTitle,
+                        color = guidanceAccent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Text(
                         guidanceMessage,
                         color = AppTextMuted,
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
-                        maxLines = 3,
+                        maxLines = if (dense) 2 else 3,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -6722,10 +6737,10 @@ private fun PetugasTaskCard(
             if (hasEvidencePhotos || canSendLocationEvidence) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (dense) 1.dp else 3.dp)
                 ) {
                     Text(
-                        "Foto bukti",
+                        if (dense) "Foto" else "Foto bukti",
                         color = AppTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
