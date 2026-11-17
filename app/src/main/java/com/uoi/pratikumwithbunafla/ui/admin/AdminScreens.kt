@@ -1196,10 +1196,14 @@ private fun ColumnScope.RoleEntrySection(
 fun AdminDashboardScreen(
     summary: AdminDashboardSummary,
     reports: List<WasteRecord>,
+    workers: List<AdminWorker>,
+    vehicles: List<WasteVehicle>,
+    facilities: List<WasteFacility>,
     errorMessage: String,
     account: UserAccount,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
+    onAssignReport: suspend (WasteRecord, Int, Int, Int) -> Unit,
     pendingProofCount: Int = 0,
     pendingVehicleRepairActionCount: Int = 0,
     pendingCapacityClearanceCount: Int = 0,
@@ -1208,6 +1212,8 @@ fun AdminDashboardScreen(
     onRefresh: () -> Unit = {},
     entryKey: Int = 0
 ) {
+    var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
+
     AdminPage(
         current = "dashboard",
         account = account,
@@ -1403,7 +1409,13 @@ fun AdminDashboardScreen(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(
+                                    modifier = Modifier.weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onNavigate("status:${report.status}") }
+                                        .padding(vertical = 3.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
                                     Text(
                                         report.code,
                                         color = AppText,
@@ -1418,7 +1430,23 @@ fun AdminDashboardScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                StatusPill(report.status, reportAccent(report.status))
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    StatusPill(report.status, reportAccent(report.status))
+                                    if (report.status == WasteFlow.WAITING) {
+                                        TextButton(
+                                            onClick = { assigningReport = report },
+                                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                                horizontal = 5.dp,
+                                                vertical = 1.dp
+                                            )
+                                        ) {
+                                            Text("Tugaskan", color = LoginAccent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1426,6 +1454,111 @@ fun AdminDashboardScreen(
             }
         }
     }
+
+    assigningReport?.let { report ->
+        AdminReportAssignmentDialog(
+            report = report,
+            workers = workers,
+            vehicles = vehicles,
+            facilities = facilities,
+            onDismiss = { assigningReport = null },
+            onAssign = { workerId, vehicleId, tpaId ->
+                onAssignReport(report, workerId, vehicleId, tpaId)
+                assigningReport = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun AdminReportAssignmentDialog(
+    report: WasteRecord,
+    workers: List<AdminWorker>,
+    vehicles: List<WasteVehicle>,
+    facilities: List<WasteFacility>,
+    onDismiss: () -> Unit,
+    onAssign: suspend (Int, Int, Int) -> Unit
+) {
+    val eligibleWorkers = workers.filter { it.active && it.hasAccount && !it.isArchived }
+    val eligibleVehicles = vehicles.filter {
+        it.condition.equals("baik", ignoreCase = true) && it.availableKg >= report.weightKg
+    }
+    val eligibleFacilities = facilities.filter { it.remainingTon * 1000 >= report.weightKg }
+    var selectedWorker by remember(report.id) { mutableStateOf<AdminWorker?>(null) }
+    var selectedVehicle by remember(report.id) { mutableStateOf<WasteVehicle?>(null) }
+    var selectedFacility by remember(report.id) { mutableStateOf<WasteFacility?>(null) }
+    var saving by remember(report.id) { mutableStateOf(false) }
+    var errorMessage by remember(report.id) { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val canAssign = selectedWorker?.let(eligibleWorkers::contains) == true &&
+        selectedVehicle?.let(eligibleVehicles::contains) == true &&
+        selectedFacility?.let(eligibleFacilities::contains) == true
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Tugaskan laporan", color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            ScrollableDialogContent(spacing = 8.dp) {
+                Text("${report.code} · ${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 11.sp)
+                SelectionField(
+                    "Petugas aktif",
+                    selectedWorker?.let { "${it.name} · ${it.zone}" },
+                    eligibleWorkers,
+                    { "${it.name} · ${it.zone}" }
+                ) { selectedWorker = it }
+                SelectionField(
+                    "Kendaraan",
+                    selectedVehicle?.let { "${it.plate} · sisa ${it.availableKg.pretty()} kg" },
+                    eligibleVehicles,
+                    { "${it.plate} · sisa ${it.availableKg.pretty()} kg" }
+                ) { selectedVehicle = it }
+                SelectionField(
+                    "TPA tujuan",
+                    selectedFacility?.let { "${it.name} · sisa ${it.remainingTon.pretty()} ton" },
+                    eligibleFacilities,
+                    { "${it.name} · sisa ${it.remainingTon.pretty()} ton" }
+                ) { selectedFacility = it }
+                if (eligibleWorkers.isEmpty() || eligibleVehicles.isEmpty() || eligibleFacilities.isEmpty()) {
+                    val unavailable = buildList {
+                        if (eligibleWorkers.isEmpty()) add("petugas aktif dengan akun")
+                        if (eligibleVehicles.isEmpty()) add("kendaraan sehat dengan kapasitas cukup")
+                        if (eligibleFacilities.isEmpty()) add("TPA dengan kapasitas cukup")
+                    }.joinToString(", ")
+                    Text("Belum dapat ditugaskan: tidak tersedia $unavailable.", color = RoleRed, fontSize = 10.sp)
+                }
+                if (errorMessage.isNotBlank()) InlineError(errorMessage)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = canAssign && !saving,
+                onClick = {
+                    val workerId = selectedWorker?.id ?: return@TextButton
+                    val vehicleId = selectedVehicle?.id ?: return@TextButton
+                    val tpaId = selectedFacility?.id ?: return@TextButton
+                    scope.launch {
+                        saving = true
+                        errorMessage = ""
+                        try {
+                            onAssign(workerId, vehicleId, tpaId)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            errorMessage = error.message ?: "Laporan gagal ditugaskan."
+                        } finally {
+                            saving = false
+                        }
+                    }
+                }
+            ) { Text(if (saving) "Menyimpan…" else "Tugaskan", color = LoginAccent) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) {
+                Text("Batal", color = LoginMuted)
+            }
+        },
+        containerColor = AppSurface
+    )
 }
 
 @Composable

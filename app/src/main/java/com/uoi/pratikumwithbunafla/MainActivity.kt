@@ -389,10 +389,17 @@ class MainActivity : ComponentActivity() {
                                 else AdminDashboardScreen(
                                     summary = summary,
                                     reports = reports,
+                                workers = workers,
+                                vehicles = vehicles,
+                                facilities = facilities,
                                     errorMessage = errorMessage,
                                     account = account,
                                     onNavigate = ::navigateAdminRoute,
                                     onLogout = ::signOut,
+                                onAssignReport = { report, workerId, vehicleId, tpaId ->
+                                    SmartWasteApi.assignReportToWorker(report.id, workerId, vehicleId, tpaId)
+                                    refreshWorkspace()
+                                },
                                     pendingProofCount = completionReviews.size,
                                     pendingVehicleRepairActionCount = vehicleRepairs.count {
                                         it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"

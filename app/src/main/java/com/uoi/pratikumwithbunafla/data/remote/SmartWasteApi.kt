@@ -596,6 +596,15 @@ object SmartWasteApi {
         )
     }
 
+    suspend fun assignReportToWorker(reportId: Int, workerId: Int, vehicleId: Int, tpaId: Int) {
+        request(
+            "PATCH", "/admin/laporan/$reportId/tugaskan", JSONObject()
+                .put("worker_id", workerId)
+                .put("vehicle_id", vehicleId)
+                .put("tpa_id", tpaId)
+        )
+    }
+
     suspend fun workerTasks(): List<WasteRecord> {
         val data = request("GET", "/petugas/tugas").optJSONArray("tasks") ?: JSONArray()
         return (0 until data.length()).map { index -> mapReport(data.getJSONObject(index)) }
