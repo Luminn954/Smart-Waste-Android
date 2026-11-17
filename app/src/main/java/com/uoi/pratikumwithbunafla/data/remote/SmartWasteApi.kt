@@ -63,7 +63,7 @@ object SmartWasteApi {
                         val json = JSONObject(text)
                         json.optString("message").ifBlank { json.optString("detail") }
                     }.getOrNull().orEmpty()
-                    if (code == HttpURLConnection.HTTP_UNAUTHORIZED && authToken != null) {
+                    if (code == HttpURLConnection.HTTP_UNAUTHORIZED && path !in setOf("/auth/login", "/health")) {
                         throw SessionExpiredException(
                             message.ifBlank { "Sesi login sudah berakhir. Silakan masuk kembali." }
                         )
@@ -191,7 +191,7 @@ object SmartWasteApi {
             }.orEmpty()
             if (code !in 200..299) {
                 val message = runCatching { JSONObject(response).optString("message") }.getOrNull()
-                if (code == HttpURLConnection.HTTP_UNAUTHORIZED && authToken != null) {
+                if (code == HttpURLConnection.HTTP_UNAUTHORIZED) {
                     throw SessionExpiredException(
                         message?.takeIf { it.isNotBlank() }
                             ?: "Sesi login sudah berakhir. Silakan masuk kembali."
