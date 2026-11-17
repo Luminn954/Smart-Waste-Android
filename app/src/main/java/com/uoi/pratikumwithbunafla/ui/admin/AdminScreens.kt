@@ -3430,11 +3430,11 @@ fun AdminOperationsScreen(
                     .sortedByDescending { it.locationEvidenceSubmittedAt }
                 SectionTitle(
                     "Foto di lokasi",
-                    "Bukti kondisi sampah yang dikirim Petugas dari titik laporan."
+                    "Foto bukti dari petugas di lokasi laporan."
                 )
                 if (visibleLocationEvidence.isEmpty()) {
                     Text(
-                        if (query.isBlank()) "Belum ada foto lokasi dari petugas."
+                        if (query.isBlank()) "Belum ada foto bukti dari petugas."
                         else "Foto lokasi yang cocok tidak ditemukan.",
                         color = AppTextMuted,
                         fontSize = 12.sp,
@@ -3507,13 +3507,13 @@ fun AdminOperationsScreen(
                     ).any { it.lowercase().contains(query) }
                 }
                 SectionTitle(
-                    "Pemeriksaan hasil kerja",
-                    if (visibleReviews.isEmpty()) "Bukti yang menunggu persetujuan Admin akan tampil di sini."
+                    "Tinjau hasil kerja",
+                    if (visibleReviews.isEmpty()) "Foto menunggu persetujuan admin muncul di sini."
                     else "${visibleReviews.size} bukti menunggu ditinjau."
                 )
                 if (visibleReviews.isEmpty()) {
                     EmptyAdminState(
-                        if (query.isBlank()) "Belum ada bukti penyelesaian yang menunggu."
+                        if (query.isBlank()) "Belum ada bukti untuk ditinjau."
                         else "Bukti yang cocok tidak ditemukan."
                     )
                 }
