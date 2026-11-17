@@ -113,6 +113,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.launch
 import com.uoi.pratikumwithbunafla.R
+import com.uoi.pratikumwithbunafla.data.local.SavedLoginCredentials
+import com.uoi.pratikumwithbunafla.data.local.SavedLoginCredentialsStore
 import com.uoi.pratikumwithbunafla.data.model.UserAccount
 import com.uoi.pratikumwithbunafla.data.model.UserRole
 import com.uoi.pratikumwithbunafla.ui.theme.InterFont
@@ -386,18 +388,30 @@ fun LoginScreen(
     val savedUsername = remember(preferences) {
         preferences.getString("admin_username", "").orEmpty()
     }
+    var savedCredentials by remember(preferences) {
+        mutableStateOf(SavedLoginCredentialsStore.load(context))
+    }
 
     var rememberMe by rememberSaveable {
         mutableStateOf(
-            preferences.getBoolean("remember_username", preferences.getBoolean("remember_admin", true))
+            preferences.getBoolean(
+                "remember_credentials",
+                preferences.getBoolean("remember_username", preferences.getBoolean("remember_admin", true))
+            )
         )
     }
     var username by rememberSaveable {
-        mutableStateOf(if (rememberMe) savedUsername else "")
+        mutableStateOf(if (rememberMe) savedCredentials?.username ?: savedUsername else "")
     }
-    var password by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf(if (rememberMe) savedCredentials?.password.orEmpty() else "") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedRole by rememberSaveable { mutableStateOf<UserRole?>(null) }
+    var selectedRole by rememberSaveable {
+        mutableStateOf(
+            if (rememberMe) savedCredentials?.role?.let { roleName ->
+                UserRole.entries.firstOrNull { it.name == roleName }
+            } else null
+        )
+    }
     var isDarkMode by rememberSaveable(initialDarkMode) { mutableStateOf(initialDarkMode) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf(initialMessage) }
@@ -446,15 +460,27 @@ fun LoginScreen(
                         errorMessage = "Username atau kata sandi tidak sesuai."
                     } else {
                         if (rememberMe) {
+                            runCatching {
+                                SavedLoginCredentialsStore.save(
+                                    context,
+                                    SavedLoginCredentials(enteredUsername, password, enteredRole.name)
+                                )
+                            }.onSuccess {
+                                savedCredentials = SavedLoginCredentials(enteredUsername, password, enteredRole.name)
+                            }
                             preferences.edit {
                                 putBoolean("remember_admin", true)
                                 putBoolean("remember_username", true)
+                                putBoolean("remember_credentials", true)
                                 putString(roleUsernamePreferenceKey(enteredRole), enteredUsername)
                             }
                         } else {
+                            SavedLoginCredentialsStore.clear(context)
+                            savedCredentials = null
                             preferences.edit {
                                 putBoolean("remember_admin", false)
                                 putBoolean("remember_username", false)
+                                putBoolean("remember_credentials", false)
                                 remove("admin_username")
                                 remove("petugas_username")
                             }
@@ -678,7 +704,13 @@ fun LoginScreen(
                         if (selectedRole != it) {
                             username = if (rememberMe) {
                                 preferences.getString(roleUsernamePreferenceKey(it), "").orEmpty()
-                                    .ifBlank { if (it == UserRole.ADMIN) savedUsername else "" }
+                                    .ifBlank {
+                                        savedCredentials?.takeIf { credentials -> credentials.role == it.name }?.username
+                                            ?: if (it == UserRole.ADMIN) savedUsername else ""
+                                    }
+                            } else ""
+                            password = if (rememberMe) {
+                                savedCredentials?.takeIf { credentials -> credentials.role == it.name }?.password.orEmpty()
                             } else ""
                         }
                         selectedRole = it
@@ -762,7 +794,20 @@ fun LoginScreen(
                                 .toggleable(
                                     value = rememberMe,
                                     role = Role.Checkbox,
-                                    onValueChange = { rememberMe = it }
+                                    onValueChange = { checked ->
+                                        rememberMe = checked
+                                        if (!checked) {
+                                            SavedLoginCredentialsStore.clear(context)
+                                            savedCredentials = null
+                                            preferences.edit {
+                                                putBoolean("remember_admin", false)
+                                                putBoolean("remember_username", false)
+                                                putBoolean("remember_credentials", false)
+                                                remove("admin_username")
+                                                remove("petugas_username")
+                                            }
+                                        }
+                                    }
                                 )
                                 .semantics { role = Role.Checkbox },
                             verticalAlignment = Alignment.CenterVertically
@@ -791,7 +836,7 @@ fun LoginScreen(
                             }
                             Spacer(modifier = Modifier.width(7.dp))
                             Text(
-                                text = "Ingat username",
+                                text = "Ingat username & password",
                                 color = primaryText,
                                 fontFamily = LoginFont,
                                 fontWeight = FontWeight.Medium,
