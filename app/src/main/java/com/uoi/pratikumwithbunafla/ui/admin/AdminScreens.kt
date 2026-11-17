@@ -6702,9 +6702,8 @@ private fun PetugasTaskCard(
                 }
             }
             if (!isRejected) AppCardDivider()
-            if (compactHistory) {
+            if (compactHistory && !isComplete) {
                 val historyNote = when {
-                    isComplete -> "Disetujui Admin"
                     report.workerDecisionNote.isNotBlank() -> report.workerDecisionNote
                     else -> "Laporan tidak diteruskan ke pengangkutan"
                 }
@@ -6716,7 +6715,7 @@ private fun PetugasTaskCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-            } else {
+            } else if (!compactHistory) {
                 Column(verticalArrangement = Arrangement.spacedBy(if (dense) 1.dp else 3.dp)) {
                     Text(
                         if (dense) "Berikutnya" else guidanceTitle,
@@ -6740,7 +6739,7 @@ private fun PetugasTaskCard(
                     verticalArrangement = Arrangement.spacedBy(if (dense) 1.dp else 3.dp)
                 ) {
                     Text(
-                        if (dense) "Foto" else "Foto bukti",
+                        if (dense || compactHistory) "Foto" else "Foto bukti",
                         color = AppTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
