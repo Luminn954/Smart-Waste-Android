@@ -4453,11 +4453,11 @@ fun PetugasTasksScreen(
                                     eyebrow = "PRIORITAS LAPANGAN",
                                     title = "Lanjutkan pekerjaan",
                                     subtitle = if (nextTask.completionStatus == "perlu_perbaikan") {
-                                        "Admin meminta perbaikan bukti. Tugas ini perlu ditangani lebih dulu."
+                                        "Admin meminta perbaikan bukti. Dahulukan tugas ini."
                                     } else if (nextTask.status == WasteFlow.TRANSPORTED) {
-                                        "Muatan sedang diangkut. Kirim bukti saat sudah diterima di TPA."
+                                        "Muatan di perjalanan. Kirim foto setelah tiba di TPA."
                                     } else {
-                                        "Tugas aktif didahulukan sebelum laporan baru."
+                                        "Selesaikan tugas aktif sebelum mengambil laporan baru."
                                     },
                                     icon = Icons.Rounded.TaskAlt
                                 )
@@ -4507,7 +4507,7 @@ fun PetugasTasksScreen(
                                 PetugasSectionHeading(
                                     eyebrow = "KONFIRMASI KERJA",
                                     title = "Bukti menunggu Admin",
-                                    subtitle = "${tasksWaitingForAdmin.size} tugas sudah dikirim untuk diperiksa. Petugas tidak perlu mengirim ulang.",
+                                    subtitle = "${tasksWaitingForAdmin.size} bukti sedang diperiksa. Tidak perlu dikirim ulang.",
                                     icon = Icons.Filled.CheckCircle
                                 )
                                 PetugasTaskCard(
@@ -4527,7 +4527,7 @@ fun PetugasTasksScreen(
                             }
                             else -> PetugasEmptyState(
                                 "Semua pekerjaan tertangani",
-                                "Belum ada tugas aktif atau laporan baru. Tarik layar ke bawah untuk memeriksa antrean terbaru."
+                                "Belum ada tugas aktif atau laporan baru. Tarik ke bawah untuk memperbarui."
                             )
                         }
                     }
@@ -4536,11 +4536,11 @@ fun PetugasTasksScreen(
 
             "tugas" -> {
                 val workAreaHeading = when (selectedWorkArea) {
-                    "laporan" -> "Laporan masuk" to "Tinjau laporan warga dan siapkan armada serta TPA tujuan."
-                    "aktif" -> "Tugas aktif" to "Lihat langkah kerja berikutnya dan kirim bukti penyelesaian."
-                    "armada" -> "Armada" to "Periksa kapasitas dan kondisi sebelum menerima laporan."
-                    "perbaikan" -> "Proses perbaikan" to "Catat penyebab, progres, lalu kirim hasil untuk ditinjau Admin."
-                    else -> "TPA" to "Pantau kapasitas tujuan sebelum mengatur pengangkutan."
+                    "laporan" -> "Laporan masuk" to "Tinjau laporan dan siapkan penugasan."
+                    "aktif" -> "Tugas aktif" to "Pantau progres dan kirim bukti kerja."
+                    "armada" -> "Armada" to "Cek kapasitas dan kondisi kendaraan."
+                    "perbaikan" -> "Proses perbaikan" to "Lanjutkan perbaikan dan kirim hasilnya."
+                    else -> "TPA" to "Cek kapasitas sebelum mengatur angkutan."
                 }
                 PetugasSectionHeading(
                     eyebrow = "POS OPERASIONAL",
@@ -4555,6 +4555,7 @@ fun PetugasTasksScreen(
                     }
                 )
                 PetugasFilterGrid(
+                    title = "Area kerja",
                     choices = listOf(
                         PetugasFilterOption("laporan", "Masuk", newReports.size),
                         PetugasFilterOption("aktif", "Aktif", activeTasks.size),
@@ -4616,6 +4617,7 @@ fun PetugasTasksScreen(
                             }
                         )
                         PetugasFilterGrid(
+                            title = "Status tugas",
                             choices = listOf(
                                 PetugasFilterOption("semua", "Semua", activeTasks.size),
                                 PetugasFilterOption("perbaikan", "Perbaikan", tasksNeedingRevision.size),
@@ -4664,6 +4666,7 @@ fun PetugasTasksScreen(
                         val repairHistory = vehicleRepairs.filter { it.status in setOf("selesai", "ditolak") }
                         val visibleRepairs = if (showingRepairHistory) repairHistory else activeRepairs
                         PetugasFilterGrid(
+                            title = "Tahap perbaikan",
                             choices = listOf(
                                 PetugasFilterOption("berjalan", "Berjalan", activeRepairs.size),
                                 PetugasFilterOption("riwayat", "Riwayat", repairHistory.size)
@@ -4832,6 +4835,7 @@ fun PetugasTasksScreen(
                     icon = Icons.Rounded.History
                 )
                 PetugasFilterGrid(
+                    title = "Jenis catatan",
                     choices = listOf(
                         PetugasFilterOption("riwayat", "Riwayat", historyTasks.size),
                         PetugasFilterOption("arsip", "Arsip", archivedTasks.size)
@@ -4844,6 +4848,7 @@ fun PetugasTasksScreen(
                     }
                 )
                 PetugasFilterGrid(
+                    title = "Status pekerjaan",
                     choices = listOf(
                         PetugasFilterOption("semua", "Semua", historyFilterRows.size),
                         PetugasFilterOption("selesai", "Selesai", historyFilterRows.count { it.status == WasteFlow.DONE }),
@@ -6024,18 +6029,33 @@ private data class PetugasFilterOption(
 private fun PetugasFilterGrid(
     choices: List<PetugasFilterOption>,
     selectedKey: String,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    title: String? = null
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        choices.forEach { choice ->
-            PetugasFilterChoice(
-                choice = choice,
-                selected = choice.key == selectedKey,
-                onSelect = onSelect
+        if (!title.isNullOrBlank()) {
+            Text(
+                text = title,
+                color = AppTextMuted,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold
             )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            choices.forEach { choice ->
+                PetugasFilterChoice(
+                    choice = choice,
+                    selected = choice.key == selectedKey,
+                    onSelect = onSelect
+                )
+            }
         }
     }
 }
@@ -6447,6 +6467,13 @@ private fun PetugasTaskCard(
         report.status == WasteFlow.TRANSPORTED -> "Antar ke ${report.tpaName.ifBlank { "TPA tujuan" }}, lalu kirim foto setelah tiba."
         else -> "Muat dengan ${report.vehiclePlate.ifBlank { "armada yang ditetapkan" }}, lalu mulai angkut."
     }
+    val hasEvidencePhotos = !report.photoUrl.isNullOrBlank() ||
+        !report.locationEvidencePhotoUrl.isNullOrBlank() ||
+        !report.completionProofPhotoUrl.isNullOrBlank()
+    val canSendLocationEvidence = !compactHistory &&
+        (report.status == WasteFlow.ASSIGNED || report.status == WasteFlow.TRANSPORTED) &&
+        report.locationEvidencePhotoUrl.isNullOrBlank() &&
+        onSendLocationEvidence != null
 
     AppCard(
         modifier = Modifier.fillMaxWidth(),
@@ -6539,90 +6566,95 @@ private fun PetugasTaskCard(
                     )
                 }
             }
-            if (
-                !report.photoUrl.isNullOrBlank() ||
-                !report.locationEvidencePhotoUrl.isNullOrBlank() ||
-                !report.completionProofPhotoUrl.isNullOrBlank()
-            ) Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                report.locationEvidenceSubmittedAt.takeIf {
-                    it.isNotBlank() && !report.locationEvidencePhotoUrl.isNullOrBlank()
-                }?.let {
+            if (hasEvidencePhotos || canSendLocationEvidence) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
                     Text(
-                        "Foto progres dikirim · ${it.toDisplayDateTime()}",
+                        "Bukti foto",
                         color = AppTextMuted,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
-                        fontFamily = InterFont,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        fontWeight = FontWeight.SemiBold
                     )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                if (!report.photoUrl.isNullOrBlank()) {
-                    TextButton(
-                        onClick = { onOpenPhoto(report.photoUrl) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                    ) {
-                        Text("Foto awal · warga", color = statusAccent, fontSize = 12.sp)
+                    if (hasEvidencePhotos) {
+                        report.locationEvidenceSubmittedAt.takeIf {
+                            it.isNotBlank() && !report.locationEvidencePhotoUrl.isNullOrBlank()
+                        }?.let {
+                            Text(
+                                "Progres dikirim · ${it.toDisplayDateTime()}",
+                                color = AppTextMuted,
+                                fontSize = 11.sp,
+                                lineHeight = 14.sp,
+                                fontFamily = InterFont,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (!report.photoUrl.isNullOrBlank()) {
+                                TextButton(
+                                    onClick = { onOpenPhoto(report.photoUrl) },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                ) {
+                                    Text("Foto awal · warga", color = statusAccent, fontSize = 12.sp)
+                                }
+                            }
+                            if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
+                                TextButton(
+                                    onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                ) {
+                                    Text("Foto progres lokasi", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
+                                }
+                            }
+                            if (!report.completionProofPhotoUrl.isNullOrBlank()) {
+                                TextButton(
+                                    onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                ) {
+                                    Text("Foto akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
+                                }
+                            }
+                        }
                     }
-                }
-                if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
-                    TextButton(
-                        onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                    ) {
-                        Text("Foto progres lokasi", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
+                    if (canSendLocationEvidence) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(min = 44.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(AppSurfaceMuted)
+                                .clickable(
+                                    enabled = !isSendingLocationEvidence,
+                                    role = Role.Button,
+                                    onClick = { onSendLocationEvidence(report) }
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.PhotoCamera,
+                                contentDescription = null,
+                                tint = LoginAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                if (isSendingLocationEvidence) "Mengirim foto…" else "Kirim foto di lokasi",
+                                color = LoginAccent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = InterFont,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
-                }
-                if (!report.completionProofPhotoUrl.isNullOrBlank()) {
-                    TextButton(
-                        onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                    ) {
-                        Text("Foto akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
-                    }
-                }
-                }
-            }
-            if (
-                !compactHistory &&
-                (report.status == WasteFlow.ASSIGNED || report.status == WasteFlow.TRANSPORTED) &&
-                report.locationEvidencePhotoUrl.isNullOrBlank() &&
-                onSendLocationEvidence != null
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .heightIn(min = 44.dp)
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(AppSurfaceMuted)
-                        .clickable(
-                            enabled = !isSendingLocationEvidence,
-                            role = Role.Button,
-                            onClick = { onSendLocationEvidence(report) }
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.PhotoCamera,
-                        contentDescription = null,
-                        tint = LoginAccent,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        if (isSendingLocationEvidence) "Mengirim foto…" else "Kirim foto di lokasi",
-                        color = LoginAccent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = InterFont,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
             }
             if (compactHistory && onArchive != null) {
