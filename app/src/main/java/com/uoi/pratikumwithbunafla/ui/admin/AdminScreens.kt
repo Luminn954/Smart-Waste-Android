@@ -3521,13 +3521,14 @@ fun AdminOperationsScreen(
                     "Foto bukti dari petugas di lokasi laporan."
                 )
                 if (visibleLocationEvidence.isEmpty()) {
-                    Text(
-                        if (query.isBlank()) "Belum ada foto bukti dari petugas."
-                        else "Foto lokasi yang cocok tidak ditemukan.",
-                        color = AppTextMuted,
-                        fontSize = 12.sp,
-                        fontFamily = InterFont
-                    )
+                    if (query.isNotBlank()) {
+                        Text(
+                            "Foto lokasi yang cocok tidak ditemukan.",
+                            color = AppTextMuted,
+                            fontSize = 12.sp,
+                            fontFamily = InterFont
+                        )
+                    }
                 } else {
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -3593,17 +3594,6 @@ fun AdminOperationsScreen(
                         review.workerName,
                         review.workerNote
                     ).any { it.lowercase().contains(query) }
-                }
-                SectionTitle(
-                    "Tinjau hasil kerja",
-                    if (visibleReviews.isEmpty()) "Foto menunggu persetujuan admin muncul di sini."
-                    else "${visibleReviews.size} bukti menunggu ditinjau."
-                )
-                if (visibleReviews.isEmpty()) {
-                    EmptyAdminState(
-                        if (query.isBlank()) "Belum ada bukti untuk ditinjau."
-                        else "Bukti yang cocok tidak ditemukan."
-                    )
                 }
                 visibleReviews.forEach { review ->
                     val report = review.report
