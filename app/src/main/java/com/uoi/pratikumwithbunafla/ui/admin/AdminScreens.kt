@@ -1272,8 +1272,8 @@ fun AdminDashboardScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(78.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier.fillMaxWidth().height(86.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     AdminTaskTile("Laporan", Icons.AutoMirrored.Filled.Assignment, TaskAmber, Modifier.weight(1f)) {
                         onNavigate("reports")
@@ -1589,31 +1589,30 @@ private fun AdminTaskTile(
         TaskCoral -> Color(0xFFD69A91)
         TaskRose -> Color(0xFFC99AAD)
         else -> Color(0xFF9DBDA4)
-    } else Color.White
-    val iconBackground = if (nightAdmin) iconTint.copy(alpha = 0.14f) else accent
+    } else accent
+    val iconBackground = iconTint.copy(alpha = if (nightAdmin) 0.16f else 0.12f)
 
     Column(
-        modifier = modifier.height(78.dp)
+        modifier = modifier.height(86.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 3.dp, vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Box(
-            modifier = Modifier.size(32.dp)
-                .shadow(if (nightAdmin) 0.dp else 2.dp, CircleShape)
-                .clip(CircleShape)
+            modifier = Modifier.size(38.dp)
+                .clip(RoundedCornerShape(11.dp))
                 .background(iconBackground),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(17.dp))
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
         }
         Text(
             label,
             color = AppText,
-            fontSize = 11.sp,
-            lineHeight = 12.sp,
+            fontSize = 12.sp,
+            lineHeight = 14.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 2,
             textAlign = TextAlign.Center,
