@@ -320,7 +320,8 @@ object SmartWasteApi {
                 activeTasks = item.optInt("active_tasks", 0),
                 pendingConfirmations = item.optInt("pending_confirmations", 0),
                 completedWeightKg = item.optDouble("completed_weight_kg", 0.0),
-                profilePhotoUrl = value(item, "profile_photo").ifBlank { null }
+                profilePhotoUrl = value(item, "profile_photo").ifBlank { null },
+                isArchived = item.optBoolean("is_archived", false)
             )
         }
     }
@@ -404,6 +405,14 @@ object SmartWasteApi {
     suspend fun deleteWorkerAccount(workerId: Int, replacementWorkerId: Int? = null) {
         val replacementQuery = replacementWorkerId?.let { "?replacement_worker_id=$it" }.orEmpty()
         request("DELETE", "/admin/petugas/$workerId$replacementQuery")
+    }
+
+    suspend fun archiveWorker(workerId: Int) {
+        request("POST", "/admin/petugas/$workerId/arsip", JSONObject())
+    }
+
+    suspend fun permanentlyDeleteWorker(workerId: Int) {
+        request("DELETE", "/admin/petugas/$workerId/permanen")
     }
 
     suspend fun vehicleRepairs(admin: Boolean): List<VehicleRepair> {

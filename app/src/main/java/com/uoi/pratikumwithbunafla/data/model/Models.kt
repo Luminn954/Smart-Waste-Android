@@ -80,7 +80,8 @@ data class AdminWorker(
     val activeTasks: Int = 0,
     val pendingConfirmations: Int = 0,
     val completedWeightKg: Double = 0.0,
-    val profilePhotoUrl: String? = null
+    val profilePhotoUrl: String? = null,
+    val isArchived: Boolean = false
 )
 
 data class PetugasAssistantLink(

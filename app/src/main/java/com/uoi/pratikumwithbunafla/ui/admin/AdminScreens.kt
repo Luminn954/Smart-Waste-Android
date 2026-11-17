@@ -2550,6 +2550,63 @@ private fun DeleteWorkerAccountDialog(
 }
 
 @Composable
+private fun ConfirmWorkerActionDialog(
+    worker: AdminWorker,
+    title: String,
+    detail: String,
+    confirmLabel: String,
+    confirmColor: Color,
+    onDismiss: () -> Unit,
+    onConfirm: suspend (AdminWorker) -> Unit
+) {
+    var submitting by remember(worker.id, title) { mutableStateOf(false) }
+    var errorMessage by remember(worker.id, title) { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    AlertDialog(
+        onDismissRequest = { if (!submitting) onDismiss() },
+        title = { Text(title, color = LoginInk, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(worker.name.displayPersonName(), color = AppText, fontWeight = FontWeight.SemiBold)
+                Text(detail, color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                if (errorMessage.isNotBlank()) InlineError(errorMessage)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !submitting,
+                onClick = {
+                    scope.launch {
+                        submitting = true
+                        errorMessage = ""
+                        try {
+                            onConfirm(worker)
+                            onDismiss()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            errorMessage = error.message ?: "Perubahan petugas gagal disimpan."
+                        } finally {
+                            submitting = false
+                        }
+                    }
+                },
+                colors = ButtonDefaults.textButtonColors(contentColor = confirmColor)
+            ) {
+                Text(if (submitting) "Menyimpan…" else confirmLabel, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !submitting, onClick = onDismiss) {
+                Text("Batal", color = LoginMuted)
+            }
+        },
+        containerColor = AppSurface
+    )
+}
+
+@Composable
 fun AdminStatsScreen(
     stats: AdminStatistics,
     dailyReports: List<DailyReport>,
@@ -2784,6 +2841,8 @@ fun AdminOperationsScreen(
     onCreateWorker: suspend (String, String, String, String, String) -> Unit,
     onUpdateWorker: suspend (AdminWorker, Boolean) -> Unit,
     onDeleteWorker: suspend (AdminWorker, Int?) -> Unit,
+    onArchiveWorker: suspend (AdminWorker) -> Unit,
+    onPermanentlyDeleteWorker: suspend (AdminWorker) -> Unit,
     onUploadWorkerPhoto: suspend (AdminWorker, Uri) -> Unit,
     onOpenPhoto: (String) -> Unit,
     onReviewCompletion: suspend (TaskCompletionReview, String, String) -> Unit,
@@ -2810,6 +2869,8 @@ fun AdminOperationsScreen(
     var adding by rememberSaveable { mutableStateOf(false) }
     var editingWorker by remember { mutableStateOf<AdminWorker?>(null) }
     var deletingWorker by remember { mutableStateOf<AdminWorker?>(null) }
+    var archivingWorker by remember { mutableStateOf<AdminWorker?>(null) }
+    var permanentlyDeletingWorker by remember { mutableStateOf<AdminWorker?>(null) }
     var revisionReview by remember { mutableStateOf<TaskCompletionReview?>(null) }
     var vehicleRepairReview by remember { mutableStateOf<Pair<VehicleRepair, String>?>(null) }
     var capacityClearanceReview by remember { mutableStateOf<Pair<CapacityClearanceRequest, String>?>(null) }
@@ -2853,12 +2914,15 @@ fun AdminOperationsScreen(
     val workerSearchSuggestions = remember(workers) {
         workers.flatMap { worker -> listOf(worker.name, worker.username, worker.zone) }
     }
-    val workersNeedingAttention = workers.count { it.pendingConfirmations > 0 || it.activeTasks > 0 }
+    val workersNeedingAttention = workers.count {
+        !it.isArchived && (it.pendingConfirmations > 0 || it.activeTasks > 0)
+    }
     val workerFilters = listOf(
-        "semua" to "Semua · ${workers.size}",
-        "aktif" to "Aktif · ${workers.count { it.active && it.hasAccount }}",
+        "semua" to "Semua · ${workers.count { !it.isArchived }}",
+        "aktif" to "Aktif · ${workers.count { !it.isArchived && it.active && it.hasAccount }}",
         "perhatian" to "Perhatian · $workersNeedingAttention",
-        "tanpa-akun" to "Tanpa akun · ${workers.count { !it.hasAccount }}"
+        "tanpa-akun" to "Tanpa akun · ${workers.count { !it.isArchived && !it.hasAccount }}",
+        "arsip" to "Arsip · ${workers.count { it.isArchived }}"
     )
     val visibleWorkers = workers.asSequence()
         .filter { worker ->
@@ -2867,10 +2931,11 @@ fun AdminOperationsScreen(
         }
         .filter { worker ->
             when (workerFilter) {
-                "aktif" -> worker.active && worker.hasAccount
-                "perhatian" -> worker.pendingConfirmations > 0 || worker.activeTasks > 0
-                "tanpa-akun" -> !worker.hasAccount
-                else -> true
+                "arsip" -> worker.isArchived
+                "aktif" -> !worker.isArchived && worker.active && worker.hasAccount
+                "perhatian" -> !worker.isArchived && (worker.pendingConfirmations > 0 || worker.activeTasks > 0)
+                "tanpa-akun" -> !worker.isArchived && !worker.hasAccount
+                else -> !worker.isArchived
             }
         }
         .sortedWith(
@@ -3128,8 +3193,11 @@ fun AdminOperationsScreen(
                     if (workers.isEmpty()) EmptyAdminState("Belum ada data petugas.")
                     else if (visibleWorkers.isEmpty()) {
                         EmptyAdminState(
-                            if (workerSearchQuery.isNotBlank()) "Petugas tidak ditemukan."
-                            else "Tidak ada petugas pada filter ini."
+                            when {
+                                workerSearchQuery.isNotBlank() -> "Petugas tidak ditemukan."
+                                workerFilter == "arsip" -> "Belum ada petugas di arsip."
+                                else -> "Tidak ada petugas pada filter ini."
+                            }
                         )
                     }
                     visibleWorkers.forEach { item ->
@@ -3140,11 +3208,13 @@ fun AdminOperationsScreen(
                         val workerActionColor = if (isDarkMode) LoginAccent else Color(0xFF176B49)
                         val workerWarningColor = if (isDarkMode) RoleRed else Color(0xFF963E45)
                         val accountState = when {
+                            item.isArchived -> "Diarsipkan"
                             !item.hasAccount -> "Tanpa akun"
                             item.active -> "Aktif"
                             else -> "Nonaktif"
                         }
                         val accountStateColor = when {
+                            item.isArchived -> workerDetailColor
                             !item.hasAccount -> workerWarningColor
                             item.active -> if (isDarkMode) RoleGreen else Color(0xFF236B49)
                             else -> workerWarningColor
@@ -3221,8 +3291,12 @@ fun AdminOperationsScreen(
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
-                                            if (item.hasAccount) "@${item.username}" else "Belum ada akun Android",
-                                            color = if (item.hasAccount) workerDetailColor else workerWarningColor,
+                                            when {
+                                                item.isArchived -> "Profil disimpan di arsip"
+                                                item.hasAccount -> "@${item.username}"
+                                                else -> "Akun Android sudah dihapus"
+                                            },
+                                            color = if (item.hasAccount || item.isArchived) workerDetailColor else workerWarningColor,
                                             fontSize = 13.sp,
                                             lineHeight = 18.sp,
                                             maxLines = 1,
@@ -3296,54 +3370,68 @@ fun AdminOperationsScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    TextButton(onClick = { editingWorker = item }) {
-                                        Text("Ubah zona", color = workerActionColor, fontSize = 13.sp)
+                                    if (item.isArchived) {
+                                        Text("Profil di arsip", color = workerDetailColor, fontSize = 12.sp)
+                                    } else {
+                                        TextButton(onClick = { editingWorker = item }) {
+                                            Text("Ubah zona", color = workerActionColor, fontSize = 13.sp)
+                                        }
                                     }
                                     Spacer(modifier = Modifier.weight(1f))
-                                    if (item.hasAccount) {
-                                        TextButton(
-                                            onClick = {
-                                                scope.launch {
-                                                    if (updatingWorkerId != null) return@launch
-                                                    updatingWorkerId = item.id
-                                                    actionError = ""
-                                                    try {
-                                                        onUpdateWorker(item, !item.active)
-                                                    } catch (cancelled: CancellationException) {
-                                                        throw cancelled
-                                                    } catch (error: Exception) {
-                                                        actionError = error.message
-                                                            ?: "Status petugas gagal diperbarui."
-                                                    } finally {
-                                                        updatingWorkerId = null
+                                    when {
+                                        item.isArchived -> {
+                                            TextButton(onClick = { permanentlyDeletingWorker = item }) {
+                                                Text("Hapus permanen", color = RoleRed, fontSize = 13.sp)
+                                            }
+                                        }
+                                        item.hasAccount -> {
+                                            TextButton(
+                                                onClick = {
+                                                    scope.launch {
+                                                        if (updatingWorkerId != null) return@launch
+                                                        updatingWorkerId = item.id
+                                                        actionError = ""
+                                                        try {
+                                                            onUpdateWorker(item, !item.active)
+                                                        } catch (cancelled: CancellationException) {
+                                                            throw cancelled
+                                                        } catch (error: Exception) {
+                                                            actionError = error.message
+                                                                ?: "Status petugas gagal diperbarui."
+                                                        } finally {
+                                                            updatingWorkerId = null
+                                                        }
                                                     }
-                                                }
-                                            },
-                                            enabled = updatingWorkerId == null
-                                        ) {
-                                            Text(
-                                                when {
-                                                    updatingWorkerId == item.id -> "Menyimpan…"
-                                                    item.active -> "Nonaktifkan"
-                                                    else -> "Aktifkan"
                                                 },
-                                                color = if (item.active) workerWarningColor else workerActionColor,
-                                                fontSize = 13.sp
-                                            )
+                                                enabled = updatingWorkerId == null
+                                            ) {
+                                                Text(
+                                                    when {
+                                                        updatingWorkerId == item.id -> "Menyimpan…"
+                                                        item.active -> "Nonaktifkan"
+                                                        else -> "Aktifkan"
+                                                    },
+                                                    color = if (item.active) workerWarningColor else workerActionColor,
+                                                    fontSize = 13.sp
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { deletingWorker = item },
+                                                modifier = Modifier.size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.Delete,
+                                                    contentDescription = "Hapus akun petugas",
+                                                    tint = RoleRed,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
                                         }
-                                        IconButton(
-                                            onClick = { deletingWorker = item },
-                                            modifier = Modifier.size(48.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Filled.Delete,
-                                                contentDescription = "Hapus akun petugas",
-                                                tint = RoleRed,
-                                                modifier = Modifier.size(18.dp)
-                                            )
+                                        else -> {
+                                            TextButton(onClick = { archivingWorker = item }) {
+                                                Text("Arsipkan", color = workerActionColor, fontSize = 13.sp)
+                                            }
                                         }
-                                    } else {
-                                        Text("Akun sudah dihapus", color = workerDetailColor, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -3659,6 +3747,28 @@ fun AdminOperationsScreen(
             replacementWorkers = workers.filter { it.id != item.id && it.active && it.hasAccount },
             onDismiss = { deletingWorker = null },
             onDelete = onDeleteWorker
+        )
+    }
+    archivingWorker?.let { item ->
+        ConfirmWorkerActionDialog(
+            worker = item,
+            title = "Arsipkan petugas?",
+            detail = "Profil dipindahkan ke Arsip. Data laporan dan riwayat kerja tetap tersimpan.",
+            confirmLabel = "Arsipkan",
+            confirmColor = LoginAccent,
+            onDismiss = { archivingWorker = null },
+            onConfirm = onArchiveWorker
+        )
+    }
+    permanentlyDeletingWorker?.let { item ->
+        ConfirmWorkerActionDialog(
+            worker = item,
+            title = "Hapus permanen?",
+            detail = "Profil dihapus permanen. Laporan dan bukti kerja tetap disimpan dengan nama petugas.",
+            confirmLabel = "Hapus permanen",
+            confirmColor = RoleRed,
+            onDismiss = { permanentlyDeletingWorker = null },
+            onConfirm = onPermanentlyDeleteWorker
         )
     }
     revisionReview?.let { review ->

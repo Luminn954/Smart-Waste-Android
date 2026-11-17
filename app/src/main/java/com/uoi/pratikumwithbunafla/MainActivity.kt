@@ -499,6 +499,14 @@ class MainActivity : ComponentActivity() {
                                     SmartWasteApi.deleteWorkerAccount(worker.id, replacementWorkerId)
                                     refreshWorkspace()
                                 },
+                                onArchiveWorker = { worker ->
+                                    SmartWasteApi.archiveWorker(worker.id)
+                                    refreshWorkspace()
+                                },
+                                onPermanentlyDeleteWorker = { worker ->
+                                    SmartWasteApi.permanentlyDeleteWorker(worker.id)
+                                    refreshWorkspace()
+                                },
                                 onUploadWorkerPhoto = { worker, photoUri ->
                                     SmartWasteApi.uploadWorkerProfilePhoto(
                                         worker.id,
