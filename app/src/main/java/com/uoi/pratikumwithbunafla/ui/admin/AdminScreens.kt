@@ -115,6 +115,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -266,30 +267,88 @@ private val AdminNightPalette = DarkSmartWastePalette.copy(
 )
 
 private val PetugasDayPalette = LightSmartWastePalette.copy(
-    background = Color(0xFFF2F4ED),
-    surface = Color(0xFFE7EEE5),
-    cardSurface = Color(0xFFFBFCF7),
-    surfaceMuted = Color(0xFFDCE7DD),
-    border = Color(0xFFB9CDBE),
-    text = Color(0xFF203A2D),
-    textMuted = Color(0xFF50675A)
+    background = Color(0xFFF3F4F1),
+    surface = Color(0xFFE8ECEA),
+    cardSurface = Color(0xFFFCFCFA),
+    surfaceMuted = Color(0xFFE1E8E6),
+    border = Color(0xFFC1CECB),
+    text = Color(0xFF263735),
+    textMuted = Color(0xFF596B69)
 )
 
 private val PetugasNightPalette = DarkSmartWastePalette.copy(
-    background = Color(0xFF17231D),
-    surface = Color(0xFF202E26),
-    cardSurface = Color(0xFF26372D),
-    surfaceMuted = Color(0xFF304338),
-    border = Color(0xFF435B4C),
-    text = Color(0xFFE9F0E7),
-    textMuted = Color(0xFFB8C8BA)
+    background = Color(0xFF1A2324),
+    surface = Color(0xFF242E30),
+    cardSurface = Color(0xFF2B3638),
+    surfaceMuted = Color(0xFF333F41),
+    border = Color(0xFF4A595A),
+    text = Color(0xFFE8EFED),
+    textMuted = Color(0xFFB5C2C1)
+)
+
+private val PetugasDayColorScheme = lightColorScheme(
+    primary = Color(0xFF496F7A),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFDCE8EA),
+    onPrimaryContainer = Color(0xFF203C42),
+    secondary = Color(0xFF927044),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF0E6D6),
+    onSecondaryContainer = Color(0xFF514027),
+    tertiary = Color(0xFF58755E),
+    onTertiary = Color.White,
+    background = PetugasDayPalette.background,
+    onBackground = PetugasDayPalette.text,
+    surface = PetugasDayPalette.cardSurface,
+    onSurface = PetugasDayPalette.text,
+    surfaceVariant = PetugasDayPalette.surfaceMuted,
+    onSurfaceVariant = PetugasDayPalette.textMuted,
+    outline = PetugasDayPalette.border,
+    error = Color(0xFFA75F50),
+    onError = Color.White
+)
+
+private val PetugasNightColorScheme = darkColorScheme(
+    primary = Color(0xFF789FA1),
+    onPrimary = Color(0xFF132829),
+    primaryContainer = Color(0xFF314A4C),
+    onPrimaryContainer = Color(0xFFDCE9E8),
+    secondary = Color(0xFFCDAE75),
+    onSecondary = Color(0xFF302514),
+    secondaryContainer = Color(0xFF4A3B24),
+    onSecondaryContainer = Color(0xFFE8D9B7),
+    tertiary = Color(0xFF9BB69B),
+    onTertiary = Color(0xFF1C2C21),
+    background = PetugasNightPalette.background,
+    onBackground = PetugasNightPalette.text,
+    surface = PetugasNightPalette.cardSurface,
+    onSurface = PetugasNightPalette.text,
+    surfaceVariant = PetugasNightPalette.surfaceMuted,
+    onSurfaceVariant = PetugasNightPalette.textMuted,
+    outline = PetugasNightPalette.border,
+    error = Color(0xFFD08F7E),
+    onError = Color(0xFF351C18)
 )
 
 private val PetugasAccent: Color
     @Composable get() = if (LocalSmartWasteAppearance.current.darkMode) {
-        Color(0xFF52765B)
+        Color(0xFF789FA1)
     } else {
-        Color(0xFF3E6C53)
+        Color(0xFF496F7A)
+    }
+
+private val PetugasAccentWarm: Color
+    @Composable get() = if (LocalSmartWasteAppearance.current.darkMode) {
+        Color(0xFFCDAE75)
+    } else {
+        Color(0xFF927044)
+    }
+
+private val PetugasAccentAlert: Color
+    @Composable get() = if (LocalSmartWasteAppearance.current.darkMode) {
+        Color(0xFFD08F7E)
+    } else {
+        Color(0xFFA75F50)
     }
 
 private val AdminNightColorScheme = darkColorScheme(
@@ -383,9 +442,16 @@ private fun AdminPage(
     }
     val isAdmin = account.role == UserRole.ADMIN
     val isNightAdmin = isAdmin && LocalSmartWasteAppearance.current.darkMode
+    val isPetugas = account.role == UserRole.PETUGAS
+    val isDarkMode = LocalSmartWasteAppearance.current.darkMode
     val workspacePalette = workspacePaletteOverride
         ?: if (isNightAdmin) AdminNightPalette else LocalSmartWastePalette.current
-    val workspaceColorScheme = if (isNightAdmin) AdminNightColorScheme else MaterialTheme.colorScheme
+    val workspaceColorScheme = when {
+        isNightAdmin -> AdminNightColorScheme
+        isPetugas && isDarkMode -> PetugasNightColorScheme
+        isPetugas -> PetugasDayColorScheme
+        else -> MaterialTheme.colorScheme
+    }
 
     CompositionLocalProvider(
         LocalIsAdminWorkspace provides isAdmin,
@@ -6123,12 +6189,72 @@ private fun PetugasAssignmentDialog(
 
 @Composable
 private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
+    val dark = LocalSmartWasteAppearance.current.darkMode
     val background by animateColorAsState(
         targetValue = AppBackground,
         animationSpec = tween(durationMillis = 820, easing = FastOutSlowInEasing),
         label = "petugas-page-background"
     )
-    Box(modifier.background(background))
+    val routeProgress by rememberInfiniteTransition(label = "petugas-backdrop-route")
+        .animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 8_400, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "petugas-backdrop-marker"
+        )
+
+    Box(modifier.background(background)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val routeColor = if (dark) Color(0xFF8AAEAA) else Color(0xFF6D8F98)
+            val warmColor = if (dark) Color(0xFFCDAE75) else Color(0xFF927044)
+            val start = Offset(size.width * 0.70f, size.height * 0.035f)
+            val firstControl = Offset(size.width * 0.96f, size.height * 0.015f)
+            val secondControl = Offset(size.width * 0.56f, size.height * 0.105f)
+            val end = Offset(size.width * 0.88f, size.height * 0.17f)
+            val route = Path().apply {
+                moveTo(start.x, start.y)
+                cubicTo(
+                    firstControl.x,
+                    firstControl.y,
+                    secondControl.x,
+                    secondControl.y,
+                    end.x,
+                    end.y
+                )
+            }
+            drawPath(
+                path = route,
+                color = routeColor.copy(alpha = if (dark) 0.10f else 0.085f),
+                style = Stroke(width = 1.25.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            val t = routeProgress
+            val inverse = 1f - t
+            val marker = Offset(
+                x = inverse * inverse * inverse * start.x +
+                    3f * inverse * inverse * t * firstControl.x +
+                    3f * inverse * t * t * secondControl.x +
+                    t * t * t * end.x,
+                y = inverse * inverse * inverse * start.y +
+                    3f * inverse * inverse * t * firstControl.y +
+                    3f * inverse * t * t * secondControl.y +
+                    t * t * t * end.y
+            )
+            drawCircle(
+                color = routeColor.copy(alpha = 0.09f),
+                radius = 7.dp.toPx(),
+                center = marker
+            )
+            drawCircle(
+                color = warmColor.copy(alpha = if (dark) 0.32f else 0.25f),
+                radius = 2.4.dp.toPx(),
+                center = marker
+            )
+        }
+    }
 }
 
 @Composable
@@ -6218,7 +6344,7 @@ private fun PetugasActionTile(
             ) {
                 Text(
                     countLabel,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = 9.sp,
                     lineHeight = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -6443,7 +6569,7 @@ private fun PetugasJourneyHero(
             ) {
                 Text(
                     "SHIFT HARI INI",
-                    color = Color.White.copy(alpha = 0.76f),
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.76f),
                     fontSize = 10.sp,
                     lineHeight = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -6452,7 +6578,7 @@ private fun PetugasJourneyHero(
                 )
                 Text(
                     "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = if (isCompact) 20.sp else 22.sp,
                     lineHeight = 27.sp,
                     fontWeight = FontWeight.Bold,
@@ -6461,7 +6587,7 @@ private fun PetugasJourneyHero(
                 )
                 Text(
                     workSummary,
-                    color = Color.White.copy(alpha = 0.86f),
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.86f),
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
                     maxLines = 2,
@@ -6479,11 +6605,26 @@ private fun PetugasJourneyHero(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    PetugasShiftMetric(assigned.toString(), "Siap angkut", Modifier.weight(1f))
+                    PetugasShiftMetric(
+                        assigned.toString(),
+                        "Siap angkut",
+                        Modifier.weight(1f),
+                        PetugasAccent
+                    )
                     Box(Modifier.width(1.dp).height(40.dp).background(AppBorder.copy(alpha = 0.72f)))
-                    PetugasShiftMetric(inRoute.toString(), "Dalam rute", Modifier.weight(1f))
+                    PetugasShiftMetric(
+                        inRoute.toString(),
+                        "Dalam rute",
+                        Modifier.weight(1f),
+                        PetugasAccentWarm
+                    )
                     Box(Modifier.width(1.dp).height(40.dp).background(AppBorder.copy(alpha = 0.72f)))
-                    PetugasShiftMetric(needsAttention.toString(), "Perlu dicek", Modifier.weight(1f))
+                    PetugasShiftMetric(
+                        needsAttention.toString(),
+                        "Perlu dicek",
+                        Modifier.weight(1f),
+                        if (needsAttention > 0) PetugasAccentAlert else AppText
+                    )
                 }
 
                 Box(Modifier.fillMaxWidth().height(1.dp).background(AppBorder.copy(alpha = 0.56f)))
@@ -6531,7 +6672,7 @@ private fun PetugasJourneyHero(
                     ) {
                         Text(
                             actionLabel,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             fontSize = 11.sp,
                             lineHeight = 14.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -6541,7 +6682,7 @@ private fun PetugasJourneyHero(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -6555,10 +6696,11 @@ private fun PetugasJourneyHero(
 private fun PetugasShiftMetric(
     value: String,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    valueColor: Color
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(value, color = AppText, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
+        Text(value, color = valueColor, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
         Text(label, color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -6617,7 +6759,7 @@ private fun PetugasFilterChoice(
         label = "petugas-filter-${choice.key}-surface"
     )
     val titleColor by animateColorAsState(
-        targetValue = if (selected) Color.White else AppText,
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else AppText,
         animationSpec = tween(240, easing = FastOutSlowInEasing),
         label = "petugas-filter-${choice.key}-title"
     )
@@ -6745,12 +6887,12 @@ private fun PetugasNavigationBar(selectedSection: String, onSectionSelected: (St
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (selected) Color.White else AppTextMuted,
+                            tint = if (selected) MaterialTheme.colorScheme.onPrimary else AppTextMuted,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = label,
-                            color = if (selected) Color.White else AppTextMuted,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary else AppTextMuted,
                             fontSize = 10.sp,
                             lineHeight = 13.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
