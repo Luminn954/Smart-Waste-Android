@@ -4389,14 +4389,30 @@ fun PetugasTasksScreen(
                     if (summaryUnavailable) {
                         PetugasLoadFailure("Ringkasan belum dapat dimuat.", onRefresh)
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            PetugasSectionHeading(
-                                eyebrow = "AKSES LAPANGAN",
-                                title = "Pusat operasional",
-                                subtitle = "Buka antrean, armada, dan riwayat kerja.",
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
                                 modifier = Modifier.weight(1f),
-                                icon = Icons.Filled.Place
-                            )
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    "Menu kerja",
+                                    color = AppText,
+                                    fontSize = 16.sp,
+                                    lineHeight = 21.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    "Pintasan ke tugas dan armada",
+                                    color = AppTextMuted,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                             TextButton(
                                 onClick = {
                                     selectedSection = "tugas"
@@ -4408,8 +4424,11 @@ fun PetugasTasksScreen(
                             }
                         }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(AppSurface)
+                                .padding(horizontal = 4.dp, vertical = 7.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             PetugasActionTile("Masuk", newReports.size, Icons.Filled.Inbox, Modifier.weight(1f)) {
                                 selectedSection = "tugas"
@@ -4428,7 +4447,6 @@ fun PetugasTasksScreen(
                                 showingTaskArchive = false
                             }
                         }
-                        PetugasOperationalOverview(tasks)
                         when {
                             nextTask != null -> {
                                 PetugasSectionHeading(
@@ -5558,15 +5576,15 @@ private fun PetugasSectionHeading(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Filled.LocalShipping
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             Box(
-                modifier = Modifier.size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                modifier = Modifier.size(34.dp)
+                    .clip(RoundedCornerShape(11.dp))
                     .background(PetugasAccent.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = PetugasAccent, modifier = Modifier.size(19.dp))
+                Icon(icon, contentDescription = null, tint = PetugasAccent, modifier = Modifier.size(17.dp))
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
@@ -5582,8 +5600,8 @@ private fun PetugasSectionHeading(
                 Text(
                     title,
                     color = AppText,
-                    fontSize = if (LocalConfiguration.current.screenWidthDp < 360) 19.sp else 21.sp,
-                    lineHeight = 26.sp,
+                    fontSize = if (LocalConfiguration.current.screenWidthDp < 360) 17.sp else 19.sp,
+                    lineHeight = 23.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -5593,8 +5611,8 @@ private fun PetugasSectionHeading(
         Text(
             subtitle,
             color = AppTextMuted,
-            fontSize = 13.sp,
-            lineHeight = 19.sp,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis
         )
@@ -5610,32 +5628,46 @@ private fun PetugasActionTile(
     onClick: () -> Unit
 ) {
     val accent = PetugasAccent
-    val shape = RoundedCornerShape(15.dp)
+    val countLabel = if (count > 99) "99+" else count.toString()
     Column(
-        modifier = modifier.height(86.dp)
-            .clip(shape)
-            .background(AppCardSurface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 9.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp)
+        modifier = modifier
+            .clip(RoundedCornerShape(15.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(38.dp), contentAlignment = Alignment.Center) {
             Box(
-                modifier = Modifier.size(30.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(accent.copy(alpha = 0.13f)),
+                modifier = Modifier.fillMaxSize()
+                    .clip(CircleShape)
+                    .background(AppSurfaceMuted),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(17.dp))
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(19.dp))
             }
-            Spacer(Modifier.weight(1f))
-            Text(count.toString(), color = accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Box(
+                modifier = Modifier.align(Alignment.TopEnd)
+                    .size(21.dp)
+                    .clip(CircleShape)
+                    .background(accent),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    countLabel,
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
         }
         Text(
             label,
             color = AppText,
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
+            fontSize = 10.sp,
+            lineHeight = 13.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -5806,7 +5838,6 @@ private fun PetugasJourneyHero(
     onOpenProfile: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val isDark = LocalSmartWasteAppearance.current.darkMode
     val assigned = tasks.count { it.status == WasteFlow.ASSIGNED }
     val transported = tasks.count { it.status == WasteFlow.TRANSPORTED }
     val waitingAdmin = tasks.count {
@@ -5842,11 +5873,6 @@ private fun PetugasJourneyHero(
         else -> "Buka antrean"
     }
     val isCompact = LocalConfiguration.current.screenWidthDp < 360
-    val imageSize = if (isCompact) 64.dp else 76.dp
-    val backgroundBitmap = ImageBitmap.imageResource(R.drawable.petugas_hero_background)
-    val backgroundPainter = remember(backgroundBitmap) {
-        BitmapPainter(backgroundBitmap, filterQuality = FilterQuality.High)
-    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
@@ -5867,60 +5893,39 @@ private fun PetugasJourneyHero(
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(AppSurfaceMuted)
-                .padding(if (isCompact) 14.dp else 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(if (isCompact) 13.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(
-                        "SHIFT HARI INI",
-                        color = PetugasAccent,
-                        fontSize = 10.sp,
-                        lineHeight = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.7.sp,
-                        maxLines = 1
-                    )
-                    Text(
-                        "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
-                        color = AppText,
-                        fontSize = if (isCompact) 20.sp else 22.sp,
-                        lineHeight = 27.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        workSummary,
-                        color = AppTextMuted,
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Box(
-                    modifier = Modifier.size(imageSize)
-                        .clip(RoundedCornerShape(18.dp))
-                ) {
-                    Image(
-                        painter = backgroundPainter,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Box(
-                        modifier = Modifier.fillMaxSize()
-                            .background(if (isDark) Color(0x66364C41) else Color(0x33364C41))
-                    )
-                }
+                Text(
+                    "SHIFT HARI INI",
+                    color = PetugasAccent,
+                    fontSize = 10.sp,
+                    lineHeight = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.7.sp,
+                    maxLines = 1
+                )
+                Text(
+                    "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
+                    color = AppText,
+                    fontSize = if (isCompact) 20.sp else 22.sp,
+                    lineHeight = 27.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    workSummary,
+                    color = AppTextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             Row(
@@ -6009,85 +6014,6 @@ private fun PetugasShiftMetric(
     }
 }
 
-@Composable
-private fun PetugasOperationalOverview(tasks: List<WasteRecord>) {
-    val isDark = LocalSmartWasteAppearance.current.darkMode
-    val activeTasks = tasks.filter {
-        it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED
-    }
-    val activeWeight = activeTasks.sumOf { it.weightKg }
-    val activeTypes = activeTasks.map { it.type.trim() }.filter(String::isNotBlank).distinct().size
-    val destination = activeTasks.firstOrNull { it.tpaName.isNotBlank() }?.tpaName
-    val accent = if (isDark) Color(0xFFB9D4BE) else Color(0xFF286947)
-
-    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(
-                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp))
-                        .background(accent.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Ringkasan muatan", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Pekerjaan yang sedang kamu tangani", color = AppTextMuted, fontSize = 13.sp, lineHeight = 18.sp)
-                }
-            }
-            AppCardDivider()
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(activeWeight.pretty(), color = AppText, fontSize = 28.sp, lineHeight = 33.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(6.dp))
-                Text("kg muatan aktif", color = AppTextMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 5.dp))
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PetugasSummaryFact(
-                    icon = Icons.Filled.Inbox,
-                    text = "$activeTypes jenis sampah",
-                    tint = if (isDark) Color(0xFF91CDBD) else Color(0xFF287B69),
-                    modifier = Modifier.weight(1f)
-                )
-                PetugasSummaryFact(
-                    icon = Icons.Filled.LocalShipping,
-                    text = "${activeTasks.size} tugas aktif",
-                    tint = if (isDark) Color(0xFF91CDBD) else Color(0xFF287B69),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            AppCardDivider()
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Icon(Icons.Filled.Place, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
-                Text("Tujuan", color = AppTextMuted, fontSize = 13.sp)
-                Text(
-                    destination ?: "Belum ditentukan",
-                    modifier = Modifier.weight(1f),
-                    color = AppText,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PetugasSummaryFact(icon: ImageVector, text: String, tint: Color, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
-        Text(text, color = AppTextMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
 private data class PetugasFilterOption(
     val key: String,
     val label: String,
@@ -6134,7 +6060,7 @@ private fun PetugasFilterChoice(
 
     Box(
         modifier = Modifier
-            .heightIn(min = 44.dp)
+            .heightIn(min = 42.dp)
             .widthIn(min = 82.dp)
             .clip(shape)
             .background(containerColor)
@@ -6143,15 +6069,15 @@ private fun PetugasFilterChoice(
                 role = Role.Tab,
                 onClick = { onSelect(choice.key) }
             )
-            .padding(horizontal = 13.dp, vertical = 10.dp),
+            .padding(horizontal = 11.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "${choice.label} · ${choice.count}",
             color = titleColor,
             fontFamily = InterFont,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -6518,8 +6444,8 @@ private fun PetugasTaskCard(
         waitingForAdmin -> "Bukti sudah terkirim. Tunggu Admin memeriksa foto sebelum tugas ditutup."
         isComplete -> "Bukti telah disetujui Admin dan pekerjaan tercatat selesai."
         isRejected -> report.workerDecisionNote.ifBlank { "Laporan tidak diteruskan ke proses pengangkutan." }
-        report.status == WasteFlow.TRANSPORTED -> "Antar muatan ke ${report.tpaName.ifBlank { "TPA tujuan" }}, lalu kirim foto akhir setelah penanganan."
-        else -> "Ambil muatan dengan ${report.vehiclePlate.ifBlank { "armada yang ditetapkan" }}, lalu mulai pengangkutan."
+        report.status == WasteFlow.TRANSPORTED -> "Antar ke ${report.tpaName.ifBlank { "TPA tujuan" }}, lalu kirim foto setelah tiba."
+        else -> "Muat dengan ${report.vehiclePlate.ifBlank { "armada yang ditetapkan" }}, lalu mulai angkut."
     }
 
     AppCard(
@@ -6530,10 +6456,10 @@ private fun PetugasTaskCard(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(
-                horizontal = if (compactHistory) 16.dp else 18.dp,
-                vertical = if (compactHistory) 15.dp else 18.dp
+                horizontal = if (compactHistory) 14.dp else 16.dp,
+                vertical = if (compactHistory) 13.dp else 15.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 10.dp else 12.dp)
+            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 8.dp else 10.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -6541,8 +6467,8 @@ private fun PetugasTaskCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(13.dp))
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(statusAccent.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -6550,12 +6476,12 @@ private fun PetugasTaskCard(
                         Icons.Filled.LocalShipping,
                         contentDescription = null,
                         tint = statusAccent,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(report.code, color = AppText, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
-                    Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 13.sp, lineHeight = 18.sp)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(report.code, color = AppText, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 12.sp, lineHeight = 16.sp)
                 }
                 StatusPill(report.status, statusAccent)
             }
@@ -6565,8 +6491,8 @@ private fun PetugasTaskCard(
                     report.location.ifBlank { "Lokasi belum dicatat" },
                     modifier = Modifier.weight(1f),
                     color = AppTextMuted,
-                    fontSize = 13.sp,
-                    lineHeight = 19.sp,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -6576,13 +6502,13 @@ private fun PetugasTaskCard(
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("ARMADA", color = AppTextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("ARMADA", color = AppTextMuted, fontSize = 10.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 10.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (!isRejected) AppCardDivider()
@@ -6601,59 +6527,65 @@ private fun PetugasTaskCard(
                     overflow = TextOverflow.Ellipsis
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(guidanceTitle, color = guidanceAccent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(guidanceTitle, color = guidanceAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         guidanceMessage,
                         color = AppTextMuted,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                horizontalAlignment = Alignment.Start
-            ) {
+            if (
+                !report.photoUrl.isNullOrBlank() ||
+                !report.locationEvidencePhotoUrl.isNullOrBlank() ||
+                !report.completionProofPhotoUrl.isNullOrBlank()
+            ) Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                report.locationEvidenceSubmittedAt.takeIf {
+                    it.isNotBlank() && !report.locationEvidencePhotoUrl.isNullOrBlank()
+                }?.let {
+                    Text(
+                        "Foto progres dikirim · ${it.toDisplayDateTime()}",
+                        color = AppTextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                        fontFamily = InterFont,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                 if (!report.photoUrl.isNullOrBlank()) {
                     TextButton(
                         onClick = { onOpenPhoto(report.photoUrl) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 2.dp)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                     ) {
                         Text("Foto awal · warga", color = statusAccent, fontSize = 12.sp)
                     }
                 }
                 if (!report.locationEvidencePhotoUrl.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        report.locationEvidenceSubmittedAt.takeIf { it.isNotBlank() }?.let {
-                            Text(
-                                "Foto lokasi · ${it.toDisplayDateTime()}",
-                                color = AppTextMuted,
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp,
-                                fontFamily = InterFont,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        TextButton(
-                            onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 2.dp)
-                        ) {
-                            Text("Foto progres lokasi", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
-                        }
+                    TextButton(
+                        onClick = { onOpenPhoto(report.locationEvidencePhotoUrl) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                    ) {
+                        Text("Foto progres lokasi", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
                     }
                 }
                 if (!report.completionProofPhotoUrl.isNullOrBlank()) {
                     TextButton(
                         onClick = { onOpenPhoto(report.completionProofPhotoUrl) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 2.dp)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                     ) {
                         Text("Foto akhir · petugas", color = if (isDark) Color(0xFF82C7B9) else RoleTeal, fontSize = 12.sp)
                     }
+                }
                 }
             }
             if (
@@ -6662,25 +6594,34 @@ private fun PetugasTaskCard(
                 report.locationEvidencePhotoUrl.isNullOrBlank() &&
                 onSendLocationEvidence != null
             ) {
-                TextButton(
-                    onClick = { onSendLocationEvidence(report) },
-                    modifier = Modifier.align(Alignment.Start),
-                    enabled = !isSendingLocationEvidence,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 3.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .heightIn(min = 44.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(AppSurfaceMuted)
+                        .clickable(
+                            enabled = !isSendingLocationEvidence,
+                            role = Role.Button,
+                            onClick = { onSendLocationEvidence(report) }
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
                         Icons.Filled.PhotoCamera,
                         contentDescription = null,
                         tint = LoginAccent,
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(Modifier.width(6.dp))
                     Text(
                         if (isSendingLocationEvidence) "Mengirim foto…" else "Kirim foto di lokasi",
                         color = LoginAccent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        fontFamily = InterFont
+                        fontFamily = InterFont,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
