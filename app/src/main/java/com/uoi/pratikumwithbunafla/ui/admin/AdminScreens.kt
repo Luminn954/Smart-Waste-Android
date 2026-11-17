@@ -163,6 +163,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
@@ -6262,7 +6263,18 @@ private fun PetugasTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            PetugasRouteEmblem(Modifier.size(if (compact) 34.dp else 38.dp))
+            Box(
+                modifier = Modifier.size(if (compact) 34.dp else 38.dp)
+                    .clip(CircleShape)
+                    .background(if (appearance.darkMode) Color(0xFF304338) else Color(0xFFE4EBE1)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.launcher_recycling_mark),
+                    contentDescription = "Logo Smart Waste",
+                    modifier = Modifier.size(if (compact) 22.dp else 25.dp)
+                )
+            }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     "SMART WASTE",
@@ -6275,7 +6287,7 @@ private fun PetugasTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "Petugas lapangan",
+                    account.name.displayPersonName().ifBlank { "Petugas" },
                     color = foreground,
                     fontSize = if (compact) 13.sp else 14.sp,
                     lineHeight = 18.sp,
@@ -6351,41 +6363,6 @@ private fun PetugasTopBar(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun PetugasRouteEmblem(modifier: Modifier = Modifier) {
-    val isDark = LocalSmartWasteAppearance.current.darkMode
-    val routeColor = if (isDark) Color(0xFFB8C8BA) else Color(0xFF315B43)
-    val emblemSurface = if (isDark) Color(0xFF304338) else Color(0xFFE4EBE1)
-
-    Box(
-        modifier = modifier.clip(CircleShape).background(emblemSurface),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(Modifier.fillMaxSize().padding(7.dp)) {
-            val start = Offset(size.width * 0.22f, size.height * 0.76f)
-            val end = Offset(size.width * 0.78f, size.height * 0.24f)
-            val route = Path().apply {
-                moveTo(start.x, start.y)
-                cubicTo(
-                    size.width * 0.18f,
-                    size.height * 0.42f,
-                    size.width * 0.82f,
-                    size.height * 0.62f,
-                    end.x,
-                    end.y
-                )
-            }
-            drawPath(
-                path = route,
-                color = routeColor,
-                style = Stroke(width = size.minDimension * 0.075f, cap = StrokeCap.Round)
-            )
-            drawCircle(routeColor, radius = size.minDimension * 0.12f, center = start)
-            drawCircle(routeColor, radius = size.minDimension * 0.12f, center = end)
         }
     }
 }
