@@ -4834,28 +4834,22 @@ fun PetugasTasksScreen(
                     else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
                     icon = Icons.Rounded.History
                 )
-                PetugasFilterGrid(
-                    title = "Jenis catatan",
-                    choices = listOf(
-                        PetugasFilterOption("riwayat", "Riwayat", historyTasks.size),
-                        PetugasFilterOption("arsip", "Arsip", archivedTasks.size)
-                    ),
-                    selectedKey = if (showingTaskArchive) "arsip" else "riwayat",
-                    onSelect = {
-                        showingTaskArchive = it == "arsip"
-                        historyFilter = "semua"
-                        archiveActionError = ""
-                    }
-                )
-                PetugasFilterGrid(
-                    title = "Status pekerjaan",
-                    choices = listOf(
+                PetugasHistoryFilterBar(
+                    showingArchive = showingTaskArchive,
+                    historyCount = historyTasks.size,
+                    archiveCount = archivedTasks.size,
+                    statusChoices = listOf(
                         PetugasFilterOption("semua", "Semua", historyFilterRows.size),
                         PetugasFilterOption("selesai", "Selesai", historyFilterRows.count { it.status == WasteFlow.DONE }),
                         PetugasFilterOption("ditolak", "Ditolak", historyFilterRows.count { it.status == WasteFlow.REJECTED })
                     ),
-                    selectedKey = historyFilter,
-                    onSelect = { historyFilter = it }
+                    selectedStatus = historyFilter,
+                    onSelectArchive = {
+                        showingTaskArchive = it
+                        historyFilter = "semua"
+                        archiveActionError = ""
+                    },
+                    onSelectStatus = { historyFilter = it }
                 )
                 PetugasQueueSearch(
                     query = historySearch,
@@ -6102,6 +6096,47 @@ private fun PetugasFilterChoice(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun PetugasHistoryFilterBar(
+    showingArchive: Boolean,
+    historyCount: Int,
+    archiveCount: Int,
+    statusChoices: List<PetugasFilterOption>,
+    selectedStatus: String,
+    onSelectArchive: (Boolean) -> Unit,
+    onSelectStatus: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PetugasFilterChoice(
+            choice = PetugasFilterOption("riwayat", "Riwayat", historyCount),
+            selected = !showingArchive,
+            onSelect = { onSelectArchive(false) }
+        )
+        PetugasFilterChoice(
+            choice = PetugasFilterOption("arsip", "Arsip", archiveCount),
+            selected = showingArchive,
+            onSelect = { onSelectArchive(true) }
+        )
+        Box(
+            modifier = Modifier.padding(horizontal = 1.dp)
+                .size(width = 1.dp, height = 24.dp)
+                .clip(CircleShape)
+                .background(AppBorder)
+        )
+        statusChoices.forEach { choice ->
+            PetugasFilterChoice(
+                choice = choice,
+                selected = choice.key == selectedStatus,
+                onSelect = onSelectStatus
+            )
+        }
     }
 }
 
