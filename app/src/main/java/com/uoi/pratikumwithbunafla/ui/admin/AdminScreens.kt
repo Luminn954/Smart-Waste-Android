@@ -1432,10 +1432,15 @@ private fun AdminLatestReportCard(
 ) {
     val accent = reportAccent(report.status)
     val progress = adminReportProgress(report.status)
+    val reportCardColor = if (LocalSmartWasteAppearance.current.darkMode) {
+        AppSurfaceMuted
+    } else {
+        AppSurfaceMuted.copy(alpha = 0.72f)
+    }
 
     AppCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = AppSurface,
+        containerColor = reportCardColor,
         borderColor = null,
         elevation = 0.dp,
         shape = RoundedCornerShape(18.dp)
@@ -1510,7 +1515,7 @@ private fun AdminLatestReportCard(
             Column(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(AppSurfaceMuted)
+                    .background(AppCardSurface)
                     .padding(11.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
