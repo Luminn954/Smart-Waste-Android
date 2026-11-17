@@ -1406,22 +1406,66 @@ fun AdminDashboardScreen(
     }
 }
 
-private data class AdminReportProgress(
-    val fraction: Float,
-    val valueLabel: String,
-    val stageLabel: String,
-    val stepLabel: String
+private enum class AdminReportStepState { COMPLETE, CURRENT, UPCOMING, REJECTED }
+
+private data class AdminReportProgressStep(
+    val label: String,
+    val state: AdminReportStepState
 )
 
-private fun adminReportProgress(status: String): AdminReportProgress = when (status) {
-    WasteFlow.WAITING -> AdminReportProgress(0.25f, "25%", "Menunggu verifikasi", "Tahap 1 dari 4")
-    WasteFlow.PROCESSING, WasteFlow.ASSIGNED ->
-        AdminReportProgress(0.50f, "50%", "Petugas ditugaskan", "Tahap 2 dari 4")
-    WasteFlow.TRANSPORTED ->
-        AdminReportProgress(0.75f, "75%", "Sedang diangkut", "Tahap 3 dari 4")
-    WasteFlow.DONE -> AdminReportProgress(1f, "100%", "Penanganan selesai", "Tahap 4 dari 4")
-    WasteFlow.REJECTED -> AdminReportProgress(0f, "Ditolak", "Proses dihentikan", "Tidak dilanjutkan")
-    else -> AdminReportProgress(0f, "—", "Status belum tersedia", "Tahap belum diketahui")
+private data class AdminReportProgress(
+    val steps: List<AdminReportProgressStep>,
+    val completedCount: Int
+)
+
+private fun adminReportProgress(report: WasteRecord): AdminReportProgress {
+    val proofStatus = report.completionStatus.trim().lowercase()
+    val rejected = report.status == WasteFlow.REJECTED
+    val completedCount = when {
+        rejected || report.status == WasteFlow.WAITING -> 1
+        report.status == WasteFlow.PROCESSING || report.status == WasteFlow.ASSIGNED -> 2
+        report.status == WasteFlow.TRANSPORTED && proofStatus == "menunggu" -> 4
+        report.status == WasteFlow.TRANSPORTED -> 3
+        report.status == WasteFlow.DONE -> 5
+        else -> 1
+    }
+    val currentIndex = if (rejected) 1 else completedCount.takeIf { it < 5 } ?: -1
+    val labels = listOf(
+        "Laporan masuk",
+        when {
+            rejected -> "Laporan ditolak"
+            report.status == WasteFlow.WAITING -> "Menunggu verifikasi Admin"
+            else -> "Petugas ditugaskan"
+        },
+        if (report.status == WasteFlow.TRANSPORTED || report.status == WasteFlow.DONE) {
+            "Petugas berangkat"
+        } else {
+            "Menunggu petugas berangkat"
+        },
+        when {
+            proofStatus == "perlu_perbaikan" -> "Bukti perlu diperbaiki"
+            proofStatus == "menunggu" || report.status == WasteFlow.DONE -> "Bukti akhir dikirim"
+            else -> "Proses penanganan"
+        },
+        when {
+            report.status == WasteFlow.DONE -> "Disetujui Admin"
+            report.status == WasteFlow.TRANSPORTED && proofStatus == "menunggu" -> "Menunggu persetujuan Admin"
+            else -> "Persetujuan Admin"
+        }
+    )
+
+    return AdminReportProgress(
+        steps = labels.mapIndexed { index, label ->
+            val state = when {
+                rejected && index == 1 -> AdminReportStepState.REJECTED
+                index < completedCount -> AdminReportStepState.COMPLETE
+                index == currentIndex -> AdminReportStepState.CURRENT
+                else -> AdminReportStepState.UPCOMING
+            }
+            AdminReportProgressStep(label, state)
+        },
+        completedCount = completedCount
+    )
 }
 
 @Composable
@@ -1431,7 +1475,7 @@ private fun AdminLatestReportCard(
     onAssign: () -> Unit
 ) {
     val accent = reportAccent(report.status)
-    val progress = adminReportProgress(report.status)
+    val progress = adminReportProgress(report)
     val reportCardColor = if (LocalSmartWasteAppearance.current.darkMode) {
         AppSurfaceMuted
     } else {
@@ -1519,66 +1563,88 @@ private fun AdminLatestReportCard(
                     .padding(11.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Progress penanganan",
-                        modifier = Modifier.weight(1f),
-                        color = AppTextMuted,
-                        fontFamily = InterFont,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        progress.valueLabel,
-                        color = accent,
-                        fontFamily = InterFont,
-                        fontSize = 12.sp,
-                        lineHeight = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Box(
-                    modifier = Modifier.fillMaxWidth()
-                        .height(6.dp)
-                        .clip(CircleShape)
-                        .background(accent.copy(alpha = 0.16f))
-                ) {
-                    if (progress.fraction > 0f) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(progress.fraction)
-                                .fillMaxHeight()
-                                .background(accent)
-                        )
+                Text(
+                    "Tahapan penanganan",
+                    color = AppTextMuted,
+                    fontFamily = InterFont,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    progress.steps.forEachIndexed { index, step ->
+                        val markerColor = when (step.state) {
+                            AdminReportStepState.COMPLETE -> LoginAccent
+                            AdminReportStepState.CURRENT -> LoginAccent
+                            AdminReportStepState.UPCOMING -> AppTextMuted
+                            AdminReportStepState.REJECTED -> RoleRed
+                        }
+                        val markerBackground = when (step.state) {
+                            AdminReportStepState.COMPLETE -> LoginAccent
+                            AdminReportStepState.CURRENT -> LoginAccent.copy(alpha = 0.14f)
+                            AdminReportStepState.UPCOMING -> AppBorder.copy(alpha = 0.55f)
+                            AdminReportStepState.REJECTED -> RoleRed.copy(alpha = 0.14f)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier.size(19.dp)
+                                    .clip(CircleShape)
+                                    .background(markerBackground),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = when (step.state) {
+                                        AdminReportStepState.COMPLETE -> "✓"
+                                        AdminReportStepState.REJECTED -> "×"
+                                        else -> (index + 1).toString()
+                                    },
+                                    color = if (step.state == AdminReportStepState.COMPLETE) {
+                                        Color.White
+                                    } else {
+                                        markerColor
+                                    },
+                                    fontFamily = InterFont,
+                                    fontSize = 10.sp,
+                                    lineHeight = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(Modifier.width(9.dp))
+                            Text(
+                                text = step.label,
+                                modifier = Modifier.weight(1f),
+                                color = when (step.state) {
+                                    AdminReportStepState.COMPLETE -> AppTextMuted
+                                    AdminReportStepState.CURRENT -> AppText
+                                    AdminReportStepState.UPCOMING -> AppTextMuted
+                                    AdminReportStepState.REJECTED -> RoleRed
+                                },
+                                fontFamily = InterFont,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                fontWeight = if (step.state == AdminReportStepState.CURRENT ||
+                                    step.state == AdminReportStepState.REJECTED
+                                ) FontWeight.SemiBold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (index < progress.steps.lastIndex) {
+                            Spacer(
+                                Modifier.padding(start = 8.dp)
+                                    .width(2.dp)
+                                    .height(6.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (index < progress.completedCount) {
+                                            LoginAccent.copy(alpha = 0.55f)
+                                        } else {
+                                            AppBorder
+                                        }
+                                    )
+                            )
+                        }
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        progress.stageLabel,
-                        modifier = Modifier.weight(1f),
-                        color = AppText,
-                        fontFamily = InterFont,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        progress.stepLabel,
-                        color = AppTextMuted,
-                        fontFamily = InterFont,
-                        fontSize = 10.sp,
-                        lineHeight = 14.sp,
-                        textAlign = TextAlign.End,
-                        maxLines = 1
-                    )
                 }
             }
 
