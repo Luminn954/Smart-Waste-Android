@@ -6450,21 +6450,23 @@ private fun PetugasJourneyHero(
             )
         }
 
+        val shiftCardShape = RoundedCornerShape(24.dp)
         Column(
             modifier = Modifier.fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(AppSurfaceMuted)
-                .padding(if (isCompact) 13.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .clip(shiftCardShape)
+                .background(AppCardSurface)
+                .border(1.dp, AppBorder.copy(alpha = 0.72f), shiftCardShape)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
+                modifier = Modifier.fillMaxWidth()
+                    .background(PetugasAccent)
+                    .padding(horizontal = if (isCompact) 14.dp else 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     "SHIFT HARI INI",
-                    color = PetugasAccent,
+                    color = Color.White.copy(alpha = 0.76f),
                     fontSize = 10.sp,
                     lineHeight = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -6473,7 +6475,7 @@ private fun PetugasJourneyHero(
                 )
                 Text(
                     "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
-                    color = AppText,
+                    color = Color.White,
                     fontSize = if (isCompact) 20.sp else 22.sp,
                     lineHeight = 27.sp,
                     fontWeight = FontWeight.Bold,
@@ -6482,7 +6484,7 @@ private fun PetugasJourneyHero(
                 )
                 Text(
                     workSummary,
-                    color = AppTextMuted,
+                    color = Color.White.copy(alpha = 0.86f),
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
                     maxLines = 2,
@@ -6490,74 +6492,82 @@ private fun PetugasJourneyHero(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = if (isCompact) 14.dp else 16.dp, vertical = 13.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                PetugasShiftMetric(assigned.toString(), "Siap angkut", Modifier.weight(1f))
-                Box(Modifier.width(1.dp).height(42.dp).background(AppBorder.copy(alpha = 0.55f)))
-                PetugasShiftMetric(inRoute.toString(), "Dalam rute", Modifier.weight(1f))
-                Box(Modifier.width(1.dp).height(42.dp).background(AppBorder.copy(alpha = 0.55f)))
-                PetugasShiftMetric(needsAttention.toString(), "Perlu dicek", Modifier.weight(1f))
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        if (total > 0) "$completed dari $total selesai · ${completed * 100 / total}%"
-                        else "Belum ada pekerjaan selesai",
-                        color = AppTextMuted,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(5.dp)
-                            .clip(CircleShape)
-                            .background(AppBorder.copy(alpha = 0.65f))
+                    PetugasShiftMetric(assigned.toString(), "Siap angkut", Modifier.weight(1f))
+                    Box(Modifier.width(1.dp).height(40.dp).background(AppBorder.copy(alpha = 0.72f)))
+                    PetugasShiftMetric(inRoute.toString(), "Dalam rute", Modifier.weight(1f))
+                    Box(Modifier.width(1.dp).height(40.dp).background(AppBorder.copy(alpha = 0.72f)))
+                    PetugasShiftMetric(needsAttention.toString(), "Perlu dicek", Modifier.weight(1f))
+                }
+
+                Box(Modifier.fillMaxWidth().height(1.dp).background(AppBorder.copy(alpha = 0.56f)))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        if (progressFraction > 0f) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(progressFraction).fillMaxHeight()
-                                    .clip(CircleShape)
-                                    .background(PetugasAccent)
-                            )
+                        Text(
+                            if (total > 0) "$completed dari $total selesai · ${completed * 100 / total}%"
+                            else "Belum ada pekerjaan selesai",
+                            color = AppTextMuted,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(5.dp)
+                                .clip(CircleShape)
+                                .background(AppBorder.copy(alpha = 0.65f))
+                        ) {
+                            if (progressFraction > 0f) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(progressFraction).fillMaxHeight()
+                                        .clip(CircleShape)
+                                        .background(PetugasAccent)
+                                )
+                            }
                         }
                     }
-                }
-                Row(
-                    modifier = Modifier.clip(RoundedCornerShape(14.dp))
-                        .background(PetugasAccent)
-                        .clickable(role = Role.Button, onClick = onOpenTasks)
-                        .padding(horizontal = 12.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        actionLabel,
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(15.dp)
-                    )
+                    Row(
+                        modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                            .background(PetugasAccent)
+                            .clickable(role = Role.Button, onClick = onOpenTasks)
+                            .padding(horizontal = 12.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            actionLabel,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
                 }
             }
         }
