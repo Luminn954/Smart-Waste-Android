@@ -9,7 +9,6 @@ import android.net.Uri
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import androidx.core.net.toUri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,6 +40,7 @@ import com.uoi.pratikumwithbunafla.data.remote.SmartWasteApi
 import com.uoi.pratikumwithbunafla.domain.WasteFlow
 import com.uoi.pratikumwithbunafla.ui.admin.*
 import com.uoi.pratikumwithbunafla.ui.auth.LoginScreen
+import com.uoi.pratikumwithbunafla.ui.components.InAppPhotoViewerDialog
 import com.uoi.pratikumwithbunafla.ui.components.SmartWasteSplash
 import com.uoi.pratikumwithbunafla.ui.theme.SmartWasteTheme
 import kotlinx.coroutines.CancellationException
@@ -128,6 +128,7 @@ class MainActivity : ComponentActivity() {
                 var downloadingUpdate by remember { mutableStateOf(false) }
                 var downloadedUpdate by remember { mutableStateOf<File?>(null) }
                 var updateMessage by remember { mutableStateOf("") }
+                var photoToView by remember { mutableStateOf<String?>(null) }
 
                 fun signOut(message: String? = null) {
                     scope.launch { SmartWasteApi.logout() }
@@ -453,7 +454,7 @@ class MainActivity : ComponentActivity() {
                                     showingArchive = selectedReportView == "archive",
                                     errorMessage = errorMessage,
                                     account = account,
-                                    onOpenPhoto = { openPhoto(it) },
+                                    onOpenPhoto = { photoToView = it },
                                     onArchiveViewChange = { showing ->
                                         selectedReportView = if (showing) "archive" else "all"
                                         selectedStatus = null
@@ -533,7 +534,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                         refreshWorkspace()
                                     },
-                                    onOpenPhoto = ::openPhoto,
+                                    onOpenPhoto = { photoToView = it },
                                     onReviewCompletion = { review, action, note ->
                                         SmartWasteApi.reviewCompletion(review.id, action, note)
                                         refreshWorkspace()
@@ -632,7 +633,7 @@ class MainActivity : ComponentActivity() {
                                         refreshWorkspace()
                                         updated
                                     },
-                                    onOpenPhoto = { openPhoto(it) },
+                                    onOpenPhoto = { photoToView = it },
                                     onArchiveTask = { report ->
                                         SmartWasteApi.archiveWorkerTask(report.id)
                                         refreshWorkspace()
@@ -730,6 +731,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                photoToView?.let { photoUrl ->
+                    InAppPhotoViewerDialog(
+                        photoUrl = photoUrl,
+                        onDismiss = { photoToView = null }
+                    )
+                }
+
                 availableUpdate?.let { update ->
                     androidx.compose.material3.AlertDialog(
                         onDismissRequest = {
@@ -816,12 +824,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    private fun openPhoto(url: String) {
-        if (url.isBlank()) return
-        runCatching { startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
-            .onFailure { /* Laporan tetap bisa dibaca meski browser foto tidak tersedia. */ }
     }
 
     private suspend fun compressEvidence(uri: Uri): ByteArray = withContext(Dispatchers.IO) {
