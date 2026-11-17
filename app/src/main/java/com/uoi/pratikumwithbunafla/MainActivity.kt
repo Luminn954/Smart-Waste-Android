@@ -17,6 +17,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,6 +89,7 @@ class MainActivity : ComponentActivity() {
                 }
             ) {
                 val navController = rememberNavController()
+                val adminNavigationMotion = remember { AdminNavigationMotionState() }
                 val currentBackStackEntry by navController.currentBackStackEntryAsState()
                 val isAdminDashboard = activeAccount?.role == UserRole.ADMIN &&
                     currentBackStackEntry?.destination?.route == "dashboard"
@@ -337,382 +339,386 @@ class MainActivity : ComponentActivity() {
                 }
 
                 if (!showSplash) {
-                    NavHost(navController = navController, startDestination = "login") {
-                        composable("login") {
-                            LoginScreen(
-                                initialDarkMode = isDarkMode,
-                                initialMessage = loginNotice,
-                                onAuthenticate = { username, password, selectedRole ->
-                                    val account = SmartWasteApi.login(username.trim(), password)
-                                    if (account.role != selectedRole) {
-                                        SmartWasteApi.logout()
-                                        throw IllegalStateException(
-                                            "Akun ini terdaftar sebagai ${account.role.label}. Pilih ${account.role.label} untuk masuk."
-                                        )
-                                    }
-                                    hasLoadedWorkspace = false
-                                    errorMessage = ""
-                                    loginNotice = ""
-                                    activeAccount = account
-                                    selectedStatus = null
-                                    selectedReportView = "verify"
-                                    account
-                                },
-                                onCheckConnection = { SmartWasteApi.checkConnection() },
-                                onLoginSuccess = {
-                                    roleEntryKey++
-                                    val destination =
-                                        if (activeAccount?.role == UserRole.PETUGAS) "tasks" else "dashboard"
-                                    navController.navigate(destination) {
-                                        popUpTo("login") { inclusive = true }
-                                    }
-                                },
-                                onThemeModeChange = { darkMode ->
-                                    isDarkMode = darkMode
-                                    appearancePreferences.edit().putBoolean("dark_mode", darkMode).apply()
-                                }
-                            )
-                        }
-                        composable("dashboard") {
-                            val account = activeAccount
-                            if (account == null) RedirectToLogin { navController.navigate("login") }
-                            else if (account.role != UserRole.ADMIN) RedirectToRoute {
-                                navController.navigate(
-                                    "tasks"
-                                )
-                            }
-                            else AdminDashboardScreen(
-                                summary = summary,
-                                reports = reports,
-                                errorMessage = errorMessage,
-                                account = account,
-                                onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut,
-                                pendingProofCount = completionReviews.size,
-                                pendingVehicleRepairActionCount = vehicleRepairs.count {
-                                    it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"
-                                },
-                                pendingCapacityClearanceCount = capacityClearanceRequests.count { it.isPending },
-                                isInitialLoading = !hasLoadedWorkspace,
-                                isRefreshing = isRefreshingWorkspace,
-                                onRefresh = { scope.launch { refreshWorkspace() } },
-                                entryKey = roleEntryKey
-                            )
-                        }
-                        composable("notifications") {
-                            val account = activeAccount
-                            if (account == null) RedirectToLogin { navController.navigate("login") }
-                            else NotificationCenterScreen(
-                                account = account,
-                                summary = summary,
-                                reports = reports,
-                                tasks = tasks,
-                                incomingReports = incomingReports,
-                                completionReviews = completionReviews,
-                                vehicleRepairs = vehicleRepairs,
-                                capacityClearanceRequests = capacityClearanceRequests,
-                                onNavigate = ::navigateAdminRoute,
-                                onBack = {
-                                    if (!navController.popBackStack()) {
-                                        navController.navigate(if (account.role == UserRole.ADMIN) "dashboard" else "tasks") {
-                                            launchSingleTop = true
+                    CompositionLocalProvider(
+                        LocalAdminNavigationMotionState provides adminNavigationMotion
+                    ) {
+                        NavHost(navController = navController, startDestination = "login") {
+                            composable("login") {
+                                LoginScreen(
+                                    initialDarkMode = isDarkMode,
+                                    initialMessage = loginNotice,
+                                    onAuthenticate = { username, password, selectedRole ->
+                                        val account = SmartWasteApi.login(username.trim(), password)
+                                        if (account.role != selectedRole) {
+                                            SmartWasteApi.logout()
+                                            throw IllegalStateException(
+                                                "Akun ini terdaftar sebagai ${account.role.label}. Pilih ${account.role.label} untuk masuk."
+                                            )
                                         }
+                                        hasLoadedWorkspace = false
+                                        errorMessage = ""
+                                        loginNotice = ""
+                                        activeAccount = account
+                                        selectedStatus = null
+                                        selectedReportView = "verify"
+                                        account
+                                    },
+                                    onCheckConnection = { SmartWasteApi.checkConnection() },
+                                    onLoginSuccess = {
+                                        roleEntryKey++
+                                        val destination =
+                                            if (activeAccount?.role == UserRole.PETUGAS) "tasks" else "dashboard"
+                                        navController.navigate(destination) {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    },
+                                    onThemeModeChange = { darkMode ->
+                                        isDarkMode = darkMode
+                                        appearancePreferences.edit().putBoolean("dark_mode", darkMode).apply()
                                     }
-                                },
-                                onLogout = ::signOut,
-                                isInitialLoading = !hasLoadedWorkspace,
-                                isRefreshing = isRefreshingWorkspace,
-                                onRefresh = { scope.launch { refreshWorkspace() } }
-                            )
-                        }
-                        composable("reports") {
-                            val account = activeAccount
-                            if (account == null) RedirectToLogin { navController.navigate("login") }
-                            else if (account.role != UserRole.ADMIN) RedirectToRoute {
-                                navController.navigate(
-                                    "tasks"
                                 )
                             }
-                            else AdminVerificationScreen(
-                                reports = reports,
-                                archivedReports = archivedReports,
-                                selectedStatus = selectedStatus,
-                                showAllReports = selectedReportView == "all",
-                                showingArchive = selectedReportView == "archive",
-                                errorMessage = errorMessage,
-                                account = account,
-                                onOpenPhoto = { openPhoto(it) },
-                                onArchiveViewChange = { showing ->
-                                    selectedReportView = if (showing) "archive" else "all"
-                                    selectedStatus = null
-                                },
-                                onArchiveReport = { report ->
-                                    SmartWasteApi.archiveReport(report.id)
-                                    refreshWorkspace()
-                                },
-                                onRestoreArchivedReport = { report ->
-                                    SmartWasteApi.restoreArchivedReport(report.id)
-                                    selectedReportView = "all"
-                                    selectedStatus = null
-                                    refreshWorkspace()
-                                },
-                                onDeleteArchivedReport = { report ->
-                                    SmartWasteApi.permanentlyDeleteArchivedReport(report.id)
-                                    refreshWorkspace()
-                                },
-                                onReportViewChange = { showAll ->
-                                    selectedReportView = if (showAll) "all" else "verify"
-                                    selectedStatus = null
-                                },
-                                onFilterChange = { selectedStatus = it },
-                                onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut,
-                                isInitialLoading = !hasLoadedWorkspace,
-                                isRefreshing = isRefreshingWorkspace,
-                                onRefresh = { scope.launch { refreshWorkspace() } }
-                            )
-                        }
-                        composable("ops") {
-                            val account = activeAccount
-                            if (account == null) RedirectToLogin { navController.navigate("login") }
-                            else if (account.role != UserRole.ADMIN) RedirectToRoute {
-                                navController.navigate(
-                                    "tasks"
+                            composable("dashboard") {
+                                val account = activeAccount
+                                if (account == null) RedirectToLogin { navController.navigate("login") }
+                                else if (account.role != UserRole.ADMIN) RedirectToRoute {
+                                    navController.navigate(
+                                        "tasks"
+                                    )
+                                }
+                                else AdminDashboardScreen(
+                                    summary = summary,
+                                    reports = reports,
+                                    errorMessage = errorMessage,
+                                    account = account,
+                                    onNavigate = ::navigateAdminRoute,
+                                    onLogout = ::signOut,
+                                    pendingProofCount = completionReviews.size,
+                                    pendingVehicleRepairActionCount = vehicleRepairs.count {
+                                        it.status == "menunggu_persetujuan" || it.status == "menunggu_pemeriksaan"
+                                    },
+                                    pendingCapacityClearanceCount = capacityClearanceRequests.count { it.isPending },
+                                    isInitialLoading = !hasLoadedWorkspace,
+                                    isRefreshing = isRefreshingWorkspace,
+                                    onRefresh = { scope.launch { refreshWorkspace() } },
+                                    entryKey = roleEntryKey
                                 )
                             }
-                            else AdminOperationsScreen(
-                                reports = reports,
-                                workers = workers,
-                                completionReviews = completionReviews,
-                                vehicleRepairs = vehicleRepairs,
-                                capacityClearanceRequests = capacityClearanceRequests,
-                                errorMessage = errorMessage,
-                                account = account,
-                                onCreateWorker = { name, username, email, password, zone ->
-                                    SmartWasteApi.createStaffAccount(
-                                        name,
-                                        username,
-                                        email,
-                                        password,
-                                        zone
-                                    )
-                                    refreshWorkspace()
-                                },
-                                onUpdateWorker = { worker, active ->
-                                    SmartWasteApi.updateWorker(worker, active)
-                                    refreshWorkspace()
-                                },
-                                onDeleteWorker = { worker, replacementWorkerId ->
-                                    SmartWasteApi.deleteWorkerAccount(worker.id, replacementWorkerId)
-                                    refreshWorkspace()
-                                },
-                                onArchiveWorker = { worker ->
-                                    SmartWasteApi.archiveWorker(worker.id)
-                                    refreshWorkspace()
-                                },
-                                onPermanentlyDeleteWorker = { worker ->
-                                    SmartWasteApi.permanentlyDeleteWorker(worker.id)
-                                    refreshWorkspace()
-                                },
-                                onUploadWorkerPhoto = { worker, photoUri ->
-                                    SmartWasteApi.uploadWorkerProfilePhoto(
-                                        worker.id,
-                                        compressEvidence(photoUri)
-                                    )
-                                    refreshWorkspace()
-                                },
-                                onOpenPhoto = ::openPhoto,
-                                onReviewCompletion = { review, action, note ->
-                                    SmartWasteApi.reviewCompletion(review.id, action, note)
-                                    refreshWorkspace()
-                                },
-                                onReviewVehicleRepair = { repair, action, note ->
-                                    SmartWasteApi.reviewVehicleRepair(repair.id, action, note)
-                                    refreshWorkspace()
-                                },
-                                onReviewCapacityClearance = { request, action, note ->
-                                    SmartWasteApi.reviewCapacityClearance(request.id, action, note)
-                                    refreshWorkspace()
-                                },
-                                onNavigate = ::navigateAdminRoute,
-                                initialTab = selectedOpsTab,
-                                onTabSelected = { selectedOpsTab = it },
-                                onLogout = ::signOut,
-                                isInitialLoading = !hasLoadedWorkspace,
-                                isRefreshing = isRefreshingWorkspace,
-                                onRefresh = { scope.launch { refreshWorkspace() } }
-                            )
-                        }
-                        composable("stats") {
-                            val account = activeAccount
-                            if (account == null) RedirectToLogin { navController.navigate("login") }
-                            else if (account.role != UserRole.ADMIN) RedirectToRoute {
-                                navController.navigate(
-                                    "tasks"
+                            composable("notifications") {
+                                val account = activeAccount
+                                if (account == null) RedirectToLogin { navController.navigate("login") }
+                                else NotificationCenterScreen(
+                                    account = account,
+                                    summary = summary,
+                                    reports = reports,
+                                    tasks = tasks,
+                                    incomingReports = incomingReports,
+                                    completionReviews = completionReviews,
+                                    vehicleRepairs = vehicleRepairs,
+                                    capacityClearanceRequests = capacityClearanceRequests,
+                                    onNavigate = ::navigateAdminRoute,
+                                    onBack = {
+                                        if (!navController.popBackStack()) {
+                                            navController.navigate(if (account.role == UserRole.ADMIN) "dashboard" else "tasks") {
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    },
+                                    onLogout = ::signOut,
+                                    isInitialLoading = !hasLoadedWorkspace,
+                                    isRefreshing = isRefreshingWorkspace,
+                                    onRefresh = { scope.launch { refreshWorkspace() } }
                                 )
                             }
-                            else AdminStatsScreen(
-                                stats = statistics,
-                                dailyReports = dailyReports,
-                                dailyRangeDays = dailyRangeDays,
-                                errorMessage = errorMessage,
-                                account = account,
-                                onDailyRange = { days ->
-                                    dailyRangeDays = days
-                                    scope.launch { refreshWorkspace() }
-                                },
-                                onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut,
-                                isInitialLoading = !hasLoadedWorkspace,
-                                isRefreshing = isRefreshingWorkspace,
-                                onRefresh = { scope.launch { refreshWorkspace() } }
-                            )
-                        }
-                        composable("profile") {
-                            val account = activeAccount
-                            if (account == null) RedirectToLogin { navController.navigate("login") }
-                            else if (account.role != UserRole.ADMIN) RedirectToRoute {
-                                navController.navigate("tasks")
-                            }
-                            else AdminProfileScreen(
-                                account = account,
-                                onUpdateProfile = { name ->
-                                    val updated = SmartWasteApi.updateMyProfile(name)
-                                    activeAccount = updated
-                                    refreshWorkspace()
-                                    updated
-                                },
-                                onUpdateProfilePhoto = { uri ->
-                                    val photoBytes = compressEvidence(uri)
-                                    val updated = SmartWasteApi.updateMyProfilePhoto(photoBytes)
-                                    activeAccount = updated
-                                    refreshWorkspace()
-                                    updated
-                                },
-                                onNavigate = ::navigateAdminRoute,
-                                onLogout = ::signOut,
-                                isInitialLoading = !hasLoadedWorkspace,
-                                isRefreshing = isRefreshingWorkspace,
-                                onRefresh = { scope.launch { refreshWorkspace() } }
-                            )
-                        }
-                        composable("tasks") {
-                            val account = activeAccount
-                            if (account == null) RedirectToLogin { navController.navigate("login") }
-                            else if (account.role != UserRole.PETUGAS) RedirectToRoute {
-                                navController.navigate(
-                                    "dashboard"
+                            composable("reports") {
+                                val account = activeAccount
+                                if (account == null) RedirectToLogin { navController.navigate("login") }
+                                else if (account.role != UserRole.ADMIN) RedirectToRoute {
+                                    navController.navigate(
+                                        "tasks"
+                                    )
+                                }
+                                else AdminVerificationScreen(
+                                    reports = reports,
+                                    archivedReports = archivedReports,
+                                    selectedStatus = selectedStatus,
+                                    showAllReports = selectedReportView == "all",
+                                    showingArchive = selectedReportView == "archive",
+                                    errorMessage = errorMessage,
+                                    account = account,
+                                    onOpenPhoto = { openPhoto(it) },
+                                    onArchiveViewChange = { showing ->
+                                        selectedReportView = if (showing) "archive" else "all"
+                                        selectedStatus = null
+                                    },
+                                    onArchiveReport = { report ->
+                                        SmartWasteApi.archiveReport(report.id)
+                                        refreshWorkspace()
+                                    },
+                                    onRestoreArchivedReport = { report ->
+                                        SmartWasteApi.restoreArchivedReport(report.id)
+                                        selectedReportView = "all"
+                                        selectedStatus = null
+                                        refreshWorkspace()
+                                    },
+                                    onDeleteArchivedReport = { report ->
+                                        SmartWasteApi.permanentlyDeleteArchivedReport(report.id)
+                                        refreshWorkspace()
+                                    },
+                                    onReportViewChange = { showAll ->
+                                        selectedReportView = if (showAll) "all" else "verify"
+                                        selectedStatus = null
+                                    },
+                                    onFilterChange = { selectedStatus = it },
+                                    onNavigate = ::navigateAdminRoute,
+                                    onLogout = ::signOut,
+                                    isInitialLoading = !hasLoadedWorkspace,
+                                    isRefreshing = isRefreshingWorkspace,
+                                    onRefresh = { scope.launch { refreshWorkspace() } }
                                 )
                             }
-                            else PetugasTasksScreen(
-                                tasks = tasks,
-                                archivedTasks = archivedPetugasTasks,
-                                incomingReports = incomingReports,
-                                vehicles = vehicles,
-                                vehicleRepairs = vehicleRepairs,
-                                facilities = facilities,
-                                capacityClearanceRequests = capacityClearanceRequests,
-                                errorMessage = errorMessage,
-                                account = account,
-                                onUpdateProfile = { name ->
-                                    val updated = SmartWasteApi.updateMyProfile(name)
-                                    activeAccount = updated
-                                    refreshWorkspace()
-                                    updated
-                                },
-                                onOpenPhoto = { openPhoto(it) },
-                                onArchiveTask = { report ->
-                                    SmartWasteApi.archiveWorkerTask(report.id)
-                                    refreshWorkspace()
-                                },
-                                onRestoreArchivedTask = { report ->
-                                    SmartWasteApi.restoreWorkerTask(report.id)
-                                    refreshWorkspace()
-                                },
-                                onDeleteArchivedTask = { report ->
-                                    SmartWasteApi.permanentlyDeleteArchivedWorkerTask(report.id)
-                                    refreshWorkspace()
-                                },
-                                onAssignReport = { report, vehicleId, tpaId ->
-                                    SmartWasteApi.assignReport(report.id, vehicleId, tpaId)
-                                    refreshWorkspace()
-                                },
-                                onRejectReport = { report, note ->
-                                    SmartWasteApi.updateReportStatus(report.id, WasteFlow.REJECTED, note)
-                                    refreshWorkspace()
-                                },
-                                onMarkTransported = { task ->
-                                    SmartWasteApi.markTaskTransported(task.id)
-                                    refreshWorkspace()
-                                },
-                                onSubmitProof = { task, photoUri, note ->
-                                    val photoBytes = compressEvidence(photoUri)
-                                    SmartWasteApi.submitCompletionProof(
-                                        task.id,
-                                        photoBytes,
-                                        "bukti-${task.id}.jpg",
-                                        note
+                            composable("ops") {
+                                val account = activeAccount
+                                if (account == null) RedirectToLogin { navController.navigate("login") }
+                                else if (account.role != UserRole.ADMIN) RedirectToRoute {
+                                    navController.navigate(
+                                        "tasks"
                                     )
-                                    refreshWorkspace()
-                                },
-                                onSubmitLocationEvidence = { task, photoUri ->
-                                    SmartWasteApi.submitLocationEvidence(
-                                        task.id,
-                                        compressEvidence(photoUri),
-                                        "lokasi-${task.id}.jpg"
+                                }
+                                else AdminOperationsScreen(
+                                    reports = reports,
+                                    workers = workers,
+                                    completionReviews = completionReviews,
+                                    vehicleRepairs = vehicleRepairs,
+                                    capacityClearanceRequests = capacityClearanceRequests,
+                                    errorMessage = errorMessage,
+                                    account = account,
+                                    onCreateWorker = { name, username, email, password, zone ->
+                                        SmartWasteApi.createStaffAccount(
+                                            name,
+                                            username,
+                                            email,
+                                            password,
+                                            zone
+                                        )
+                                        refreshWorkspace()
+                                    },
+                                    onUpdateWorker = { worker, active ->
+                                        SmartWasteApi.updateWorker(worker, active)
+                                        refreshWorkspace()
+                                    },
+                                    onDeleteWorker = { worker, replacementWorkerId ->
+                                        SmartWasteApi.deleteWorkerAccount(worker.id, replacementWorkerId)
+                                        refreshWorkspace()
+                                    },
+                                    onArchiveWorker = { worker ->
+                                        SmartWasteApi.archiveWorker(worker.id)
+                                        refreshWorkspace()
+                                    },
+                                    onPermanentlyDeleteWorker = { worker ->
+                                        SmartWasteApi.permanentlyDeleteWorker(worker.id)
+                                        refreshWorkspace()
+                                    },
+                                    onUploadWorkerPhoto = { worker, photoUri ->
+                                        SmartWasteApi.uploadWorkerProfilePhoto(
+                                            worker.id,
+                                            compressEvidence(photoUri)
+                                        )
+                                        refreshWorkspace()
+                                    },
+                                    onOpenPhoto = ::openPhoto,
+                                    onReviewCompletion = { review, action, note ->
+                                        SmartWasteApi.reviewCompletion(review.id, action, note)
+                                        refreshWorkspace()
+                                    },
+                                    onReviewVehicleRepair = { repair, action, note ->
+                                        SmartWasteApi.reviewVehicleRepair(repair.id, action, note)
+                                        refreshWorkspace()
+                                    },
+                                    onReviewCapacityClearance = { request, action, note ->
+                                        SmartWasteApi.reviewCapacityClearance(request.id, action, note)
+                                        refreshWorkspace()
+                                    },
+                                    onNavigate = ::navigateAdminRoute,
+                                    initialTab = selectedOpsTab,
+                                    onTabSelected = { selectedOpsTab = it },
+                                    onLogout = ::signOut,
+                                    isInitialLoading = !hasLoadedWorkspace,
+                                    isRefreshing = isRefreshingWorkspace,
+                                    onRefresh = { scope.launch { refreshWorkspace() } }
+                                )
+                            }
+                            composable("stats") {
+                                val account = activeAccount
+                                if (account == null) RedirectToLogin { navController.navigate("login") }
+                                else if (account.role != UserRole.ADMIN) RedirectToRoute {
+                                    navController.navigate(
+                                        "tasks"
                                     )
-                                    refreshWorkspace()
-                                },
-                                onCreateVehicle = { plate, capacity, route ->
-                                    SmartWasteApi.createVehicle(plate, capacity, route)
-                                    refreshWorkspace()
-                                },
-                                onUpdateVehicle = { vehicle ->
-                                    SmartWasteApi.updateVehicle(vehicle)
-                                    refreshWorkspace()
-                                },
-                                onReportVehicleDamage = { vehicle, cause, details ->
-                                    SmartWasteApi.reportVehicleDamage(vehicle.id, cause, details)
-                                    refreshWorkspace()
-                                },
-                                onStartVehicleRepair = { repair, note ->
-                                    SmartWasteApi.startVehicleRepair(repair.id, note)
-                                    refreshWorkspace()
-                                },
-                                onUpdateVehicleRepairProgress = { repair, note ->
-                                    SmartWasteApi.updateVehicleRepairProgress(repair.id, note)
-                                    refreshWorkspace()
-                                },
-                                onSubmitVehicleRepairForInspection = { repair, note ->
-                                    SmartWasteApi.submitVehicleRepairForInspection(repair.id, note)
-                                    refreshWorkspace()
-                                },
-                                onCreateFacility = { name, address, capacity ->
-                                    SmartWasteApi.createFacility(name, address, capacity)
-                                    refreshWorkspace()
-                                },
-                                onUpdateFacility = { facility ->
-                                    SmartWasteApi.updateFacility(facility)
-                                    refreshWorkspace()
-                                },
-                                onRequestCapacityClearance = { targetType, targetId, photoUri, reason ->
-                                    SmartWasteApi.requestCapacityClearance(
-                                        targetType,
-                                        targetId,
-                                        compressEvidence(photoUri),
-                                        reason
+                                }
+                                else AdminStatsScreen(
+                                    stats = statistics,
+                                    dailyReports = dailyReports,
+                                    dailyRangeDays = dailyRangeDays,
+                                    errorMessage = errorMessage,
+                                    account = account,
+                                    onDailyRange = { days ->
+                                        dailyRangeDays = days
+                                        scope.launch { refreshWorkspace() }
+                                    },
+                                    onNavigate = ::navigateAdminRoute,
+                                    onLogout = ::signOut,
+                                    isInitialLoading = !hasLoadedWorkspace,
+                                    isRefreshing = isRefreshingWorkspace,
+                                    onRefresh = { scope.launch { refreshWorkspace() } }
+                                )
+                            }
+                            composable("profile") {
+                                val account = activeAccount
+                                if (account == null) RedirectToLogin { navController.navigate("login") }
+                                else if (account.role != UserRole.ADMIN) RedirectToRoute {
+                                    navController.navigate("tasks")
+                                }
+                                else AdminProfileScreen(
+                                    account = account,
+                                    onUpdateProfile = { name ->
+                                        val updated = SmartWasteApi.updateMyProfile(name)
+                                        activeAccount = updated
+                                        refreshWorkspace()
+                                        updated
+                                    },
+                                    onUpdateProfilePhoto = { uri ->
+                                        val photoBytes = compressEvidence(uri)
+                                        val updated = SmartWasteApi.updateMyProfilePhoto(photoBytes)
+                                        activeAccount = updated
+                                        refreshWorkspace()
+                                        updated
+                                    },
+                                    onNavigate = ::navigateAdminRoute,
+                                    onLogout = ::signOut,
+                                    isInitialLoading = !hasLoadedWorkspace,
+                                    isRefreshing = isRefreshingWorkspace,
+                                    onRefresh = { scope.launch { refreshWorkspace() } }
+                                )
+                            }
+                            composable("tasks") {
+                                val account = activeAccount
+                                if (account == null) RedirectToLogin { navController.navigate("login") }
+                                else if (account.role != UserRole.PETUGAS) RedirectToRoute {
+                                    navController.navigate(
+                                        "dashboard"
                                     )
-                                    refreshWorkspace()
-                                },
-                                isInitialLoading = !hasLoadedWorkspace,
-                                isRefreshing = isRefreshingWorkspace,
-                                onRefresh = { scope.launch { refreshWorkspace() } },
-                                onOpenNotifications = {
-                                    navController.navigate("notifications") { launchSingleTop = true }
-                                },
-                                onLogout = ::signOut,
-                                entryKey = roleEntryKey
-                            )
+                                }
+                                else PetugasTasksScreen(
+                                    tasks = tasks,
+                                    archivedTasks = archivedPetugasTasks,
+                                    incomingReports = incomingReports,
+                                    vehicles = vehicles,
+                                    vehicleRepairs = vehicleRepairs,
+                                    facilities = facilities,
+                                    capacityClearanceRequests = capacityClearanceRequests,
+                                    errorMessage = errorMessage,
+                                    account = account,
+                                    onUpdateProfile = { name ->
+                                        val updated = SmartWasteApi.updateMyProfile(name)
+                                        activeAccount = updated
+                                        refreshWorkspace()
+                                        updated
+                                    },
+                                    onOpenPhoto = { openPhoto(it) },
+                                    onArchiveTask = { report ->
+                                        SmartWasteApi.archiveWorkerTask(report.id)
+                                        refreshWorkspace()
+                                    },
+                                    onRestoreArchivedTask = { report ->
+                                        SmartWasteApi.restoreWorkerTask(report.id)
+                                        refreshWorkspace()
+                                    },
+                                    onDeleteArchivedTask = { report ->
+                                        SmartWasteApi.permanentlyDeleteArchivedWorkerTask(report.id)
+                                        refreshWorkspace()
+                                    },
+                                    onAssignReport = { report, vehicleId, tpaId ->
+                                        SmartWasteApi.assignReport(report.id, vehicleId, tpaId)
+                                        refreshWorkspace()
+                                    },
+                                    onRejectReport = { report, note ->
+                                        SmartWasteApi.updateReportStatus(report.id, WasteFlow.REJECTED, note)
+                                        refreshWorkspace()
+                                    },
+                                    onMarkTransported = { task ->
+                                        SmartWasteApi.markTaskTransported(task.id)
+                                        refreshWorkspace()
+                                    },
+                                    onSubmitProof = { task, photoUri, note ->
+                                        val photoBytes = compressEvidence(photoUri)
+                                        SmartWasteApi.submitCompletionProof(
+                                            task.id,
+                                            photoBytes,
+                                            "bukti-${task.id}.jpg",
+                                            note
+                                        )
+                                        refreshWorkspace()
+                                    },
+                                    onSubmitLocationEvidence = { task, photoUri ->
+                                        SmartWasteApi.submitLocationEvidence(
+                                            task.id,
+                                            compressEvidence(photoUri),
+                                            "lokasi-${task.id}.jpg"
+                                        )
+                                        refreshWorkspace()
+                                    },
+                                    onCreateVehicle = { plate, capacity, route ->
+                                        SmartWasteApi.createVehicle(plate, capacity, route)
+                                        refreshWorkspace()
+                                    },
+                                    onUpdateVehicle = { vehicle ->
+                                        SmartWasteApi.updateVehicle(vehicle)
+                                        refreshWorkspace()
+                                    },
+                                    onReportVehicleDamage = { vehicle, cause, details ->
+                                        SmartWasteApi.reportVehicleDamage(vehicle.id, cause, details)
+                                        refreshWorkspace()
+                                    },
+                                    onStartVehicleRepair = { repair, note ->
+                                        SmartWasteApi.startVehicleRepair(repair.id, note)
+                                        refreshWorkspace()
+                                    },
+                                    onUpdateVehicleRepairProgress = { repair, note ->
+                                        SmartWasteApi.updateVehicleRepairProgress(repair.id, note)
+                                        refreshWorkspace()
+                                    },
+                                    onSubmitVehicleRepairForInspection = { repair, note ->
+                                        SmartWasteApi.submitVehicleRepairForInspection(repair.id, note)
+                                        refreshWorkspace()
+                                    },
+                                    onCreateFacility = { name, address, capacity ->
+                                        SmartWasteApi.createFacility(name, address, capacity)
+                                        refreshWorkspace()
+                                    },
+                                    onUpdateFacility = { facility ->
+                                        SmartWasteApi.updateFacility(facility)
+                                        refreshWorkspace()
+                                    },
+                                    onRequestCapacityClearance = { targetType, targetId, photoUri, reason ->
+                                        SmartWasteApi.requestCapacityClearance(
+                                            targetType,
+                                            targetId,
+                                            compressEvidence(photoUri),
+                                            reason
+                                        )
+                                        refreshWorkspace()
+                                    },
+                                    isInitialLoading = !hasLoadedWorkspace,
+                                    isRefreshing = isRefreshingWorkspace,
+                                    onRefresh = { scope.launch { refreshWorkspace() } },
+                                    onOpenNotifications = {
+                                        navController.navigate("notifications") { launchSingleTop = true }
+                                    },
+                                    onLogout = ::signOut,
+                                    entryKey = roleEntryKey
+                                )
+                            }
                         }
                     }
                 }

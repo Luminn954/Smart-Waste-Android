@@ -65,6 +65,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -120,8 +121,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -224,6 +227,15 @@ private val LoginMuted: Color
 private val LoginAccent: Color
     @Composable get() = MaterialTheme.colorScheme.primary
 private val LocalIsAdminWorkspace = staticCompositionLocalOf { false }
+
+@Stable
+class AdminNavigationMotionState {
+    internal val activePosition = Animatable(0f)
+    internal var targetIndex by mutableIntStateOf(-1)
+}
+
+val LocalAdminNavigationMotionState = staticCompositionLocalOf<AdminNavigationMotionState?> { null }
+
 private val IsNightAdmin: Boolean
     @Composable get() = LocalIsAdminWorkspace.current && LocalSmartWasteAppearance.current.darkMode
 private val RoleAccentSurface: Color
@@ -733,6 +745,21 @@ private fun FloatingRoleNavigationBar(
 ) {
     val darkMode = LocalSmartWasteAppearance.current.darkMode
     val selectedIndex = destinations.indexOfFirst { it.first == current }.coerceAtLeast(0)
+    val navigationMotion = LocalAdminNavigationMotionState.current
+    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(selectedIndex, navigationMotion) {
+        navigationMotion ?: return@LaunchedEffect
+        if (navigationMotion.targetIndex == selectedIndex) return@LaunchedEffect
+        if (navigationMotion.targetIndex < 0) {
+            navigationMotion.activePosition.snapTo(selectedIndex.toFloat())
+        } else {
+            navigationMotion.activePosition.animateTo(
+                targetValue = selectedIndex.toFloat(),
+                animationSpec = tween(520, easing = FastOutSlowInEasing)
+            )
+        }
+        navigationMotion.targetIndex = selectedIndex
+    }
     val barColor by animateColorAsState(
         targetValue = when {
             IsNightAdmin -> Color(0xFF202923)
@@ -767,11 +794,14 @@ private fun FloatingRoleNavigationBar(
         val horizontalInset = 24.dp
         val itemWidth = (maxWidth - horizontalInset - horizontalInset) / destinations.size
         val targetCenter = horizontalInset + itemWidth * (selectedIndex + 0.5f)
-        val activeCenter by animateDpAsState(
+        val fallbackCenter by animateDpAsState(
             targetValue = targetCenter,
             animationSpec = tween(520, easing = FastOutSlowInEasing),
             label = "role-navbar-indicator-position"
         )
+        val activeCenter = navigationMotion?.let { motion ->
+            horizontalInset + itemWidth * (motion.activePosition.value + 0.5f)
+        } ?: fallbackCenter
 
         Canvas(
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -818,7 +848,18 @@ private fun FloatingRoleNavigationBar(
                 val selected = index == selectedIndex
                 Box(
                     modifier = Modifier.weight(1f).fillMaxHeight()
-                        .clickable { onNavigate(route) },
+                        .clickable {
+                            if (navigationMotion != null && navigationMotion.targetIndex != index) {
+                                navigationMotion.targetIndex = index
+                                coroutineScope.launch {
+                                    navigationMotion.activePosition.animateTo(
+                                        targetValue = index.toFloat(),
+                                        animationSpec = tween(520, easing = FastOutSlowInEasing)
+                                    )
+                                }
+                            }
+                            onNavigate(route)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
