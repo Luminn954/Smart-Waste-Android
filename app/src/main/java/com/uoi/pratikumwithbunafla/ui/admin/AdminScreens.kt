@@ -4331,27 +4331,29 @@ fun PetugasTasksScreen(
         onNavigate = {},
         onLogout = onLogout,
         onOpenNotifications = onOpenNotifications,
+        showTopBar = currentSection != "ringkasan",
+        fullBleedContent = if (currentSection == "ringkasan") {
+            {
+                PetugasJourneyHero(
+                    account = account,
+                    tasks = tasks,
+                    incomingReportCount = newReports.size,
+                    onOpenTasks = {
+                        selectedSection = "tugas"
+                        selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
+                        activeTaskFilter = "semua"
+                        activeTaskSearch = ""
+                        incomingSearch = ""
+                    },
+                    onOpenNotifications = onOpenNotifications,
+                    onOpenProfile = { selectedSection = "profil" },
+                    onLogout = onLogout
+                )
+            }
+        } else null,
         bottomBar = { PetugasNavigationBar(currentSection) { selectedSection = it } },
         backgroundContent = { PetugasThemeBackdrop(Modifier.fillMaxSize()) }
     ) {
-        if (currentSection == "ringkasan") {
-            PetugasJourneyHero(
-                name = account.name,
-                tasks = tasks,
-                incomingReportCount = newReports.size,
-                isInitialLoading = isInitialLoading,
-                onOpenTasks = {
-                    selectedSection = "tugas"
-                    selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
-                    activeTaskFilter = "semua"
-                    activeTaskSearch = ""
-                    incomingSearch = ""
-                }
-            )
-        }
-        if (currentSection == "ringkasan" || currentSection == "tugas") {
-            PetugasAssistantEntry(onClick = { showAssistantDialog = true })
-        }
         if (currentSection != "profil") {
             if (sectionDataHasLoadError && !sectionDataIsEmpty) {
                 PetugasLoadFailure(
@@ -4396,10 +4398,51 @@ fun PetugasTasksScreen(
                     if (summaryUnavailable) {
                         PetugasLoadFailure("Ringkasan belum dapat dimuat.", onRefresh)
                     } else {
-                        if (activeTasks.isNotEmpty()) PetugasOperationalOverview(tasks)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text("Ruang kerja Petugas", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Tugas, armada, dan progres kerja", color = AppTextMuted, fontSize = 12.sp)
+                            }
+                            TextButton(
+                                onClick = {
+                                    selectedSection = "tugas"
+                                    selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
+                                },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                            ) {
+                                Text("Semua tugas  ›", color = LoginAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(78.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            AdminTaskTile("Laporan", Icons.Filled.Inbox, TaskAmber, Modifier.weight(1f)) {
+                                selectedSection = "tugas"
+                                selectedWorkArea = "laporan"
+                            }
+                            AdminTaskTile("Tugas", Icons.Rounded.TaskAlt, TaskPurple, Modifier.weight(1f)) {
+                                selectedSection = "tugas"
+                                selectedWorkArea = "aktif"
+                            }
+                            AdminTaskTile("Armada", Icons.Filled.LocalShipping, TaskTeal, Modifier.weight(1f)) {
+                                selectedSection = "tugas"
+                                selectedWorkArea = "armada"
+                            }
+                            AdminTaskTile("Riwayat", Icons.Rounded.History, TaskGreen, Modifier.weight(1f)) {
+                                selectedSection = "riwayat"
+                                showingTaskArchive = false
+                            }
+                        }
+                        PetugasOperationalOverview(tasks)
+                        PetugasAssistantEntry(onClick = { showAssistantDialog = true })
                         when {
                             nextTask != null -> {
-                                SectionTitle(
+                                AdminSectionHeading(
+                                    "PETUGAS · PRIORITAS",
                                     "Lanjutkan pekerjaan",
                                     if (nextTask.completionStatus == "perlu_perbaikan") {
                                         "Admin meminta perbaikan bukti. Tugas ini perlu ditangani lebih dulu."
@@ -4432,7 +4475,7 @@ fun PetugasTasksScreen(
                                 }
                             }
                             nextReport != null -> {
-                                SectionTitle("Laporan baru", "Tinjau laporan warga dan siapkan penanganannya.")
+                                AdminSectionHeading("PETUGAS · ANTREAN", "Laporan baru", "Tinjau laporan warga dan siapkan penanganannya.")
                                 AdminReportCard(
                                     report = nextReport,
                                     onOpenPhoto = onOpenPhoto,
@@ -4447,7 +4490,8 @@ fun PetugasTasksScreen(
                                 )
                             }
                             tasksWaitingForAdmin.isNotEmpty() -> {
-                                SectionTitle(
+                                AdminSectionHeading(
+                                    "PETUGAS · TINJAUAN",
                                     "Bukti menunggu Admin",
                                     "${tasksWaitingForAdmin.size} tugas sudah dikirim untuk diperiksa. Petugas tidak perlu mengirim ulang."
                                 )
@@ -4476,6 +4520,14 @@ fun PetugasTasksScreen(
             }
 
             "tugas" -> {
+                val workAreaHeading = when (selectedWorkArea) {
+                    "laporan" -> "Laporan masuk" to "Tinjau laporan warga dan siapkan armada serta TPA tujuan."
+                    "aktif" -> "Tugas aktif" to "Lihat langkah kerja berikutnya dan kirim bukti penyelesaian."
+                    "armada" -> "Armada" to "Periksa kapasitas dan kondisi sebelum menerima laporan."
+                    "perbaikan" -> "Proses perbaikan" to "Catat penyebab, progres, lalu kirim hasil untuk ditinjau Admin."
+                    else -> "TPA" to "Pantau kapasitas tujuan sebelum mengatur pengangkutan."
+                }
+                AdminSectionHeading("PETUGAS · OPERASIONAL", workAreaHeading.first, workAreaHeading.second)
                 PetugasFilterGrid(
                     choices = listOf(
                         PetugasFilterOption("laporan", "Masuk", newReports.size),
@@ -4493,7 +4545,6 @@ fun PetugasTasksScreen(
                 )
                 when (selectedWorkArea) {
                     "laporan" -> {
-                        SectionTitle("Laporan masuk", "Pilih laporan untuk menentukan armada dan TPA tujuan.")
                         PetugasQueueSearch(
                             query = incomingSearch,
                             onQueryChange = { incomingSearch = it.take(100) },
@@ -4530,7 +4581,6 @@ fun PetugasTasksScreen(
                     }
 
                     "aktif" -> {
-                        SectionTitle("Tugas aktif", "Antrean diprioritaskan berdasarkan langkah kerja berikutnya.")
                         PetugasQueueSearch(
                             query = activeTaskSearch,
                             onQueryChange = { activeTaskSearch = it.take(100) },
@@ -4587,25 +4637,14 @@ fun PetugasTasksScreen(
                         val activeRepairs = vehicleRepairs.filter { it.status !in setOf("selesai", "ditolak") }
                         val repairHistory = vehicleRepairs.filter { it.status in setOf("selesai", "ditolak") }
                         val visibleRepairs = if (showingRepairHistory) repairHistory else activeRepairs
-                        SectionTitle(
-                            "Proses perbaikan",
-                            "Catat penyebab, tulis progres, lalu kirim hasil untuk diperiksa Admin."
+                        PetugasFilterGrid(
+                            choices = listOf(
+                                PetugasFilterOption("berjalan", "Berjalan", activeRepairs.size),
+                                PetugasFilterOption("riwayat", "Riwayat", repairHistory.size)
+                            ),
+                            selectedKey = if (showingRepairHistory) "riwayat" else "berjalan",
+                            onSelect = { showingRepairHistory = it == "riwayat" }
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf(
-                                false to "Berjalan · ${activeRepairs.size}",
-                                true to "Riwayat · ${repairHistory.size}"
-                            ).forEach { (history, label) ->
-                                TextButton(
-                                    onClick = { showingRepairHistory = history },
-                                    colors = ButtonDefaults.textButtonColors(
-                                        contentColor = if (showingRepairHistory == history) LoginAccent else LoginMuted,
-                                        containerColor = if (showingRepairHistory == history) RoleAccentSurface else AppSurface
-                                    ),
-                                    shape = RoundedCornerShape(13.dp)
-                                ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
-                            }
-                        }
                         if (isInitialLoading && vehicleRepairs.isEmpty()) {
                             PetugasLoadingState("Memuat perbaikan", "Mengambil status laporan kerusakan.")
                         } else if (vehicleRepairs.isEmpty() && hasLoadError("Perbaikan armada")) {
@@ -4629,8 +4668,8 @@ fun PetugasTasksScreen(
                                                 Text("Minta pemeriksaan", color = LoginAccent, fontWeight = FontWeight.SemiBold)
                                             }
                                         }
-                                        "menunggu_persetujuan" -> Text("Menunggu persetujuan Admin", color = AppTextMuted, fontSize = 11.sp)
-                                        "menunggu_pemeriksaan" -> Text("Hasil dikirim · menunggu pemeriksaan Admin", color = AppTextMuted, fontSize = 11.sp)
+                                        "menunggu_persetujuan" -> Text("Menunggu persetujuan Admin", color = AppTextMuted, fontSize = 13.sp)
+                                        "menunggu_pemeriksaan" -> Text("Hasil dikirim · menunggu pemeriksaan Admin", color = AppTextMuted, fontSize = 13.sp)
                                     }
                                 }
                             }
@@ -4638,7 +4677,6 @@ fun PetugasTasksScreen(
                     }
 
                     "armada" -> {
-                        SectionTitle("Armada", "Periksa kapasitas dan kondisi sebelum menerima laporan.")
                         AppButton("＋ Tambah kendaraan", { showVehicleForm = true }, containerColor = LoginAccent)
                         if (isInitialLoading && vehicles.isEmpty()) {
                             PetugasLoadingState("Memuat armada", "Mengambil data kendaraan dari server.")
@@ -4655,21 +4693,22 @@ fun PetugasTasksScreen(
                             }
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Column(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                            Text(vehicle.plate, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(vehicle.plate, color = AppText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                                             Text(
                                                 "${vehicle.loadKg.pretty()} kg terisi · ${vehicle.reservedKg.pretty()} kg dipesan dari ${vehicle.capacityKg.pretty()} kg · ${vehicle.condition}",
                                                 color = AppTextMuted,
-                                                fontSize = 10.sp
+                                                fontSize = 12.sp,
+                                                lineHeight = 17.sp
                                             )
-                                            Text("Rute: ${vehicle.route.ifBlank { "Belum ditentukan" }}", color = AppTextMuted, fontSize = 11.sp)
+                                            Text("Rute: ${vehicle.route.ifBlank { "Belum ditentukan" }}", color = AppTextMuted, fontSize = 13.sp)
                                         }
                                         TextButton(onClick = { editingVehicle = vehicle; showVehicleForm = true }) {
-                                            Text("Ubah", color = LoginAccent, fontSize = 11.sp)
+                                            Text("Ubah", color = LoginAccent, fontSize = 13.sp)
                                         }
                                     }
                                     if (isFull) {
@@ -4688,11 +4727,11 @@ fun PetugasTasksScreen(
                                     }
                                     if (openRepair != null) {
                                         TextButton(onClick = { selectedWorkArea = "perbaikan" }) {
-                                            Text("Lihat proses · ${openRepair.statusLabel}  ›", color = RoleOrange, fontSize = 11.sp)
+                                            Text("Lihat proses · ${openRepair.statusLabel}  ›", color = RoleOrange, fontSize = 13.sp)
                                         }
                                     } else if (vehicle.condition.equals("baik", true) || vehicle.condition.equals("rusak", true)) {
                                         TextButton(onClick = { reportingDamageVehicle = vehicle }) {
-                                            Text("Laporkan kerusakan", color = RoleRed, fontSize = 11.sp)
+                                            Text("Laporkan kerusakan", color = RoleRed, fontSize = 13.sp)
                                         }
                                     }
                                 }
@@ -4701,7 +4740,6 @@ fun PetugasTasksScreen(
                     }
 
                     "tpa" -> {
-                        SectionTitle("TPA", "Pantau kapasitas tujuan sebelum mengatur pengangkutan.")
                         AppButton("＋ Tambah TPA", { showFacilityForm = true }, containerColor = LoginAccent)
                         if (isInitialLoading && facilities.isEmpty()) {
                             PetugasLoadingState("Memuat data TPA", "Mengambil kapasitas tujuan dari server.")
@@ -4715,22 +4753,23 @@ fun PetugasTasksScreen(
                             }
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Column(
-                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
+                                    verticalArrangement = Arrangement.spacedBy(9.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text(facility.name, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                            Text(facility.address, color = AppTextMuted, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(facility.name, color = AppText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                            Text(facility.address, color = AppTextMuted, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                         }
                                         TextButton(onClick = { editingFacility = facility; showFacilityForm = true }) {
-                                            Text("Ubah", color = LoginAccent, fontSize = 11.sp)
+                                            Text("Ubah", color = LoginAccent, fontSize = 13.sp)
                                         }
                                     }
                                     Text(
                                         "${facility.filledTon.pretty()} ton terisi · ${facility.reservedTon.pretty()} ton dicadangkan dari ${facility.capacityTon.pretty()} ton",
                                         color = AppTextMuted,
-                                        fontSize = 11.sp
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp
                                     )
                                     SoftProgress(
                                         if (facility.capacityTon > 0) {
@@ -4759,44 +4798,24 @@ fun PetugasTasksScreen(
             }
 
             "riwayat" -> {
-                Column {
-                    Text(
-                        if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
-                        color = AppText,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan" else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
-                        color = AppTextMuted,
-                        fontSize = 12.sp
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    listOf(
-                        false to "Riwayat · ${historyTasks.size}",
-                        true to "Arsip · ${archivedTasks.size}"
-                    ).forEach { (archive, label) ->
-                        TextButton(
-                            onClick = {
-                                showingTaskArchive = archive
-                                historyFilter = "semua"
-                                archiveActionError = ""
-                            },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (showingTaskArchive == archive) LoginAccent else LoginMuted,
-                                containerColor = if (showingTaskArchive == archive) LoginAccent.copy(alpha = 0.12f) else Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text(label, fontSize = 12.sp, fontWeight = if (showingTaskArchive == archive) FontWeight.SemiBold else FontWeight.Medium)
-                        }
+                AdminSectionHeading(
+                    "PETUGAS · CATATAN",
+                    if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
+                    if (showingTaskArchive) "Catatan tersimpan dan dapat dipulihkan."
+                    else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak"
+                )
+                PetugasFilterGrid(
+                    choices = listOf(
+                        PetugasFilterOption("riwayat", "Riwayat", historyTasks.size),
+                        PetugasFilterOption("arsip", "Arsip", archivedTasks.size)
+                    ),
+                    selectedKey = if (showingTaskArchive) "arsip" else "riwayat",
+                    onSelect = {
+                        showingTaskArchive = it == "arsip"
+                        historyFilter = "semua"
+                        archiveActionError = ""
                     }
-                }
+                )
                 PetugasFilterGrid(
                     choices = listOf(
                         PetugasFilterOption("semua", "Semua", historyFilterRows.size),
@@ -5441,10 +5460,10 @@ private fun PetugasAssistantEntry(onClick: () -> Unit) {
     ) {
         Icon(Icons.Filled.Search, contentDescription = null, tint = LoginAccent, modifier = Modifier.size(19.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Butuh arahan?", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text("Tanya tugas dan langkah berikutnya", color = AppTextMuted, fontSize = 11.sp)
+            Text("Butuh arahan?", color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text("Tanya tugas dan langkah berikutnya", color = AppTextMuted, fontSize = 12.sp)
         }
-        Text("Buka  ›", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text("Buka  ›", color = LoginAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -5690,382 +5709,23 @@ private fun PetugasAssignmentDialog(
 
 @Composable
 private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
-    val darkMode = LocalSmartWasteAppearance.current.darkMode
-    val compact = LocalConfiguration.current.screenWidthDp < 600
-    // Keep the full-screen canvas still between theme changes to avoid continuous GPU work.
-    val ambientPhase = 0f
-    val nightProgress by animateFloatAsState(
-        targetValue = if (darkMode) 1f else 0f,
-        animationSpec = tween(durationMillis = 760, easing = FastOutSlowInEasing),
-        label = "petugas-theme-progress"
+    val background by animateColorAsState(
+        targetValue = AppBackground,
+        animationSpec = tween(durationMillis = 820, easing = FastOutSlowInEasing),
+        label = "petugas-page-background"
     )
-
-    val sky = listOf(
-        lerp(Color(0xFFC5DDE5), Color(0xFF111C2A), nightProgress),
-        lerp(Color(0xFFE8E3D5), Color(0xFF18302F), nightProgress),
-        lerp(Color(0xFFC1D3BF), Color(0xFF10221F), nightProgress)
-    )
-    val navigationAreaHeight = 87.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-
-    Box(modifier = modifier.background(Brush.verticalGradient(sky))) {
-        Canvas(
-            modifier = Modifier.fillMaxSize().padding(bottom = navigationAreaHeight)
-        ) {
-            val width = size.width
-            val height = size.height
-            val breeze = sin(ambientPhase.toDouble()).toFloat()
-            val drift = breeze * 12.dp.toPx()
-            val mobileSceneShift = if (compact) 0.025f else 0f
-            val dayProgress = 1f - nightProgress
-            val nightPhase = ambientPhase
-
-            run {
-                val glowPulse = 0.5f + 0.5f * sin(nightPhase.toDouble()).toFloat()
-                val moon = Offset(
-                    width * (if (compact) 0.94f else 0.81f) + if (compact) 0f else drift * 0.12f,
-                    height * (if (compact) 0.11f else 0.17f)
-                )
-                val glowRadius = width * if (compact) 0.25f else (0.34f + glowPulse * 0.03f)
-                drawCircle(
-                    Brush.radialGradient(
-                        listOf(
-                            Color(0xFFDDE8C9).copy(alpha = (if (compact) 0.12f else 0.22f + glowPulse * 0.06f) * nightProgress),
-                            Color(0xFF8EB9A7).copy(alpha = (if (compact) 0.045f else 0.10f) * nightProgress),
-                            Color.Transparent
-                        ),
-                        center = moon,
-                        radius = glowRadius
-                    ),
-                    radius = glowRadius,
-                    center = moon
-                )
-                if (!compact) {
-                val moonRadius = width * 0.068f
-                val crescent = Path().apply {
-                    moveTo(moon.x + moonRadius * 0.72f, moon.y - moonRadius * 0.68f)
-                    cubicTo(
-                        moon.x - moonRadius * 0.18f, moon.y - moonRadius * 1.04f,
-                        moon.x - moonRadius * 0.88f, moon.y - moonRadius * 0.38f,
-                        moon.x - moonRadius * 0.69f, moon.y + moonRadius * 0.34f
-                    )
-                    cubicTo(
-                        moon.x - moonRadius * 0.48f, moon.y + moonRadius * 1.04f,
-                        moon.x + moonRadius * 0.34f, moon.y + moonRadius * 0.96f,
-                        moon.x + moonRadius * 0.73f, moon.y + moonRadius * 0.38f
-                    )
-                    cubicTo(
-                        moon.x + moonRadius * 0.34f, moon.y + moonRadius * 0.56f,
-                        moon.x + moonRadius * 0.02f, moon.y + moonRadius * 0.27f,
-                        moon.x + moonRadius * 0.03f, moon.y - moonRadius * 0.10f
-                    )
-                    cubicTo(
-                        moon.x + moonRadius * 0.04f, moon.y - moonRadius * 0.40f,
-                        moon.x + moonRadius * 0.31f, moon.y - moonRadius * 0.61f,
-                        moon.x + moonRadius * 0.72f, moon.y - moonRadius * 0.68f
-                    )
-                    close()
-                }
-                drawPath(
-                    crescent,
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xFFF0F1DA).copy(alpha = nightProgress),
-                            Color(0xFFC8D8BD).copy(alpha = nightProgress),
-                            Color(0xFFAFC7B0).copy(alpha = nightProgress)
-                        ),
-                        start = Offset(moon.x - moonRadius, moon.y - moonRadius),
-                        end = Offset(moon.x + moonRadius, moon.y + moonRadius)
-                    )
-                )
-                listOf(
-                    Offset(width * 0.13f, height * 0.14f),
-                    Offset(width * 0.31f, height * 0.22f),
-                    Offset(width * 0.48f, height * 0.12f),
-                    Offset(width * 0.61f, height * 0.32f),
-                    Offset(width * 0.22f, height * 0.43f),
-                    Offset(width * 0.73f, height * 0.42f)
-                ).forEachIndexed { index, star ->
-                    val twinkle = 0.28f + 0.28f * (
-                        0.5f + 0.5f * sin((nightPhase + index * 1.3f).toDouble()).toFloat()
-                    )
-                    drawCircle(Color(0xFFE5EEDC).copy(alpha = twinkle * nightProgress), (1.2f + index % 2 * 0.45f).dp.toPx(), star)
-                }
-                }
-                val horizonHaze = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color(0xFF8EB9A7).copy(alpha = (0.08f + glowPulse * 0.035f) * nightProgress),
-                        Color.Transparent
-                    ),
-                    startY = height * 0.43f,
-                    endY = height * 0.82f
-                )
-                drawRect(horizonHaze, topLeft = Offset(0f, height * 0.43f), size = Size(width, height * 0.39f))
-            }
-            run {
-                val morningGlow = Offset(
-                    width * (if (compact) 0.94f else 0.78f) + if (compact) 0f else drift * 0.12f,
-                    height * (if (compact) 0.10f else 0.22f)
-                )
-                val morningGlowRadius = width * if (compact) 0.24f else 0.36f
-                drawCircle(
-                    Brush.radialGradient(
-                        listOf(Color(0xFFF1E6CA).copy(alpha = (if (compact) 0.20f else 0.36f) * dayProgress), Color.Transparent),
-                        center = morningGlow,
-                        radius = morningGlowRadius
-                    ),
-                    radius = morningGlowRadius,
-                    center = morningGlow
-                )
-                // Soft morning clouds and a quiet breeze echo the login screen's light theme.
-                if (!compact) {
-                val cloud = Path().apply {
-                    moveTo(-width * 0.05f + drift, height * 0.21f)
-                    cubicTo(width * 0.12f + drift, height * 0.14f, width * 0.25f + drift, height * 0.27f, width * 0.40f + drift, height * 0.19f)
-                    cubicTo(width * 0.51f + drift, height * 0.14f, width * 0.61f + drift, height * 0.20f, width * 0.71f + drift, height * 0.17f)
-                    lineTo(width * 0.71f + drift, height * 0.23f)
-                    cubicTo(width * 0.47f + drift, height * 0.29f, width * 0.19f + drift, height * 0.25f, -width * 0.05f + drift, height * 0.27f)
-                    close()
-                }
-                drawPath(cloud, Color(0xFFF5F4E8).copy(alpha = 0.28f * dayProgress))
-                }
-            }
-
-            // Wetland plants and a narrow stream keep the lower scene environmental
-            // without repeating the hills and tree silhouettes from the login screen.
-            val bank = Path().apply {
-                moveTo(0f, height * (0.81f + mobileSceneShift))
-                cubicTo(width * 0.20f, height * (0.79f + mobileSceneShift), width * 0.31f, height * (0.83f + mobileSceneShift), width * 0.49f, height * (0.81f + mobileSceneShift))
-                cubicTo(width * 0.67f, height * (0.79f + mobileSceneShift), width * 0.84f, height * (0.83f + mobileSceneShift), width, height * (0.80f + mobileSceneShift))
-                lineTo(width, height)
-                lineTo(0f, height)
-                close()
-            }
-            drawPath(
-                bank,
-                lerp(
-                    Color(0xFFAAC6AF).copy(alpha = 0.58f),
-                    Color(0xFF203A31).copy(alpha = 0.82f),
-                    nightProgress
-                )
-            )
-
-            val shorelineStemColor = lerp(
-                Color(0xFF557A61).copy(alpha = 0.78f),
-                Color(0xFF8BA391).copy(alpha = 0.68f),
-                nightProgress
-            )
-            listOf(0.28f to 0.851f, 0.73f to 0.842f).forEach { (xFraction, yFraction) ->
-                val stemTop = Offset(width * xFraction, height * yFraction + 2.dp.toPx())
-                val stemBottom = Offset(width * xFraction, height * (yFraction + 0.055f))
-                val stem = Path().apply {
-                    moveTo(stemTop.x, stemTop.y)
-                    cubicTo(
-                        stemTop.x - 1.5.dp.toPx(), stemTop.y + 6.dp.toPx(),
-                        stemBottom.x + 1.5.dp.toPx(), stemBottom.y - 5.dp.toPx(),
-                        stemBottom.x, stemBottom.y
-                    )
-                }
-                drawPath(
-                    stem,
-                    shorelineStemColor,
-                    style = Stroke(width = 1.2.dp.toPx(), cap = StrokeCap.Round)
-                )
-            }
-
-            val water = Path().apply {
-                moveTo(0f, height * (0.88f + mobileSceneShift))
-                cubicTo(width * 0.18f, height * (0.83f + mobileSceneShift), width * 0.33f, height * (0.92f + mobileSceneShift), width * 0.51f, height * (0.87f + mobileSceneShift))
-                cubicTo(width * 0.70f, height * (0.82f + mobileSceneShift), width * 0.84f, height * (0.90f + mobileSceneShift), width, height * (0.85f + mobileSceneShift))
-                lineTo(width, height)
-                lineTo(0f, height)
-                close()
-            }
-            val waterColors = listOf(
-                lerp(Color(0xFFB4D2CF).copy(alpha = 0.66f), Color(0xFF2B5551).copy(alpha = 0.84f), nightProgress),
-                lerp(Color(0xFF8FB8B5).copy(alpha = 0.60f), Color(0xFF142B2B).copy(alpha = 0.94f), nightProgress)
-            )
-            drawPath(water, Brush.verticalGradient(waterColors, startY = height * (0.83f + mobileSceneShift), endY = height))
-            val waterEdge = Path().apply {
-                moveTo(0f, height * (0.88f + mobileSceneShift))
-                cubicTo(width * 0.18f, height * (0.83f + mobileSceneShift), width * 0.33f, height * (0.92f + mobileSceneShift), width * 0.51f, height * (0.87f + mobileSceneShift))
-                cubicTo(width * 0.70f, height * (0.82f + mobileSceneShift), width * 0.84f, height * (0.90f + mobileSceneShift), width, height * (0.85f + mobileSceneShift))
-            }
-            drawPath(
-                waterEdge,
-                lerp(
-                    Color(0xFFE6EEE0).copy(alpha = 0.48f),
-                    Color(0xFFB1D1C3).copy(alpha = 0.40f),
-                    nightProgress
-                ),
-                style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
-            )
-
-            val waterPhase = ambientPhase
-            val reflectionPulse = 0.5f + 0.5f * sin(waterPhase.toDouble()).toFloat()
-            val reflectionAlpha = 0.12f + (0.05f + 0.02f * nightProgress) * reflectionPulse
-            listOf(
-                Triple(0.67f, 0.875f + mobileSceneShift, 0.09f),
-                Triple(0.76f, 0.91f + mobileSceneShift, 0.12f),
-                Triple(0.62f, 0.94f + mobileSceneShift, 0.10f),
-                Triple(0.82f, 0.96f + mobileSceneShift, 0.07f)
-            ).forEachIndexed { index, (x, y, length) ->
-                val rippleShift = sin((waterPhase + index * 1.6f).toDouble()).toFloat() * 0.018f
-                val rippleX = (x + rippleShift).coerceIn(0.02f, 0.96f - length)
-                val ripple = Path().apply {
-                    moveTo(width * rippleX, height * y)
-                    cubicTo(
-                        width * (rippleX + length * 0.3f), height * (y - 0.004f),
-                        width * (rippleX + length * 0.65f), height * (y + 0.004f),
-                        width * (rippleX + length), height * y
-                    )
-                }
-                val reflectionColor = lerp(Color(0xFFF5F0D9), Color(0xFFD6E8D5), nightProgress)
-                drawPath(
-                    ripple,
-                    reflectionColor.copy(alpha = reflectionAlpha * (1f - index * 0.12f)),
-                    style = Stroke(width = (1.1f - index * 0.1f).dp.toPx(), cap = StrokeCap.Round)
-                )
-            }
-
-            val lilyColor = lerp(
-                Color(0xFF478565).copy(alpha = 0.56f),
-                Color(0xFF91B59B).copy(alpha = 0.68f),
-                nightProgress
-            )
-            val waterCut = lerp(
-                Color(0xFFB4D2CF).copy(alpha = 0.65f),
-                Color(0xFF2B5551).copy(alpha = 0.82f),
-                nightProgress
-            )
-            val lilyPads = listOf(
-                Triple(0.16f, 0.862f + mobileSceneShift, 0.76f),
-                Triple(0.39f, 0.878f + mobileSceneShift, 1.00f),
-                Triple(0.65f, 0.847f + mobileSceneShift, 0.88f),
-                Triple(0.85f, 0.862f + mobileSceneShift, 0.70f)
-            )
-            lilyPads.forEachIndexed { index, (xFraction, yFraction, scale) ->
-                val gentleBob = sin((waterPhase + index * 1.15f).toDouble()).toFloat() * 2.2.dp.toPx()
-                val center = Offset(width * xFraction, height * yFraction + gentleBob)
-                val radiusX = width * 0.030f * scale
-                val radiusY = height * 0.011f * scale
-                val petioleEnd = Offset(center.x + radiusX * 0.24f, height * 0.985f)
-                val petiole = Path().apply {
-                    moveTo(center.x, center.y + radiusY * 0.20f)
-                    cubicTo(
-                        center.x - radiusX * 0.30f, center.y + radiusY * 2.8f,
-                        petioleEnd.x + radiusX * 0.28f, petioleEnd.y - height * 0.10f,
-                        petioleEnd.x, petioleEnd.y
-                    )
-                }
-                drawPath(
-                    petiole,
-                    lerp(
-                        Color(0xFF47765E).copy(alpha = 0.32f),
-                        Color(0xFF9AB4A1).copy(alpha = 0.30f),
-                        nightProgress
-                    ),
-                    style = Stroke(width = 1.05.dp.toPx(), cap = StrokeCap.Round)
-                )
-                val pad = Path().apply {
-                    moveTo(center.x, center.y)
-                    cubicTo(
-                        center.x + radiusX * 0.20f, center.y - radiusY * 0.70f,
-                        center.x + radiusX * 0.86f, center.y - radiusY * 0.62f,
-                        center.x + radiusX, center.y
-                    )
-                    cubicTo(
-                        center.x + radiusX * 0.86f, center.y + radiusY * 0.95f,
-                        center.x - radiusX * 0.86f, center.y + radiusY * 0.95f,
-                        center.x - radiusX, center.y
-                    )
-                    cubicTo(
-                        center.x - radiusX * 0.86f, center.y - radiusY * 0.62f,
-                        center.x - radiusX * 0.20f, center.y - radiusY * 0.70f,
-                        center.x, center.y
-                    )
-                    close()
-                }
-                drawPath(pad, lilyColor)
-                drawLine(
-                    waterCut,
-                    center,
-                    Offset(center.x + radiusX * 0.25f, center.y - radiusY * 0.36f),
-                    strokeWidth = 1.15.dp.toPx()
-                )
-                drawLine(
-                    lilyColor.copy(alpha = 0.72f),
-                    Offset(center.x - radiusX * 0.72f, center.y + radiusY * 0.36f),
-                    Offset(center.x, center.y + radiusY * 0.78f),
-                    strokeWidth = 0.8.dp.toPx()
-                )
-            }
-
-            val flowerColor = lerp(
-                Color(0xFFF1E9D6).copy(alpha = 0.94f),
-                Color(0xFFD9D8C2).copy(alpha = 0.86f),
-                nightProgress
-            )
-            val flowerCenterColor = lerp(
-                Color(0xFFC2A46B).copy(alpha = 0.88f),
-                Color(0xFFC2AE7D).copy(alpha = 0.82f),
-                nightProgress
-            )
-            listOf(
-                0.28f to (0.851f + mobileSceneShift),
-                0.73f to (0.842f + mobileSceneShift)
-            ).forEachIndexed { index, (xFraction, yFraction) ->
-                val flowerBob = sin((waterPhase + index * 1.8f).toDouble()).toFloat() * 1.5.dp.toPx()
-                val flower = Offset(width * xFraction, height * yFraction + flowerBob)
-                val petalRadius = 4.dp.toPx()
-                val petalDistance = 4.dp.toPx()
-                repeat(6) { petal ->
-                    val angle = (petal * 60f - 90f) * PI.toFloat() / 180f
-                    val petalCenter = Offset(
-                        flower.x + cos(angle) * petalDistance,
-                        flower.y + sin(angle) * petalDistance
-                    )
-                    drawOval(
-                        flowerColor,
-                        topLeft = Offset(petalCenter.x - petalRadius, petalCenter.y - petalRadius * 0.72f),
-                        size = Size(petalRadius * 2f, petalRadius * 1.44f)
-                    )
-                }
-                drawCircle(flowerCenterColor, 1.7.dp.toPx(), flower)
-            }
-            if (nightProgress > 0.01f) {
-                listOf(
-                    Offset(width * 0.22f + drift * 0.4f, height * 0.70f),
-                    Offset(width * 0.76f - drift * 0.3f, height * 0.75f),
-                    Offset(width * 0.48f + drift * 0.25f, height * 0.81f)
-                ).forEachIndexed { index, firefly ->
-                    val shimmer = 0.22f + 0.20f * (
-                        0.5f + 0.5f * sin((nightPhase + index * 2f).toDouble()).toFloat()
-                    )
-                    val fireflyGlow = width * 0.035f
-                    drawCircle(
-                        Brush.radialGradient(
-                            listOf(Color(0xFFC8D8A2).copy(alpha = shimmer * 0.55f * nightProgress), Color.Transparent),
-                            center = firefly,
-                            radius = fireflyGlow
-                        ),
-                        radius = fireflyGlow,
-                        center = firefly
-                    )
-                    drawCircle(Color(0xFFD5DDAA).copy(alpha = shimmer * nightProgress), 1.4.dp.toPx(), firefly)
-                }
-            }
-        }
-    }
+    Box(modifier.background(background))
 }
 
 @Composable
 private fun PetugasJourneyHero(
-    name: String,
+    account: UserAccount,
     tasks: List<WasteRecord>,
     incomingReportCount: Int,
-    isInitialLoading: Boolean,
-    onOpenTasks: () -> Unit
+    onOpenTasks: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    onOpenProfile: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val isDark = LocalSmartWasteAppearance.current.darkMode
     val assigned = tasks.count { it.status == WasteFlow.ASSIGNED }
@@ -6075,151 +5735,188 @@ private fun PetugasJourneyHero(
     }
     val needsRevision = tasks.count {
         (it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED) &&
-                it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
+            it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
     }
     val inRoute = tasks.count {
         it.status == WasteFlow.TRANSPORTED &&
-                !it.completionStatus.equals("menunggu", ignoreCase = true) &&
-                !it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
+            !it.completionStatus.equals("menunggu", ignoreCase = true) &&
+            !it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
     }
     val completed = tasks.count { it.status == WasteFlow.DONE }
+    val active = assigned + transported
     val needsAttention = waitingAdmin + needsRevision
     val total = tasks.count {
         it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED || it.status == WasteFlow.DONE
     }
-    val active = assigned + transported
-    val progress = if (total == 0) 0 else (completed * 100 / total)
-    val displayName = name.displayPersonName().ifBlank { "Petugas" }
-    val readyTint = if (isDark) Color(0xFFB7C99E) else Color(0xFF5C805E)
-    val routeTint = if (isDark) Color(0xFF9FC1B6) else Color(0xFF4E7D73)
-    val attentionTint = if (isDark) Color(0xFFD3BA8C) else Color(0xFF9A7746)
+    val progressFraction = if (total > 0) (completed.toFloat() / total).coerceIn(0f, 1f) else 0f
     val workSummary = when {
-        isInitialLoading -> "Memuat tugas dan laporan terbaru."
-        needsRevision > 0 -> "$needsRevision bukti perlu diperbaiki. Dahulukan pemeriksaan ini."
-        waitingAdmin > 0 && inRoute > 0 -> "$inRoute muatan dalam rute · $waitingAdmin bukti menunggu Admin."
-        waitingAdmin > 0 -> "$waitingAdmin bukti menunggu pemeriksaan Admin."
-        inRoute > 0 -> "$inRoute muatan sedang menuju TPA."
-        assigned > 0 && incomingReportCount > 0 ->
-            "$assigned tugas siap angkut · $incomingReportCount laporan baru menunggu."
-        assigned > 0 -> "$assigned tugas siap dibawa. Pilih yang paling dekat untuk dimulai."
-        incomingReportCount > 0 -> "$incomingReportCount laporan baru menunggu penugasan."
-        else -> "Belum ada tugas aktif. Cek antrean laporan saat ada waktu."
+        needsRevision > 0 -> "$needsRevision bukti perlu diperbaiki"
+        waitingAdmin > 0 -> "$waitingAdmin bukti menunggu Admin"
+        inRoute > 0 -> "$inRoute muatan sedang diantar ke TPA"
+        assigned > 0 -> "$assigned tugas siap diangkut"
+        incomingReportCount > 0 -> "$incomingReportCount laporan baru menunggu"
+        else -> "Tidak ada pekerjaan tertunda"
     }
     val actionLabel = when {
         active > 0 -> "Lanjutkan tugas"
         incomingReportCount > 0 -> "Tinjau laporan"
         else -> "Buka antrean"
     }
+    val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val heroHeaderHeight = statusBarInset + 64.dp
+    val heroHeight = 318.dp + heroHeaderHeight
+    val contentWidth = if (LocalConfiguration.current.screenWidthDp < 360) 0.76f else 0.70f
+    val bannerText = Color(0xFFF5F4E8)
+    val bannerMuted = Color(0xFFE2E9D9)
+    val statusSurface = Color(0xFF102D22).copy(alpha = if (isDark) 0.76f else 0.64f)
+    val readyTint = if (isDark) Color(0xFFC6D7A6) else Color(0xFFD8E8C5)
+    val routeTint = if (isDark) Color(0xFFA8D0C2) else Color(0xFFB9DED0)
+    val attentionTint = if (isDark) Color(0xFFE3C98E) else Color(0xFFFFD28A)
 
-    val progressFraction = if (total > 0) (completed.toFloat() / total).coerceIn(0f, 1f) else 0f
-    val detailText = AppText
-    val detailMuted = AppTextMuted
-    val progressTint = if (isDark) Color(0xFFABC49B) else Color(0xFF52765B)
-    val progressTrack = if (isDark) Color(0xFF3A4A40) else Color(0xFFDCE4D8)
-    val activeBadgeTint = if (isDark) Color(0xFF9CC6A6) else Color(0xFF24734D)
-
-    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
-            verticalArrangement = Arrangement.spacedBy(11.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
-                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp))
-                        .background(progressTint.copy(alpha = 0.13f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = progressTint, modifier = Modifier.size(20.dp))
-                }
-                Text(
-                    "RUANG KERJA · PETUGAS",
-                    modifier = Modifier.weight(1f),
-                    color = detailMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.4.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Box(
-                    modifier = Modifier.clip(RoundedCornerShape(50.dp))
-                        .background(activeBadgeTint.copy(alpha = 0.12f))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        "$active aktif",
-                        color = activeBadgeTint,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
+    Box(
+        modifier = Modifier.fillMaxWidth()
+            .height(heroHeight)
+            .clip(HeroBottomCurveShape)
+            .background(if (isDark) Color(0xFF1C3025) else Color(0xFF286B4D))
+    ) {
+        val illustrationBitmap = ImageBitmap.imageResource(R.drawable.hero_recycling_crew)
+        val illustrationPainter = remember(illustrationBitmap) {
+            BitmapPainter(illustrationBitmap, filterQuality = FilterQuality.High)
+        }
+        Image(
+            painter = illustrationPainter,
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.align(Alignment.BottomEnd)
+                .height(heroHeight)
+                .aspectRatio(260f / 280f)
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.horizontalGradient(*heroFadeStops(0f, 0.28f)),
+                        blendMode = BlendMode.DstIn
                     )
                 }
-            }
+        )
+        val textSideShade = if (isDark) Color(0xFF17271E) else Color(0xFF103F30)
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(
+                    0f to textSideShade.copy(alpha = 0.86f),
+                    0.48f to textSideShade.copy(alpha = 0.62f),
+                    0.76f to Color.Transparent,
+                    1f to Color.Transparent
+                )
+            )
+        )
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 20.dp, vertical = 11.dp)
+        ) {
+            AdminTopBar(
+                account = account,
+                onLogout = onLogout,
+                onOpenProfile = onOpenProfile,
+                onOpenNotifications = onOpenNotifications,
+                isOnHero = true
+            )
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth(contentWidth)
+                .align(Alignment.TopStart)
+                .padding(start = 18.dp, top = heroHeaderHeight + 10.dp, bottom = 22.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Text(
-                "Halo, $displayName",
-                color = AppText,
-                fontSize = 20.sp,
-                lineHeight = 25.sp,
-                fontWeight = FontWeight.Bold,
+                "RUANG KERJA · PETUGAS",
+                color = bannerMuted,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.55.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                workSummary,
-                color = detailMuted,
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-                maxLines = 2,
+                "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
+                color = bannerText,
+                fontSize = 22.sp,
+                lineHeight = 27.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            AppCardDivider()
             Row(
-                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                PetugasHeroStat(assigned.toString(), "Siap angkut", readyTint, detailMuted, Modifier.weight(1f))
-                PetugasHeroStat(inRoute.toString(), "Dalam rute", routeTint, detailMuted, Modifier.weight(1f))
-                PetugasHeroStat(needsAttention.toString(), "Perlu dicek", attentionTint, detailMuted, Modifier.weight(1f))
-            }
-            AppCardDivider()
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Penyelesaian", color = detailMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    active.toString(),
+                    color = bannerText,
+                    fontSize = 39.sp,
+                    lineHeight = 45.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("tugas aktif", color = bannerText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(
-                        when {
-                            isInitialLoading -> "Memperbarui antrean…"
-                            total > 0 -> "$completed dari $total selesai · $progress%"
-                            else -> "Belum ada pekerjaan yang selesai"
-                        },
-                        color = detailText,
+                        workSummary,
+                        color = bannerMuted,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        lineHeight = 16.sp,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PetugasHeroStat(assigned.toString(), "Siap angkut", readyTint, bannerMuted, Modifier.weight(1f))
+                PetugasHeroStat(inRoute.toString(), "Dalam rute", routeTint, bannerMuted, Modifier.weight(1f))
+                PetugasHeroStat(needsAttention.toString(), "Perlu dicek", attentionTint, bannerMuted, Modifier.weight(1f))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(statusSurface)
+                    .padding(start = 13.dp, end = 7.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(
+                        if (total > 0) "$completed dari $total selesai · ${completed * 100 / total}%" else "Belum ada pekerjaan selesai",
+                        color = bannerText,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(5.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.18f))
+                    ) {
+                        if (progressFraction > 0f) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(progressFraction).fillMaxHeight()
+                                    .clip(CircleShape)
+                                    .background(readyTint)
+                            )
+                        }
+                    }
+                }
                 TextButton(
                     onClick = onOpenTasks,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 8.dp, end = 0.dp, top = 4.dp, bottom = 4.dp)
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 7.dp, vertical = 5.dp)
                 ) {
-                    Text("$actionLabel  ›", color = progressTint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
-            Box(
-                modifier = Modifier.fillMaxWidth().height(6.dp)
-                    .clip(CircleShape)
-                    .background(progressTrack)
-            ) {
-                if (progressFraction > 0f) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(progressFraction).fillMaxHeight()
-                            .background(progressTint)
-                    )
+                    Text("$actionLabel  ›", color = bannerText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
             }
         }
@@ -6234,11 +5931,11 @@ private fun PetugasHeroStat(
     labelColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(value, color = tint, fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(value, color = tint, fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             Box(Modifier.size(6.dp).clip(CircleShape).background(tint))
-            Text(label, color = labelColor, fontSize = 10.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, color = labelColor, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -6256,8 +5953,8 @@ private fun PetugasOperationalOverview(tasks: List<WasteRecord>) {
 
     AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 17.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
@@ -6268,15 +5965,15 @@ private fun PetugasOperationalOverview(tasks: List<WasteRecord>) {
                     Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Ringkasan muatan", color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Pekerjaan yang sedang kamu tangani", color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                    Text("Ringkasan muatan", color = AppText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Pekerjaan yang sedang kamu tangani", color = AppTextMuted, fontSize = 13.sp, lineHeight = 18.sp)
                 }
             }
             AppCardDivider()
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(activeWeight.pretty(), color = AppText, fontSize = 26.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
+                Text(activeWeight.pretty(), color = AppText, fontSize = 28.sp, lineHeight = 33.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(6.dp))
-                Text("kg muatan aktif", color = AppTextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+                Text("kg muatan aktif", color = AppTextMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 5.dp))
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 PetugasSummaryFact(
@@ -6295,12 +5992,12 @@ private fun PetugasOperationalOverview(tasks: List<WasteRecord>) {
             AppCardDivider()
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 Icon(Icons.Filled.Place, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
-                Text("Tujuan", color = AppTextMuted, fontSize = 12.sp)
+                Text("Tujuan", color = AppTextMuted, fontSize = 13.sp)
                 Text(
                     destination ?: "Belum ditentukan",
                     modifier = Modifier.weight(1f),
                     color = AppText,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -6318,7 +6015,7 @@ private fun PetugasSummaryFact(icon: ImageVector, text: String, tint: Color, mod
         horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
-        Text(text, color = AppTextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, color = AppTextMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -6334,24 +6031,16 @@ private fun PetugasFilterGrid(
     selectedKey: String,
     onSelect: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        choices.chunked(3).forEach { rowChoices ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                val sideSpace = (3 - rowChoices.size) / 2f
-                if (sideSpace > 0f) Spacer(modifier = Modifier.weight(sideSpace))
-                rowChoices.forEach { choice ->
-                    PetugasFilterChoice(
-                        choice = choice,
-                        selected = choice.key == selectedKey,
-                        onSelect = onSelect,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (sideSpace > 0f) Spacer(modifier = Modifier.weight(sideSpace))
-            }
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        choices.forEach { choice ->
+            PetugasFilterChoice(
+                choice = choice,
+                selected = choice.key == selectedKey,
+                onSelect = onSelect
+            )
         }
     }
 }
@@ -6360,33 +6049,24 @@ private fun PetugasFilterGrid(
 private fun PetugasFilterChoice(
     choice: PetugasFilterOption,
     selected: Boolean,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onSelect: (String) -> Unit
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(15.dp)
     val containerColor by animateColorAsState(
-        targetValue = if (selected) {
-            LoginAccent.copy(alpha = if (IsNightAdmin) 0.26f else 0.15f)
-        } else {
-            AppSurface.copy(alpha = if (IsNightAdmin) 0.68f else 0.74f)
-        },
+        targetValue = if (selected) LoginAccent else AppSurfaceMuted,
         animationSpec = tween(280, easing = FastOutSlowInEasing),
         label = "petugas-filter-${choice.key}-surface"
     )
     val titleColor by animateColorAsState(
-        targetValue = if (selected) LoginAccent else AppText,
+        targetValue = if (selected) Color.White else AppText,
         animationSpec = tween(240, easing = FastOutSlowInEasing),
         label = "petugas-filter-${choice.key}-title"
     )
-    val countColor by animateColorAsState(
-        targetValue = if (selected) LoginAccent else AppTextMuted,
-        animationSpec = tween(240, easing = FastOutSlowInEasing),
-        label = "petugas-filter-${choice.key}-count"
-    )
 
-    Column(
-        modifier = modifier
-            .heightIn(min = 58.dp)
+    Box(
+        modifier = Modifier
+            .heightIn(min = 44.dp)
+            .widthIn(min = 82.dp)
             .clip(shape)
             .background(containerColor)
             .selectable(
@@ -6394,26 +6074,18 @@ private fun PetugasFilterChoice(
                 role = Role.Tab,
                 onClick = { onSelect(choice.key) }
             )
-            .padding(horizontal = 9.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.Center
+            .padding(horizontal = 13.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = choice.label,
+            text = "${choice.label} · ${choice.count}",
             color = titleColor,
             fontFamily = InterFont,
             fontSize = 12.sp,
-            lineHeight = 15.sp,
+            lineHeight = 16.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = "${choice.count} data",
-            color = countColor,
-            fontFamily = InterFont,
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
         )
     }
 }
@@ -6713,10 +6385,10 @@ private fun PetugasTaskCard(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(
-                horizontal = if (compactHistory) 14.dp else 16.dp,
-                vertical = if (compactHistory) 13.dp else 16.dp
+                horizontal = if (compactHistory) 16.dp else 18.dp,
+                vertical = if (compactHistory) 15.dp else 18.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 8.dp else 10.dp)
+            verticalArrangement = Arrangement.spacedBy(if (compactHistory) 10.dp else 12.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -6724,7 +6396,7 @@ private fun PetugasTaskCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(40.dp)
                         .clip(RoundedCornerShape(13.dp))
                         .background(statusAccent.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
@@ -6737,8 +6409,8 @@ private fun PetugasTaskCard(
                     )
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(report.code, color = AppText, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold)
-                    Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                    Text(report.code, color = AppText, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 13.sp, lineHeight = 18.sp)
                 }
                 StatusPill(report.status, statusAccent)
             }
@@ -6748,8 +6420,8 @@ private fun PetugasTaskCard(
                     report.location.ifBlank { "Lokasi belum dicatat" },
                     modifier = Modifier.weight(1f),
                     color = AppTextMuted,
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -6760,12 +6432,12 @@ private fun PetugasTaskCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("ARMADA", color = AppTextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text("ARMADA", color = AppTextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text("TPA TUJUAN", color = AppTextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (!isRejected) AppCardDivider()
@@ -6778,19 +6450,19 @@ private fun PetugasTaskCard(
                 Text(
                     historyNote,
                     color = if (isComplete) statusAccent else AppTextMuted,
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(guidanceTitle, color = guidanceAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(guidanceTitle, color = guidanceAccent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         guidanceMessage,
                         color = AppTextMuted,
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -6896,7 +6568,7 @@ private fun PetugasTaskCard(
                     }
 
                 report.status == WasteFlow.TRANSPORTED && onComplete != null && waitingForAdmin ->
-                    Text("Bukti sudah dikirim. Menunggu pemeriksaan Admin.", color = guidanceAccent, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    Text("Bukti sudah dikirim. Menunggu pemeriksaan Admin.", color = guidanceAccent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
 
                 report.status == WasteFlow.TRANSPORTED && onComplete != null ->
                     Button(
@@ -7086,38 +6758,45 @@ private fun searchSuggestions(source: List<String>, query: String): List<String>
 
 @Composable
 private fun PetugasLoadingState(title: String, message: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(21.dp),
-            color = LoginAccent,
-            strokeWidth = 2.dp
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text(message, color = AppTextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(17.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(23.dp),
+                color = LoginAccent,
+                strokeWidth = 2.dp
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(message, color = AppTextMuted, fontSize = 13.sp, lineHeight = 18.sp)
+            }
         }
     }
 }
 
 @Composable
 private fun PetugasLoadFailure(message: String, onRefresh: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(RoleRed.copy(alpha = 0.08f))
-            .padding(start = 12.dp, end = 7.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = RoleRed.copy(alpha = 0.08f),
+        borderColor = RoleRed.copy(alpha = 0.24f),
+        accentColor = RoleRed
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Belum tersinkron", color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text(message, color = AppTextMuted, fontSize = 11.sp, lineHeight = 15.sp)
-        }
-        TextButton(onClick = onRefresh) {
-            Text("Coba lagi", color = LoginAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 15.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Belum tersinkron", color = AppText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(message, color = AppTextMuted, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+            TextButton(onClick = onRefresh) {
+                Text("Coba lagi", color = LoginAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
@@ -7126,17 +6805,22 @@ private fun PetugasLoadFailure(message: String, onRefresh: () -> Unit) {
 private fun PetugasEmptyState(title: String, message: String) {
     val isDark = LocalSmartWasteAppearance.current.darkMode
     val accent = if (isDark) Color(0xFFB9D4BE) else Color(0xFF286947)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 2.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Icon(Icons.Filled.LocalShipping, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = AppText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text(message, color = AppTextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(17.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(accent.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Inbox, contentDescription = null, tint = accent, modifier = Modifier.size(21.dp))
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(message, color = AppTextMuted, fontSize = 13.sp, lineHeight = 19.sp)
+            }
         }
     }
 }
