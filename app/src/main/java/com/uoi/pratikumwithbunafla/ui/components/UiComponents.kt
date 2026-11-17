@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.geometry.CornerRadius
@@ -266,45 +267,61 @@ private fun SplashLogoAssembly(compactScreen: Boolean) {
                 val strokeWidth = 7.dp.toPx()
 
                 if (fragmentAlpha > 0.001f) {
-                    fun hexPoint(index: Int): Offset {
-                        val angle = (-90f + index * 60f) * (PI.toFloat() / 180f)
+                    val ringProgress = FastOutSlowInEasing.transform((progress / 0.78f).coerceIn(0f, 1f))
+                    val endpointAlpha = (1f - ringProgress) * fragmentAlpha
+                    val ringRotation = (1f - ringProgress) * 22f
+                    val ringTopLeft = Offset(center.x - radius, center.y - radius)
+                    val ringSize = Size(radius * 2f, radius * 2f)
+
+                    fun ringPoint(angle: Float): Offset {
+                        val radians = (angle + ringRotation) * (PI.toFloat() / 180f)
                         return Offset(
-                            x = center.x + cos(angle) * radius,
-                            y = center.y + sin(angle) * radius
+                            x = center.x + cos(radians) * radius,
+                            y = center.y + sin(radians) * radius
                         )
                     }
 
-                    for (index in 0 until 6) {
-                        val localProgress = (
-                            (progress - index * 0.035f) / 0.76f
-                        ).coerceIn(0f, 1f)
-                        val easedProgress = FastOutSlowInEasing.transform(localProgress)
-                        val start = hexPoint(index)
-                        val end = hexPoint(index + 1)
-                        val fragmentX = ((index % 3) - 1) * radius * 0.18f
-                        val startY = center.y - radius * 1.55f
-                        val startPoint = Offset(
-                            x = center.x + fragmentX - radius * 0.08f +
-                                (start.x - (center.x + fragmentX - radius * 0.08f)) * easedProgress,
-                            y = startY + (start.y - startY) * easedProgress
-                        )
-                        val endPoint = Offset(
-                            x = center.x + fragmentX + radius * 0.08f +
-                                (end.x - (center.x + fragmentX + radius * 0.08f)) * easedProgress,
-                            y = startY + (end.y - startY) * easedProgress
-                        )
-                        val turn = (1f - easedProgress) * if (index % 2 == 0) 28f else -28f
-
-                        rotate(turn, center) {
-                            drawLine(
-                                color = SplashLogoGreen.copy(alpha = easedProgress * fragmentAlpha),
-                                start = startPoint,
-                                end = endPoint,
-                                strokeWidth = strokeWidth,
-                                cap = StrokeCap.Round
+                    fun drawArcSegment(sweepAngle: Float) {
+                        rotate(ringRotation, center) {
+                            drawArc(
+                                color = SplashLogoGreen.copy(alpha = fragmentAlpha),
+                                startAngle = -90f,
+                                sweepAngle = sweepAngle,
+                                useCenter = false,
+                                topLeft = ringTopLeft,
+                                size = ringSize,
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                             )
                         }
+
+                        val endpoint = ringPoint(-90f + sweepAngle)
+                        drawCircle(
+                            color = SplashLogoGreen.copy(alpha = 0.32f * endpointAlpha),
+                            radius = 8.dp.toPx(),
+                            center = endpoint
+                        )
+                        drawCircle(
+                            color = SplashLogoGreen.copy(alpha = endpointAlpha),
+                            radius = 3.dp.toPx(),
+                            center = endpoint
+                        )
                     }
+
+                    val sweep = 180f * ringProgress
+                    drawArcSegment(sweep)
+                    drawArcSegment(-sweep)
+
+                    val startPoint = ringPoint(-90f)
+                    drawCircle(
+                        color = SplashLogoGreen.copy(alpha = 0.32f * endpointAlpha),
+                        radius = 8.dp.toPx(),
+                        center = startPoint
+                    )
+                    drawCircle(
+                        color = SplashLogoGreen.copy(alpha = endpointAlpha),
+                        radius = 3.dp.toPx(),
+                        center = startPoint
+                    )
                 }
             }
 
