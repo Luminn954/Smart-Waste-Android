@@ -85,7 +85,7 @@ internal object LanServerResolver {
         val hosts = localIpv4Candidates()
         if (hosts.isEmpty()) return@coroutineScope null
 
-        val semaphore = Semaphore(32)
+        val semaphore = Semaphore(64)
         val found = AtomicReference<String?>(null)
         hosts.map { host ->
             async {
@@ -114,7 +114,7 @@ internal object LanServerResolver {
                 network.interfaceAddresses.forEach addressLoop@{ interfaceAddress ->
                     val address = interfaceAddress.address as? Inet4Address ?: return@addressLoop
                     val prefixLength = interfaceAddress.networkPrefixLength.toInt()
-                    if (prefixLength !in 22..30) return@addressLoop
+                    if (prefixLength !in 21..30) return@addressLoop
 
                     val localAddress = ByteBuffer.wrap(address.address).int
                     val mask = -1 shl (32 - prefixLength)
