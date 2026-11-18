@@ -4527,6 +4527,7 @@ fun PetugasTasksScreen(
     var selectedWorkArea by rememberSaveable(account.username) { mutableStateOf("laporan") }
     var incomingSearch by rememberSaveable(account.username) { mutableStateOf("") }
     var activeTaskSearch by rememberSaveable(account.username) { mutableStateOf("") }
+    var homeSearchQuery by rememberSaveable(account.username) { mutableStateOf("") }
     var historySearch by rememberSaveable(account.username) { mutableStateOf("") }
     var activeTaskFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
     var historyFilter by rememberSaveable(account.username) { mutableStateOf("semua") }
@@ -4780,6 +4781,11 @@ fun PetugasTasksScreen(
         .sortedByDescending { it.reportedAt }
     val historyFilterRows = if (showingTaskArchive) archivedTasks.map { it.report } else historyTasks
     val newReports = incomingReports.sortedBy { it.reportedAt }
+    val homeSearchSuggestions = remember(activeTasks, newReports) {
+        (newReports + activeTasks).flatMap { report ->
+            listOf(report.code, report.location, report.type, report.vehiclePlate, report.tpaName)
+        }.filter(String::isNotBlank).distinct()
+    }
     val tasksNeedingRevision = activeTasks.filter {
         it.completionStatus.equals("perlu_perbaikan", ignoreCase = true)
     }
@@ -4888,6 +4894,22 @@ fun PetugasTasksScreen(
                         account = account,
                         tasks = tasks,
                         incomingReportCount = newReports.size,
+                        searchQuery = homeSearchQuery,
+                        searchSuggestions = homeSearchSuggestions,
+                        onSearchQueryChange = { homeSearchQuery = it.take(100) },
+                        onSubmitSearch = {
+                            val query = homeSearchQuery.trim()
+                            if (query.isNotBlank()) {
+                                val hasActiveMatch = activeTasks.any { matchesTaskSearch(it, query) }
+                                val hasIncomingMatch = newReports.any { matchesTaskSearch(it, query) }
+                                activeTaskSearch = query
+                                incomingSearch = query
+                                activeTaskFilter = "semua"
+                                selectedWorkArea = if (hasActiveMatch || !hasIncomingMatch) "aktif" else "laporan"
+                                homeSearchQuery = ""
+                                selectedSection = "tugas"
+                            }
+                        },
                         onOpenTasks = {
                             selectedSection = "tugas"
                             selectedWorkArea = if (activeTasks.isNotEmpty()) "aktif" else "laporan"
@@ -6355,14 +6377,14 @@ private fun PetugasTopBar(
     account: UserAccount,
     onOpenProfile: () -> Unit,
     onOpenNotifications: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    homeHeaderMode: Boolean = false
 ) {
     var profileMenuExpanded by remember(account.username) { mutableStateOf(false) }
     val appearance = LocalSmartWasteAppearance.current
     val compact = LocalConfiguration.current.screenWidthDp < 350
     val foreground = AppText
     val subdued = AppTextMuted
-    val roleIconTint = PetugasAccent
     val themeTint by animateColorAsState(
         targetValue = if (appearance.darkMode) Color(0xFFB8C8BA) else PetugasAccent,
         animationSpec = tween(380, easing = FastOutSlowInEasing),
@@ -6399,7 +6421,7 @@ private fun PetugasTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    account.name.displayPersonName().ifBlank { "Petugas" },
+                    if (homeHeaderMode) "Pos Petugas" else account.name.displayPersonName().ifBlank { "Petugas" },
                     color = foreground,
                     fontSize = if (compact) 13.sp else 14.sp,
                     lineHeight = 18.sp,
@@ -6409,71 +6431,94 @@ private fun PetugasTopBar(
                 )
             }
         }
-        IconButton(onClick = onOpenNotifications, modifier = Modifier.size(36.dp)) {
+        if (homeHeaderMode) {
+            PetugasThemeToggleButton(appearance.onToggleTheme, appearance.darkMode, themeTint)
+            PetugasNotificationButton(onOpenNotifications, prominent = true)
+        } else {
+            PetugasNotificationButton(onOpenNotifications)
+            Box {
+                IconButton(onClick = { profileMenuExpanded = true }, modifier = Modifier.size(38.dp)) {
+                    UserAvatar(
+                        account.name,
+                        modifier = Modifier.size(if (compact) 29.dp else 32.dp),
+                        photoUrl = account.profilePhotoUrl
+                    )
+                }
+                DropdownMenu(
+                    expanded = profileMenuExpanded,
+                    onDismissRequest = { profileMenuExpanded = false },
+                    shape = RoundedCornerShape(18.dp),
+                    containerColor = AppSurface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier.width(220.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text("Petugas aktif", color = AppTextMuted, fontSize = 11.sp)
+                        Text(account.name.displayPersonName(), color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("@${account.username}", color = AppTextMuted, fontSize = 11.sp)
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Profil petugas") },
+                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                        onClick = {
+                            profileMenuExpanded = false
+                            onOpenProfile()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Ganti akun") },
+                        leadingIcon = { Icon(Icons.Filled.SwitchAccount, contentDescription = null) },
+                        onClick = {
+                            profileMenuExpanded = false
+                            onLogout()
+                        }
+                    )
+                }
+            }
+            PetugasThemeToggleButton(appearance.onToggleTheme, appearance.darkMode, themeTint)
+        }
+    }
+}
+
+@Composable
+private fun PetugasNotificationButton(onClick: () -> Unit, prominent: Boolean = false) {
+    IconButton(onClick = onClick, modifier = Modifier.size(if (prominent) 40.dp else 36.dp)) {
+        Box(
+            modifier = Modifier
+                .size(if (prominent) 36.dp else 30.dp)
+                .clip(if (prominent) CircleShape else RoundedCornerShape(10.dp))
+                .background(AppSurfaceMuted),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 Icons.Filled.Notifications,
                 contentDescription = "Buka notifikasi",
-                tint = roleIconTint,
+                tint = PetugasAccent,
                 modifier = Modifier.size(20.dp)
             )
         }
-        Box {
-            IconButton(onClick = { profileMenuExpanded = true }, modifier = Modifier.size(38.dp)) {
-                UserAvatar(
-                    account.name,
-                    modifier = Modifier.size(if (compact) 29.dp else 32.dp),
-                    photoUrl = account.profilePhotoUrl
+    }
+}
+
+@Composable
+private fun PetugasThemeToggleButton(onToggle: () -> Unit, darkMode: Boolean, tint: Color) {
+    IconButton(onClick = onToggle, modifier = Modifier.size(36.dp)) {
+        Box(
+            modifier = Modifier.size(30.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(AppSurfaceMuted),
+            contentAlignment = Alignment.Center
+        ) {
+            Crossfade(targetState = darkMode, animationSpec = tween(340), label = "petugas-theme-icon") { dark ->
+                Icon(
+                    imageVector = if (dark) Icons.Rounded.WbSunny else Icons.Rounded.NightsStay,
+                    contentDescription = if (dark) "Aktifkan mode terang" else "Aktifkan mode gelap",
+                    tint = tint,
+                    modifier = Modifier.size(17.dp)
                 )
-            }
-            DropdownMenu(
-                expanded = profileMenuExpanded,
-                onDismissRequest = { profileMenuExpanded = false },
-                shape = RoundedCornerShape(18.dp),
-                containerColor = AppSurface,
-                tonalElevation = 0.dp,
-                shadowElevation = 8.dp
-            ) {
-                Column(
-                    modifier = Modifier.width(220.dp).padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Text("Petugas aktif", color = AppTextMuted, fontSize = 11.sp)
-                    Text(account.name.displayPersonName(), color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("@${account.username}", color = AppTextMuted, fontSize = 11.sp)
-                }
-                DropdownMenuItem(
-                    text = { Text("Profil petugas") },
-                    leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
-                    onClick = {
-                        profileMenuExpanded = false
-                        onOpenProfile()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Ganti akun") },
-                    leadingIcon = { Icon(Icons.Filled.SwitchAccount, contentDescription = null) },
-                    onClick = {
-                        profileMenuExpanded = false
-                        onLogout()
-                    }
-                )
-            }
-        }
-        IconButton(onClick = appearance.onToggleTheme, modifier = Modifier.size(36.dp)) {
-            Box(
-                modifier = Modifier.size(30.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(AppSurfaceMuted),
-                contentAlignment = Alignment.Center
-            ) {
-                Crossfade(targetState = appearance.darkMode, animationSpec = tween(340), label = "petugas-theme-icon") { dark ->
-                    Icon(
-                        imageVector = if (dark) Icons.Rounded.WbSunny else Icons.Rounded.NightsStay,
-                        contentDescription = if (dark) "Aktifkan mode terang" else "Aktifkan mode gelap",
-                        tint = themeTint,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
             }
         }
     }
@@ -6484,6 +6529,10 @@ private fun PetugasJourneyHero(
     account: UserAccount,
     tasks: List<WasteRecord>,
     incomingReportCount: Int,
+    searchQuery: String,
+    searchSuggestions: List<String>,
+    onSearchQueryChange: (String) -> Unit,
+    onSubmitSearch: () -> Unit,
     onOpenTasks: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenProfile: () -> Unit,
@@ -6524,6 +6573,8 @@ private fun PetugasJourneyHero(
         else -> "Buka antrean"
     }
     val isCompact = LocalConfiguration.current.screenWidthDp < 360
+    val isDarkMode = LocalSmartWasteAppearance.current.darkMode
+    val headerContourColor = if (isDarkMode) Color(0xFF94B0AD) else PetugasAccent
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
@@ -6535,7 +6586,8 @@ private fun PetugasJourneyHero(
                 account = account,
                 onOpenProfile = onOpenProfile,
                 onOpenNotifications = onOpenNotifications,
-                onLogout = onLogout
+                onLogout = onLogout,
+                homeHeaderMode = true
             )
         }
 
@@ -6547,38 +6599,78 @@ private fun PetugasJourneyHero(
                 .background(AppCardSurface)
                 .border(1.dp, AppBorder.copy(alpha = 0.72f), shiftCardShape)
         ) {
-            Column(
+            Box(
                 modifier = Modifier.fillMaxWidth()
-                    .background(PetugasAccent)
-                    .padding(horizontal = if (isCompact) 14.dp else 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .clip(RoundedCornerShape(topStart = 23.dp, topEnd = 23.dp))
+                    .background(AppSurfaceMuted)
             ) {
-                Text(
-                    "SHIFT HARI INI",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.76f),
-                    fontSize = 10.sp,
-                    lineHeight = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.7.sp,
-                    maxLines = 1
-                )
-                Text(
-                    "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = if (isCompact) 20.sp else 22.sp,
-                    lineHeight = 27.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    workSummary,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.86f),
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Canvas(Modifier.matchParentSize()) {
+                    val stroke = Stroke(width = 0.8.dp.toPx())
+                    repeat(8) { index ->
+                        val inset = index * 13.dp.toPx()
+                        drawOval(
+                            color = headerContourColor.copy(alpha = if (isDarkMode) 0.10f else 0.09f),
+                            topLeft = Offset(
+                                x = size.width * 0.57f - inset,
+                                y = -size.height * 0.36f - inset
+                            ),
+                            size = Size(
+                                width = size.width * 0.76f + inset * 2,
+                                height = size.height * 1.18f + inset * 2
+                            ),
+                            style = stroke
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = if (isCompact) 14.dp else 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "SHIFT HARI INI",
+                        color = PetugasAccent,
+                        fontSize = 10.sp,
+                        lineHeight = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.7.sp,
+                        maxLines = 1
+                    )
+                    Text(
+                        "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
+                        color = AppText,
+                        fontSize = if (isCompact) 20.sp else 22.sp,
+                        lineHeight = 27.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "Mau ke mana hari ini?",
+                        color = AppText,
+                        fontSize = if (isCompact) 19.sp else 21.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        workSummary,
+                        color = AppTextMuted,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    SmartWasteSearchField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        placeholder = "Cari tugas, lokasi, atau TPA",
+                        suggestionSource = searchSuggestions,
+                        modifier = Modifier.padding(top = 8.dp),
+                        onSearch = onSubmitSearch
+                    )
+                }
             }
 
             Column(
@@ -7463,7 +7555,8 @@ private fun SmartWasteSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     suggestionSource: List<String>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSearch: (() -> Unit)? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
@@ -7524,8 +7617,30 @@ private fun SmartWasteSearchField(
                         lineHeight = 20.sp
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() })
+                    keyboardActions = KeyboardActions(onSearch = {
+                        onSearch?.invoke()
+                        focusManager.clearFocus()
+                    })
                 )
+            }
+            if (onSearch != null) {
+                Box(
+                    modifier = Modifier.size(40.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(PetugasAccent)
+                        .clickable(role = Role.Button) {
+                            onSearch()
+                            focusManager.clearFocus()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = "Cari tugas",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 
