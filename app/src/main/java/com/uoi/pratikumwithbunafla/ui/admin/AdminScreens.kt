@@ -268,7 +268,7 @@ private val AdminNightPalette = DarkSmartWastePalette.copy(
 )
 
 private val PetugasDayPalette = LightSmartWastePalette.copy(
-    background = Color(0xFFF3F4F1),
+    background = Color(0xFFE4ECE5),
     surface = Color(0xFFE8ECEA),
     cardSurface = Color(0xFFFCFCFA),
     surfaceMuted = Color(0xFFE1E8E6),
