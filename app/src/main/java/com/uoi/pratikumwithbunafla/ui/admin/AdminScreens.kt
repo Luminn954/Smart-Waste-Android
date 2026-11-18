@@ -6446,6 +6446,21 @@ private fun PetugasTopBar(
         if (homeHeaderMode) {
             PetugasThemeToggleButton(appearance.onToggleTheme, appearance.darkMode, themeTint)
             PetugasNotificationButton(onOpenNotifications, prominent = true)
+            IconButton(onClick = onLogout, modifier = Modifier.size(36.dp)) {
+                Box(
+                    modifier = Modifier.size(30.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AppSurfaceMuted),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.SwitchAccount,
+                        contentDescription = "Ganti akun",
+                        tint = PetugasAccent,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
         } else {
             PetugasNotificationButton(onOpenNotifications)
             Box {
