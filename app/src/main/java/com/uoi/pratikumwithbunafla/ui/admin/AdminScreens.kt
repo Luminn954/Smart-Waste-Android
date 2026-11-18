@@ -4959,14 +4959,14 @@ fun PetugasTasksScreen(
                                     verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     Text(
-                                        "Menu kerja",
+                                        "Akses utama",
                                         color = AppText,
                                         fontSize = 16.sp,
                                         lineHeight = 21.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        "Pintasan ke tugas dan armada",
+                                        "Fokus pada laporan masuk dan tugas aktif.",
                                         color = AppTextMuted,
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
@@ -4991,7 +4991,7 @@ fun PetugasTasksScreen(
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(AppSurface)
                                     .padding(horizontal = 4.dp, vertical = 7.dp),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 PetugasActionTile("Masuk", newReports.size, Icons.Filled.Inbox, Modifier.weight(1f)) {
                                     selectedSection = "tugas"
@@ -5000,14 +5000,6 @@ fun PetugasTasksScreen(
                                 PetugasActionTile("Aktif", activeTasks.size, Icons.Rounded.TaskAlt, Modifier.weight(1f)) {
                                     selectedSection = "tugas"
                                     selectedWorkArea = "aktif"
-                                }
-                                PetugasActionTile("Armada", vehicles.size, Icons.Filled.LocalShipping, Modifier.weight(1f)) {
-                                    selectedSection = "tugas"
-                                    selectedWorkArea = "armada"
-                                }
-                                PetugasActionTile("Riwayat", historyTasks.size, Icons.Rounded.History, Modifier.weight(1f)) {
-                                    selectedSection = "riwayat"
-                                    showingTaskArchive = false
                                 }
                             }
                         }
