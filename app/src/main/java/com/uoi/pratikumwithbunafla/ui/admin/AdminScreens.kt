@@ -3436,7 +3436,7 @@ fun AdminStatsScreen(
         if (stats.byType.isEmpty()) EmptyAdminState("Belum ada data jenis sampah.") else {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 stats.byType.sortedByDescending { it.weightKg }.take(6).forEachIndexed { index, item ->
                     val accent = chartColors[index % chartColors.size]
@@ -3446,59 +3446,67 @@ fun AdminStatsScreen(
                         0f
                     }
                     val sharePercent = (share * 100).roundToInt()
-                    Row(
+                    AppCard(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        containerColor = if (IsNightAdmin) AppSurfaceMuted else AppSurfaceMuted.copy(alpha = 0.55f),
+                        borderColor = null,
+                        elevation = 0.dp,
+                        shape = RoundedCornerShape(18.dp)
                     ) {
-                        Box(
-                            modifier = Modifier.size(42.dp)
-                                .clip(RoundedCornerShape(13.dp))
-                                .background(accent.copy(alpha = if (IsNightAdmin) 0.20f else 0.14f)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = wasteTypeIcon(item.type),
-                                contentDescription = null,
-                                tint = accent,
-                                modifier = Modifier.size(21.dp)
-                            )
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    item.type,
-                                    modifier = Modifier.weight(1f),
-                                    color = AppText,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text("${item.total} laporan", color = AppTextMuted, fontSize = 11.sp)
-                            }
-                            Text(
-                                "${item.weightKg.pretty()} kg",
-                                color = AppText,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Box(
+                                modifier = Modifier.size(42.dp)
+                                    .clip(RoundedCornerShape(13.dp))
+                                    .background(accent.copy(alpha = if (IsNightAdmin) 0.20f else 0.14f)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                DataProgress(share, accent, modifier = Modifier.weight(1f))
-                                Text(
-                                    "$sharePercent%",
-                                    modifier = Modifier.widthIn(min = 32.dp),
-                                    color = AppTextMuted,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign = TextAlign.End
+                                Icon(
+                                    imageVector = wasteTypeIcon(item.type),
+                                    contentDescription = null,
+                                    tint = accent,
+                                    modifier = Modifier.size(21.dp)
                                 )
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        item.type,
+                                        modifier = Modifier.weight(1f),
+                                        color = AppText,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text("${item.total} laporan", color = AppTextMuted, fontSize = 11.sp)
+                                }
+                                Text(
+                                    "${item.weightKg.pretty()} kg",
+                                    color = AppText,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    DataProgress(share, accent, modifier = Modifier.weight(1f))
+                                    Text(
+                                        "$sharePercent%",
+                                        modifier = Modifier.widthIn(min = 32.dp),
+                                        color = AppTextMuted,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        textAlign = TextAlign.End
+                                    )
+                                }
                             }
                         }
                     }
