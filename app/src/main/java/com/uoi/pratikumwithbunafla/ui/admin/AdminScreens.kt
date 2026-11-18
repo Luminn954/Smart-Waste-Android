@@ -2003,7 +2003,7 @@ private fun AdminTaskTile(
         TaskRose -> Color(0xFFC99AAD)
         else -> Color(0xFF9DBDA4)
     } else accent
-    val iconBackground = iconTint.copy(alpha = if (nightAdmin) 0.16f else 0.12f)
+    val iconBackground = iconTint.copy(alpha = if (nightAdmin) 0.20f else 0.24f)
 
     Column(
         modifier = modifier.height(86.dp)
