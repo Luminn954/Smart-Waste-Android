@@ -1275,8 +1275,11 @@ fun AdminDashboardScreen(
 ) {
     var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
     var dashboardReportPage by rememberSaveable(account.username) { mutableStateOf(0) }
-    val dashboardReportPageCount = (reports.size + 2) / 3
-    val visibleDashboardReports = reports.drop(dashboardReportPage * 3).take(3)
+    val prioritizedDashboardReports = remember(reports) {
+        reports.sortedBy { dashboardReportPriority(it.status) }
+    }
+    val dashboardReportPageCount = (prioritizedDashboardReports.size + 2) / 3
+    val visibleDashboardReports = prioritizedDashboardReports.drop(dashboardReportPage * 3).take(3)
 
     LaunchedEffect(dashboardReportPageCount) {
         if (dashboardReportPage >= dashboardReportPageCount) {
@@ -1495,14 +1498,15 @@ private fun DashboardReportPagination(
     pageCount: Int,
     onSelectPage: (Int) -> Unit
 ) {
-    val pageListState = rememberLazyListState()
-    LaunchedEffect(currentPage, pageCount) {
-        if (pageCount > 5) pageListState.animateScrollToItem(currentPage)
-    }
+    val visiblePageCount = minOf(5, pageCount)
+    val firstVisiblePage = (currentPage - visiblePageCount / 2)
+        .coerceAtLeast(0)
+        .coerceAtMost((pageCount - visiblePageCount).coerceAtLeast(0))
+    val visiblePages = firstVisiblePage until (firstVisiblePage + visiblePageCount)
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         DashboardReportArrowButton(
@@ -1511,33 +1515,11 @@ private fun DashboardReportPagination(
             enabled = currentPage > 0,
             onClick = { onSelectPage(currentPage - 1) }
         )
-
-        if (pageCount <= 5) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                (0 until pageCount).forEach { page ->
-                    DashboardReportPageButton(page, selected = page == currentPage) {
-                        onSelectPage(page)
-                    }
-                }
-            }
-        } else {
-            LazyRow(
-                state = pageListState,
-                modifier = Modifier.weight(1f).height(46.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                itemsIndexed((0 until pageCount).toList()) { _, page ->
-                    DashboardReportPageButton(page, selected = page == currentPage) {
-                        onSelectPage(page)
-                    }
-                }
+        visiblePages.forEach { page ->
+            DashboardReportPageButton(page, selected = page == currentPage) {
+                onSelectPage(page)
             }
         }
-
         DashboardReportArrowButton(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = "Halaman berikutnya",
@@ -1545,6 +1527,13 @@ private fun DashboardReportPagination(
             onClick = { onSelectPage(currentPage + 1) }
         )
     }
+}
+
+private fun dashboardReportPriority(status: String): Int = when (status.trim().lowercase()) {
+    WasteFlow.WAITING -> 0
+    WasteFlow.PROCESSING, WasteFlow.ASSIGNED, WasteFlow.TRANSPORTED -> 1
+    WasteFlow.DONE -> 2
+    else -> 3
 }
 
 @Composable
