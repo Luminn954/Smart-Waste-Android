@@ -3503,13 +3503,9 @@ fun AdminOperationsScreen(
     val workerSearchSuggestions = remember(workers) {
         workers.flatMap { worker -> listOf(worker.name, worker.username, worker.zone) }
     }
-    val workersNeedingAttention = workers.count {
-        !it.isArchived && (it.pendingConfirmations > 0 || it.activeTasks > 0)
-    }
     val workerFilters = listOf(
         "semua" to "Semua · ${workers.count { !it.isArchived }}",
         "aktif" to "Aktif · ${workers.count { !it.isArchived && it.active && it.hasAccount }}",
-        "perhatian" to "Perhatian · $workersNeedingAttention",
         "arsip" to "Arsip · ${workers.count { it.isArchived }}"
     )
     val activeWorkerFilter = workerFilters.firstOrNull { it.first == workerFilter }?.first ?: "semua"
@@ -3522,7 +3518,6 @@ fun AdminOperationsScreen(
             when (activeWorkerFilter) {
                 "arsip" -> worker.isArchived
                 "aktif" -> !worker.isArchived && worker.active && worker.hasAccount
-                "perhatian" -> !worker.isArchived && (worker.pendingConfirmations > 0 || worker.activeTasks > 0)
                 else -> !worker.isArchived
             }
         }
