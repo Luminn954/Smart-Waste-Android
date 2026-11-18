@@ -1495,33 +1495,85 @@ private fun DashboardReportPagination(
     pageCount: Int,
     onSelectPage: (Int) -> Unit
 ) {
-    val pages = 0 until pageCount
-    if (pageCount <= 5) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            pages.forEach { page ->
-                DashboardReportPageButton(page, selected = page == currentPage) {
-                    onSelectPage(page)
+    val pageListState = rememberLazyListState()
+    LaunchedEffect(currentPage, pageCount) {
+        if (pageCount > 5) pageListState.animateScrollToItem(currentPage)
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        DashboardReportArrowButton(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Halaman sebelumnya",
+            enabled = currentPage > 0,
+            onClick = { onSelectPage(currentPage - 1) }
+        )
+
+        if (pageCount <= 5) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                (0 until pageCount).forEach { page ->
+                    DashboardReportPageButton(page, selected = page == currentPage) {
+                        onSelectPage(page)
+                    }
+                }
+            }
+        } else {
+            LazyRow(
+                state = pageListState,
+                modifier = Modifier.weight(1f).height(46.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                itemsIndexed((0 until pageCount).toList()) { _, page ->
+                    DashboardReportPageButton(page, selected = page == currentPage) {
+                        onSelectPage(page)
+                    }
                 }
             }
         }
-    } else {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(top = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            pages.forEach { page ->
-                DashboardReportPageButton(page, selected = page == currentPage) {
-                    onSelectPage(page)
-                }
-            }
-        }
+
+        DashboardReportArrowButton(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = "Halaman berikutnya",
+            enabled = currentPage < pageCount - 1,
+            onClick = { onSelectPage(currentPage + 1) }
+        )
+    }
+}
+
+@Composable
+private fun DashboardReportArrowButton(
+    imageVector: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val tint by animateColorAsState(
+        targetValue = if (enabled) RoleGreenDark else AppTextMuted.copy(alpha = 0.45f),
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "dashboard-report-arrow-${contentDescription.filter(Char::isLetter)}-tint"
+    )
+
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.padding(horizontal = 4.dp)
+            .size(38.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(AppSurfaceMuted)
+    ) {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
