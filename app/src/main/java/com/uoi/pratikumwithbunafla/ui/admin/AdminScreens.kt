@@ -3510,20 +3510,19 @@ fun AdminOperationsScreen(
         "semua" to "Semua · ${workers.count { !it.isArchived }}",
         "aktif" to "Aktif · ${workers.count { !it.isArchived && it.active && it.hasAccount }}",
         "perhatian" to "Perhatian · $workersNeedingAttention",
-        "tanpa-akun" to "Tanpa akun · ${workers.count { !it.isArchived && !it.hasAccount }}",
         "arsip" to "Arsip · ${workers.count { it.isArchived }}"
     )
+    val activeWorkerFilter = workerFilters.firstOrNull { it.first == workerFilter }?.first ?: "semua"
     val visibleWorkers = workers.asSequence()
         .filter { worker ->
             workerSearchQuery.isBlank() || listOf(worker.name, worker.username, worker.zone)
                 .any { it.lowercase().contains(workerSearchQuery) }
         }
         .filter { worker ->
-            when (workerFilter) {
+            when (activeWorkerFilter) {
                 "arsip" -> worker.isArchived
                 "aktif" -> !worker.isArchived && worker.active && worker.hasAccount
                 "perhatian" -> !worker.isArchived && (worker.pendingConfirmations > 0 || worker.activeTasks > 0)
-                "tanpa-akun" -> !worker.isArchived && !worker.hasAccount
                 else -> !worker.isArchived
             }
         }
@@ -3764,7 +3763,7 @@ fun AdminOperationsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         workerFilters.forEach { (filter, label) ->
-                            val selected = workerFilter == filter
+                            val selected = activeWorkerFilter == filter
                             TextButton(
                                 onClick = { workerFilter = filter },
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -3784,7 +3783,7 @@ fun AdminOperationsScreen(
                         EmptyAdminState(
                             when {
                                 workerSearchQuery.isNotBlank() -> "Petugas tidak ditemukan."
-                                workerFilter == "arsip" -> "Belum ada petugas di arsip."
+                                activeWorkerFilter == "arsip" -> "Belum ada petugas di arsip."
                                 else -> "Tidak ada petugas pada filter ini."
                             }
                         )
