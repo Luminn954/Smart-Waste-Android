@@ -1274,17 +1274,14 @@ fun AdminDashboardScreen(
     entryKey: Int = 0
 ) {
     var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
-    var showingOlderDashboardReports by rememberSaveable(account.username) { mutableStateOf(false) }
-    val latestDashboardReports = reports.take(3)
-    val olderDashboardReports = reports.drop(3)
-    val visibleDashboardReports = if (showingOlderDashboardReports && olderDashboardReports.isNotEmpty()) {
-        olderDashboardReports
-    } else {
-        latestDashboardReports
-    }
+    var dashboardReportPage by rememberSaveable(account.username) { mutableStateOf(0) }
+    val dashboardReportPageCount = (reports.size + 2) / 3
+    val visibleDashboardReports = reports.drop(dashboardReportPage * 3).take(3)
 
-    LaunchedEffect(olderDashboardReports.isEmpty()) {
-        if (olderDashboardReports.isEmpty()) showingOlderDashboardReports = false
+    LaunchedEffect(dashboardReportPageCount) {
+        if (dashboardReportPage >= dashboardReportPageCount) {
+            dashboardReportPage = (dashboardReportPageCount - 1).coerceAtLeast(0)
+        }
     }
 
     AdminPage(
@@ -1446,15 +1443,14 @@ fun AdminDashboardScreen(
             order = 4,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SectionTitle("Laporan terbaru", "Ringkasan laporan warga")
-            if (olderDashboardReports.isNotEmpty()) {
-                DashboardReportTabs(
-                    selectedTab = if (showingOlderDashboardReports) "lama" else "terbaru",
-                    latestCount = latestDashboardReports.size,
-                    olderCount = olderDashboardReports.size,
-                    onSelect = { showingOlderDashboardReports = it == "lama" }
-                )
-            }
+            SectionTitle(
+                if (dashboardReportPage == 0) "Laporan terbaru" else "Laporan lama",
+                if (dashboardReportPageCount > 1) {
+                    "Halaman ${dashboardReportPage + 1} dari $dashboardReportPageCount"
+                } else {
+                    "Ringkasan laporan warga"
+                }
+            )
             if (reports.isEmpty()) {
                 EmptyAdminState("Belum ada laporan dari warga.", useCompactCardStyle = true)
             } else {
@@ -1466,6 +1462,13 @@ fun AdminDashboardScreen(
                             onAssign = { assigningReport = report }
                         )
                     }
+                }
+                if (dashboardReportPageCount > 1) {
+                    DashboardReportPagination(
+                        currentPage = dashboardReportPage,
+                        pageCount = dashboardReportPageCount,
+                        onSelectPage = { dashboardReportPage = it }
+                    )
                 }
             }
         }
@@ -1487,80 +1490,73 @@ fun AdminDashboardScreen(
 }
 
 @Composable
-private fun DashboardReportTabs(
-    selectedTab: String,
-    latestCount: Int,
-    olderCount: Int,
-    onSelect: (String) -> Unit
+private fun DashboardReportPagination(
+    currentPage: Int,
+    pageCount: Int,
+    onSelectPage: (Int) -> Unit
 ) {
-    val tabs = listOf(
-        "terbaru" to "Terbaru · $latestCount",
-        "lama" to "Laporan lama · $olderCount"
-    )
-    val tabPositions = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
-    var rowRootX by remember { mutableStateOf(0f) }
-    val selectedBounds = tabPositions[selectedTab]
-    val indicatorColor by animateColorAsState(
-        targetValue = RoleGreen.copy(alpha = 0.34f),
-        animationSpec = tween(360, easing = FastOutSlowInEasing),
-        label = "dashboard-report-tab-indicator-color"
-    )
-    val indicatorX by animateFloatAsState(
-        targetValue = selectedBounds?.first ?: 0f,
-        animationSpec = tween(360, easing = FastOutSlowInEasing),
-        label = "dashboard-report-tab-indicator-x"
-    )
-    val indicatorWidth by animateFloatAsState(
-        targetValue = selectedBounds?.second ?: 0f,
-        animationSpec = tween(360, easing = FastOutSlowInEasing),
-        label = "dashboard-report-tab-indicator-width"
-    )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .onGloballyPositioned { rowRootX = it.positionInRoot().x }
-            .horizontalScroll(rememberScrollState())
-            .drawBehind {
-                if (indicatorWidth > 0f) {
-                    drawRoundRect(
-                        color = indicatorColor,
-                        topLeft = Offset(indicatorX, 0f),
-                        size = Size(indicatorWidth, size.height),
-                        cornerRadius = CornerRadius(13.dp.toPx())
-                    )
+    val pages = 0 until pageCount
+    if (pageCount <= 5) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            pages.forEach { page ->
+                DashboardReportPageButton(page, selected = page == currentPage) {
+                    onSelectPage(page)
                 }
-            },
-        horizontalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-        tabs.forEach { (key, label) ->
-            val selected = selectedTab == key
-            val tabContent by animateColorAsState(
-                targetValue = if (selected) LoginAccent else LoginMuted,
-                animationSpec = tween(220, easing = FastOutSlowInEasing),
-                label = "dashboard-report-tab-$key-content"
-            )
-            val tabSurface by animateColorAsState(
-                targetValue = RoleGreen.copy(alpha = if (selected) 0f else 0.08f),
-                animationSpec = tween(240, easing = FastOutSlowInEasing),
-                label = "dashboard-report-tab-$key-surface"
-            )
-            TextButton(
-                onClick = { onSelect(key) },
-                modifier = Modifier.onGloballyPositioned { coordinates ->
-                    val bounds =
-                        (coordinates.positionInRoot().x - rowRootX) to coordinates.size.width.toFloat()
-                    if (tabPositions[key] != bounds) tabPositions[key] = bounds
-                },
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = tabContent,
-                    containerColor = tabSurface
-                ),
-                shape = RoundedCornerShape(13.dp)
-            ) {
-                Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
         }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(top = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            pages.forEach { page ->
+                DashboardReportPageButton(page, selected = page == currentPage) {
+                    onSelectPage(page)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardReportPageButton(
+    page: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val background by animateColorAsState(
+        targetValue = if (selected) RoleGreenDark else AppSurfaceMuted,
+        animationSpec = tween(240, easing = FastOutSlowInEasing),
+        label = "dashboard-report-page-${page + 1}-background"
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) Color.White else AppText,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "dashboard-report-page-${page + 1}-content"
+    )
+
+    Box(
+        modifier = Modifier.padding(horizontal = 4.dp)
+            .size(38.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(background)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = (page + 1).toString(),
+            color = content,
+            fontFamily = InterFont,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
