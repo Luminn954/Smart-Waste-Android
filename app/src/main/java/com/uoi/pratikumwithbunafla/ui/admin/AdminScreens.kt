@@ -135,6 +135,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -6577,7 +6578,6 @@ private fun PetugasJourneyHero(
     }
     val isCompact = LocalConfiguration.current.screenWidthDp < 360
     val isDarkMode = LocalSmartWasteAppearance.current.darkMode
-    val headerContourColor = if (isDarkMode) Color(0xFF94B0AD) else PetugasAccent
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
@@ -6607,24 +6607,19 @@ private fun PetugasJourneyHero(
                     .clip(RoundedCornerShape(topStart = 23.dp, topEnd = 23.dp))
                     .background(AppSurfaceMuted)
             ) {
-                Canvas(Modifier.matchParentSize()) {
-                    val stroke = Stroke(width = 0.8.dp.toPx())
-                    repeat(8) { index ->
-                        val inset = index * 13.dp.toPx()
-                        drawOval(
-                            color = headerContourColor.copy(alpha = if (isDarkMode) 0.10f else 0.09f),
-                            topLeft = Offset(
-                                x = size.width * 0.57f - inset,
-                                y = -size.height * 0.36f - inset
-                            ),
-                            size = Size(
-                                width = size.width * 0.76f + inset * 2,
-                                height = size.height * 1.18f + inset * 2
-                            ),
-                            style = stroke
-                        )
-                    }
-                }
+                Image(
+                    painter = painterResource(R.drawable.petugas_header_background),
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop,
+                    alignment = BiasAlignment(horizontalBias = 0f, verticalBias = -0.16f)
+                )
+                Box(
+                    Modifier.matchParentSize().background(
+                        if (isDarkMode) Color(0xFF14241C).copy(alpha = 0.36f)
+                        else Color(0xFFEAF1EA).copy(alpha = 0.24f)
+                    )
+                )
                 SmartWasteSearchField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
