@@ -4499,6 +4499,7 @@ fun PetugasTasksScreen(
     errorMessage: String,
     account: UserAccount,
     onUpdateProfile: suspend (String) -> UserAccount,
+    onUpdateProfilePhoto: suspend (Uri) -> UserAccount,
     onOpenPhoto: (String) -> Unit,
     onArchiveTask: suspend (WasteRecord) -> Unit,
     onRestoreArchivedTask: suspend (WasteRecord) -> Unit,
@@ -5516,7 +5517,13 @@ fun PetugasTasksScreen(
                 }
             }
 
-            "profil" -> AccountProfileSettings(account, onLogout, onUpdateProfile)
+            "profil" -> AccountProfileSettings(
+                account,
+                onLogout,
+                onUpdateProfile,
+                onUpdateProfilePhoto,
+                onOpenPhoto
+            )
                 }
             }
         }
@@ -6992,7 +6999,8 @@ private fun AccountProfileSettings(
     account: UserAccount,
     onLogout: () -> Unit,
     onUpdateProfile: suspend (String) -> UserAccount,
-    onUpdateProfilePhoto: (suspend (Uri) -> UserAccount)? = null
+    onUpdateProfilePhoto: (suspend (Uri) -> UserAccount)? = null,
+    onOpenPhoto: ((String) -> Unit)? = null
 ) {
     val appearance = LocalSmartWasteAppearance.current
     val isDark = appearance.darkMode
@@ -7044,7 +7052,17 @@ private fun AccountProfileSettings(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    UserAvatar(account.name, Modifier.size(58.dp), account.profilePhotoUrl)
+                    val profilePhotoUrl = account.profilePhotoUrl?.takeIf(String::isNotBlank)
+                    UserAvatar(
+                        account.name,
+                        Modifier.size(58.dp).clickable(
+                            enabled = profilePhotoUrl != null && onOpenPhoto != null,
+                            role = Role.Button
+                        ) {
+                            profilePhotoUrl?.let { onOpenPhoto?.invoke(it) }
+                        },
+                        profilePhotoUrl
+                    )
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(4.dp)

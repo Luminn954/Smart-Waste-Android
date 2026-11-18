@@ -633,6 +633,12 @@ class MainActivity : ComponentActivity() {
                                         refreshWorkspace()
                                         updated
                                     },
+                                    onUpdateProfilePhoto = { uri ->
+                                        val updated = SmartWasteApi.updateMyProfilePhoto(compressEvidence(uri))
+                                        activeAccount = updated
+                                        refreshWorkspace()
+                                        updated
+                                    },
                                     onOpenPhoto = { photoToView = it },
                                     onArchiveTask = { report ->
                                         SmartWasteApi.archiveWorkerTask(report.id)

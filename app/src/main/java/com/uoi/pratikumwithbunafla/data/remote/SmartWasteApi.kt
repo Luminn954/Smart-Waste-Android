@@ -396,7 +396,7 @@ object SmartWasteApi {
             path = "/me/foto-profil",
             fields = emptyMap(),
             imageBytes = imageBytes,
-            fileName = "admin-profile.jpg"
+            fileName = "profile.jpg"
         )
         return mapAccount(response.getJSONObject("user"))
     }
