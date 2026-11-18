@@ -6214,6 +6214,9 @@ private fun PetugasAssignmentDialog(
 @Composable
 private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
     val dark = LocalSmartWasteAppearance.current.darkMode
+    val terrainColor = if (dark) Color(0xFF91AAA0) else Color(0xFF6D9480)
+    val routeColor = if (dark) Color(0xFF8AAEAA) else Color(0xFF6D8F98)
+    val warmColor = if (dark) Color(0xFFCDAE75) else Color(0xFF927044)
     val background by animateColorAsState(
         targetValue = AppBackground,
         animationSpec = tween(durationMillis = 820, easing = FastOutSlowInEasing),
@@ -6232,8 +6235,60 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
 
     Box(modifier.background(background)) {
         Canvas(Modifier.fillMaxSize()) {
-            val routeColor = if (dark) Color(0xFF8AAEAA) else Color(0xFF6D8F98)
-            val warmColor = if (dark) Color(0xFFCDAE75) else Color(0xFF927044)
+            val width = size.width
+            val height = size.height
+
+            // A very light field wash gives the work area a little depth without
+            // competing with the task cards or the photo-led header.
+            val upperWash = Path().apply {
+                moveTo(0f, 0f)
+                lineTo(width * 0.64f, 0f)
+                cubicTo(width * 0.48f, height * 0.07f, width * 0.70f, height * 0.14f, width * 0.48f, height * 0.19f)
+                cubicTo(width * 0.28f, height * 0.24f, width * 0.16f, height * 0.13f, 0f, height * 0.20f)
+                close()
+            }
+            drawPath(
+                path = upperWash,
+                color = terrainColor.copy(alpha = if (dark) 0.075f else 0.045f)
+            )
+
+            val lowerWash = Path().apply {
+                moveTo(0f, height * 0.79f)
+                cubicTo(width * 0.22f, height * 0.73f, width * 0.34f, height * 0.89f, width * 0.56f, height * 0.84f)
+                cubicTo(width * 0.76f, height * 0.80f, width * 0.84f, height * 0.93f, width, height * 0.86f)
+                lineTo(width, height)
+                lineTo(0f, height)
+                close()
+            }
+            drawPath(
+                path = lowerWash,
+                color = terrainColor.copy(alpha = if (dark) 0.065f else 0.04f)
+            )
+
+            // Two edge-only contour lines hint at a route map while leaving the
+            // reading area calm and open.
+            val contourAlpha = if (dark) 0.075f else 0.055f
+            val outerContour = Path().apply {
+                moveTo(width * 0.88f, height * 0.27f)
+                cubicTo(width * 0.68f, height * 0.40f, width * 1.04f, height * 0.50f, width * 0.83f, height * 0.63f)
+                cubicTo(width * 0.69f, height * 0.73f, width * 1.02f, height * 0.81f, width * 0.84f, height * 0.94f)
+            }
+            drawPath(
+                path = outerContour,
+                color = routeColor.copy(alpha = contourAlpha),
+                style = Stroke(width = 1.15.dp.toPx(), cap = StrokeCap.Round)
+            )
+            val innerContour = Path().apply {
+                moveTo(width * 0.94f, height * 0.29f)
+                cubicTo(width * 0.79f, height * 0.42f, width * 1.08f, height * 0.52f, width * 0.90f, height * 0.65f)
+                cubicTo(width * 0.77f, height * 0.75f, width * 1.05f, height * 0.83f, width * 0.91f, height * 0.95f)
+            }
+            drawPath(
+                path = innerContour,
+                color = routeColor.copy(alpha = contourAlpha * 0.72f),
+                style = Stroke(width = 1.dp.toPx(), cap = StrokeCap.Round)
+            )
+
             val start = Offset(size.width * 0.70f, size.height * 0.035f)
             val firstControl = Offset(size.width * 0.96f, size.height * 0.015f)
             val secondControl = Offset(size.width * 0.56f, size.height * 0.105f)
