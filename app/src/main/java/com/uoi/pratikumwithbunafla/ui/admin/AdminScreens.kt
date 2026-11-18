@@ -6621,6 +6621,30 @@ private fun PetugasJourneyHero(
                         else Color(0xFFEAF1EA).copy(alpha = 0.24f)
                     )
                 )
+                Column(
+                    modifier = Modifier.align(Alignment.TopStart)
+                        .padding(start = 20.dp, top = 22.dp, end = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        "Selamat datang kembali,",
+                        color = if (isDarkMode) Color(0xFFF3F5EF) else Color(0xFF174E3D),
+                        fontSize = if (isCompact) 15.sp else 16.sp,
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "Petugas",
+                        color = if (isDarkMode) Color(0xFFF3F5EF) else Color(0xFF174E3D),
+                        fontSize = if (isCompact) 21.sp else 23.sp,
+                        lineHeight = 28.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 SmartWasteSearchField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
