@@ -7355,21 +7355,34 @@ private fun PetugasTaskCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            if (!isRejected) Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Armada", color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
-                    Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("TPA", color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
-                    Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (!isRejected && dense) {
+                val routeSummary = "${report.vehiclePlate.ifBlank { "Armada belum ditetapkan" }}  →  " +
+                    report.tpaName.ifBlank { "TPA belum ditetapkan" }
+                Text(
+                    routeSummary,
+                    color = AppTextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            } else if (!isRejected) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Armada", color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(report.vehiclePlate.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("TPA", color = AppTextMuted, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(report.tpaName.ifBlank { "Belum ditetapkan" }, color = AppText, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
-            if (!isRejected) AppCardDivider()
+            if (!isRejected && !dense) AppCardDivider()
             if (compactHistory && !isComplete) {
                 val historyNote = when {
                     report.workerDecisionNote.isNotBlank() -> report.workerDecisionNote
