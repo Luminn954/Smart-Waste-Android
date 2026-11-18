@@ -3470,7 +3470,7 @@ fun AdminStatsScreen(
                     val sharePercent = (share * 100).roundToInt()
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = if (IsNightAdmin) AppSurfaceMuted else AppSurfaceMuted.copy(alpha = 0.55f),
+                        containerColor = if (IsNightAdmin) AppCardSurface else Color(0xFFF2F4F1),
                         borderColor = null,
                         elevation = 0.dp,
                         shape = RoundedCornerShape(18.dp)
@@ -3483,7 +3483,7 @@ fun AdminStatsScreen(
                             Box(
                                 modifier = Modifier.size(42.dp)
                                     .clip(RoundedCornerShape(13.dp))
-                                    .background(accent.copy(alpha = if (IsNightAdmin) 0.20f else 0.14f)),
+                                    .background(accent.copy(alpha = if (IsNightAdmin) 0.24f else 0.26f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
