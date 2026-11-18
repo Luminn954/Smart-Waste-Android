@@ -6429,11 +6429,14 @@ private fun PetugasTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    if (homeHeaderMode) "Pos Petugas" else account.name.displayPersonName().ifBlank { "Petugas" },
+                    if (homeHeaderMode) "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}"
+                    else account.name.displayPersonName().ifBlank { "Petugas" },
                     color = foreground,
-                    fontSize = if (compact) 13.sp else 14.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = if (homeHeaderMode) {
+                        if (compact) 14.sp else 15.sp
+                    } else if (compact) 13.sp else 14.sp,
+                    lineHeight = if (homeHeaderMode) 20.sp else 18.sp,
+                    fontWeight = if (homeHeaderMode) FontWeight.SemiBold else FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -6567,14 +6570,6 @@ private fun PetugasJourneyHero(
         it.status == WasteFlow.ASSIGNED || it.status == WasteFlow.TRANSPORTED || it.status == WasteFlow.DONE
     }
     val progressFraction = if (total > 0) (completed.toFloat() / total).coerceIn(0f, 1f) else 0f
-    val workSummary = when {
-        needsRevision > 0 -> "$needsRevision bukti perlu diperbaiki"
-        waitingAdmin > 0 -> "$waitingAdmin bukti menunggu Admin"
-        inRoute > 0 -> "$inRoute muatan sedang diantar ke TPA"
-        assigned > 0 -> "$assigned tugas siap diangkut"
-        incomingReportCount > 0 -> "$incomingReportCount laporan baru menunggu"
-        else -> "Tidak ada pekerjaan tertunda"
-    }
     val actionLabel = when {
         active > 0 -> "Lanjutkan tugas"
         incomingReportCount > 0 -> "Tinjau laporan"
@@ -6630,55 +6625,15 @@ private fun PetugasJourneyHero(
                         )
                     }
                 }
-                Column(
+                SmartWasteSearchField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = "Cari tugas, lokasi, atau TPA",
+                    suggestionSource = searchSuggestions,
                     modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = if (isCompact) 14.dp else 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        "SHIFT HARI INI",
-                        color = PetugasAccent,
-                        fontSize = 10.sp,
-                        lineHeight = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.7.sp,
-                        maxLines = 1
-                    )
-                    Text(
-                        "Halo, ${account.name.displayPersonName().ifBlank { "Petugas" }}",
-                        color = AppText,
-                        fontSize = if (isCompact) 20.sp else 22.sp,
-                        lineHeight = 27.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        "Mau ke mana hari ini?",
-                        color = AppText,
-                        fontSize = if (isCompact) 19.sp else 21.sp,
-                        lineHeight = 26.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        workSummary,
-                        color = AppTextMuted,
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    SmartWasteSearchField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        placeholder = "Cari tugas, lokasi, atau TPA",
-                        suggestionSource = searchSuggestions,
-                        modifier = Modifier.padding(top = 8.dp),
-                        onSearch = onSubmitSearch
-                    )
-                }
+                        .padding(horizontal = if (isCompact) 14.dp else 16.dp, vertical = 12.dp),
+                    onSearch = onSubmitSearch
+                )
             }
 
             Column(
