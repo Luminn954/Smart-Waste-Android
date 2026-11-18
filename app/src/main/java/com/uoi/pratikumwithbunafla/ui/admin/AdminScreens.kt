@@ -2003,7 +2003,7 @@ private fun AdminTaskTile(
         TaskRose -> Color(0xFFC99AAD)
         else -> Color(0xFF9DBDA4)
     } else accent
-    val iconBackground = iconTint.copy(alpha = if (nightAdmin) 0.20f else 0.24f)
+    val iconBackground = iconTint.copy(alpha = if (nightAdmin) 0.20f else 0.22f)
 
     Column(
         modifier = modifier.height(86.dp)
@@ -2014,12 +2014,12 @@ private fun AdminTaskTile(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Box(
-            modifier = Modifier.size(38.dp)
-                .clip(RoundedCornerShape(11.dp))
+            modifier = Modifier.size(42.dp)
+                .clip(RoundedCornerShape(13.dp))
                 .background(iconBackground),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(21.dp))
         }
         Text(
             label,
