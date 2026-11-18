@@ -4988,7 +4988,7 @@ fun PetugasTasksScreen(
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        "Fokus pada laporan masuk dan tugas aktif.",
+                                        "Laporan, tugas, armada, dan TPA.",
                                         color = AppTextMuted,
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
@@ -5022,6 +5022,14 @@ fun PetugasTasksScreen(
                                 PetugasActionTile("Aktif", activeTasks.size, Icons.Rounded.TaskAlt, Modifier.weight(1f)) {
                                     selectedSection = "tugas"
                                     selectedWorkArea = "aktif"
+                                }
+                                PetugasActionTile("Armada", vehicles.size, Icons.Filled.LocalShipping, Modifier.weight(1f)) {
+                                    selectedSection = "tugas"
+                                    selectedWorkArea = "armada"
+                                }
+                                PetugasActionTile("TPA", facilities.size, Icons.Filled.Place, Modifier.weight(1f)) {
+                                    selectedSection = "tugas"
+                                    selectedWorkArea = "tpa"
                                 }
                             }
                         }
