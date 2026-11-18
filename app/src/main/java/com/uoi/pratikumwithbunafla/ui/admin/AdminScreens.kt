@@ -1274,6 +1274,18 @@ fun AdminDashboardScreen(
     entryKey: Int = 0
 ) {
     var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
+    var showingOlderDashboardReports by rememberSaveable(account.username) { mutableStateOf(false) }
+    val latestDashboardReports = reports.take(3)
+    val olderDashboardReports = reports.drop(3)
+    val visibleDashboardReports = if (showingOlderDashboardReports && olderDashboardReports.isNotEmpty()) {
+        olderDashboardReports
+    } else {
+        latestDashboardReports
+    }
+
+    LaunchedEffect(olderDashboardReports.isEmpty()) {
+        if (olderDashboardReports.isEmpty()) showingOlderDashboardReports = false
+    }
 
     AdminPage(
         current = "dashboard",
@@ -1435,12 +1447,19 @@ fun AdminDashboardScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             SectionTitle("Laporan terbaru", "Ringkasan laporan warga")
-            val latest = reports.take(3)
-            if (latest.isEmpty()) {
+            if (olderDashboardReports.isNotEmpty()) {
+                DashboardReportTabs(
+                    selectedTab = if (showingOlderDashboardReports) "lama" else "terbaru",
+                    latestCount = latestDashboardReports.size,
+                    olderCount = olderDashboardReports.size,
+                    onSelect = { showingOlderDashboardReports = it == "lama" }
+                )
+            }
+            if (reports.isEmpty()) {
                 EmptyAdminState("Belum ada laporan dari warga.", useCompactCardStyle = true)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    latest.forEach { report ->
+                    visibleDashboardReports.forEach { report ->
                         AdminLatestReportCard(
                             report = report,
                             onOpen = { onNavigate("status:${report.status}") },
@@ -1464,6 +1483,84 @@ fun AdminDashboardScreen(
                 assigningReport = null
             }
         )
+    }
+}
+
+@Composable
+private fun DashboardReportTabs(
+    selectedTab: String,
+    latestCount: Int,
+    olderCount: Int,
+    onSelect: (String) -> Unit
+) {
+    val tabs = listOf(
+        "terbaru" to "Terbaru · $latestCount",
+        "lama" to "Laporan lama · $olderCount"
+    )
+    val tabPositions = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
+    var rowRootX by remember { mutableStateOf(0f) }
+    val selectedBounds = tabPositions[selectedTab]
+    val indicatorColor by animateColorAsState(
+        targetValue = RoleGreen.copy(alpha = 0.34f),
+        animationSpec = tween(360, easing = FastOutSlowInEasing),
+        label = "dashboard-report-tab-indicator-color"
+    )
+    val indicatorX by animateFloatAsState(
+        targetValue = selectedBounds?.first ?: 0f,
+        animationSpec = tween(360, easing = FastOutSlowInEasing),
+        label = "dashboard-report-tab-indicator-x"
+    )
+    val indicatorWidth by animateFloatAsState(
+        targetValue = selectedBounds?.second ?: 0f,
+        animationSpec = tween(360, easing = FastOutSlowInEasing),
+        label = "dashboard-report-tab-indicator-width"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { rowRootX = it.positionInRoot().x }
+            .horizontalScroll(rememberScrollState())
+            .drawBehind {
+                if (indicatorWidth > 0f) {
+                    drawRoundRect(
+                        color = indicatorColor,
+                        topLeft = Offset(indicatorX, 0f),
+                        size = Size(indicatorWidth, size.height),
+                        cornerRadius = CornerRadius(13.dp.toPx())
+                    )
+                }
+            },
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        tabs.forEach { (key, label) ->
+            val selected = selectedTab == key
+            val tabContent by animateColorAsState(
+                targetValue = if (selected) LoginAccent else LoginMuted,
+                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                label = "dashboard-report-tab-$key-content"
+            )
+            val tabSurface by animateColorAsState(
+                targetValue = RoleGreen.copy(alpha = if (selected) 0f else 0.08f),
+                animationSpec = tween(240, easing = FastOutSlowInEasing),
+                label = "dashboard-report-tab-$key-surface"
+            )
+            TextButton(
+                onClick = { onSelect(key) },
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    val bounds =
+                        (coordinates.positionInRoot().x - rowRootX) to coordinates.size.width.toFloat()
+                    if (tabPositions[key] != bounds) tabPositions[key] = bounds
+                },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = tabContent,
+                    containerColor = tabSurface
+                ),
+                shape = RoundedCornerShape(13.dp)
+            ) {
+                Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+        }
     }
 }
 
