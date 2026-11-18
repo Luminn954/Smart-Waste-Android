@@ -449,6 +449,9 @@ class MainActivity : ComponentActivity() {
                                 else AdminVerificationScreen(
                                     reports = reports,
                                     archivedReports = archivedReports,
+                                    workers = workers,
+                                    vehicles = vehicles,
+                                    facilities = facilities,
                                     selectedStatus = selectedStatus,
                                     showAllReports = selectedReportView == "all",
                                     showingArchive = selectedReportView == "archive",
@@ -461,6 +464,15 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onArchiveReport = { report ->
                                         SmartWasteApi.archiveReport(report.id)
+                                        refreshWorkspace()
+                                    },
+                                    onAssignReport = { report, workerId, vehicleId, tpaId ->
+                                        SmartWasteApi.assignReportToWorker(
+                                            report.id,
+                                            workerId,
+                                            vehicleId,
+                                            tpaId
+                                        )
                                         refreshWorkspace()
                                     },
                                     onRestoreArchivedReport = { report ->

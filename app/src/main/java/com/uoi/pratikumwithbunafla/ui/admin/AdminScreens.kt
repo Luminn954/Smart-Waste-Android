@@ -1853,7 +1853,7 @@ private fun AdminLatestReportCard(
                         )
                     ) {
                         Text(
-                            "Tugaskan",
+                            "Setujui & tugaskan",
                             color = LoginAccent,
                             fontFamily = InterFont,
                             fontSize = 11.sp,
@@ -1893,7 +1893,7 @@ private fun AdminReportAssignmentDialog(
 
     AlertDialog(
         onDismissRequest = { if (!saving) onDismiss() },
-        title = { Text("Tugaskan laporan", color = LoginInk, fontWeight = FontWeight.Bold) },
+        title = { Text("Setujui & tugaskan laporan", color = LoginInk, fontWeight = FontWeight.Bold) },
         text = {
             ScrollableDialogContent(spacing = 8.dp) {
                 Text("${report.code} · ${report.type} · ${report.weightKg.pretty()} kg", color = AppTextMuted, fontSize = 11.sp)
@@ -1947,7 +1947,7 @@ private fun AdminReportAssignmentDialog(
                         }
                     }
                 }
-            ) { Text(if (saving) "Menyimpan…" else "Tugaskan", color = LoginAccent) }
+            ) { Text(if (saving) "Menyimpan…" else "Setujui & tugaskan", color = LoginAccent) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !saving) {
@@ -2388,6 +2388,9 @@ private data class WorkspaceNotice(
 fun AdminVerificationScreen(
     reports: List<WasteRecord>,
     archivedReports: List<ArchivedWasteRecord>,
+    workers: List<AdminWorker>,
+    vehicles: List<WasteVehicle>,
+    facilities: List<WasteFacility>,
     selectedStatus: String?,
     showAllReports: Boolean,
     showingArchive: Boolean,
@@ -2396,6 +2399,7 @@ fun AdminVerificationScreen(
     onOpenPhoto: (String) -> Unit,
     onArchiveViewChange: (Boolean) -> Unit,
     onArchiveReport: suspend (WasteRecord) -> Unit,
+    onAssignReport: suspend (WasteRecord, Int, Int, Int) -> Unit,
     onRestoreArchivedReport: suspend (WasteRecord) -> Unit,
     onDeleteArchivedReport: suspend (WasteRecord) -> Unit,
     onReportViewChange: (Boolean) -> Unit,
@@ -2407,6 +2411,7 @@ fun AdminVerificationScreen(
     onRefresh: () -> Unit = {}
 ) {
     var archivingReport by remember { mutableStateOf<WasteRecord?>(null) }
+    var assigningReport by remember { mutableStateOf<WasteRecord?>(null) }
     var restoringReport by remember { mutableStateOf<WasteRecord?>(null) }
     var deletingArchivedReport by remember { mutableStateOf<WasteRecord?>(null) }
     var archiveActionError by remember { mutableStateOf("") }
@@ -2672,6 +2677,10 @@ fun AdminVerificationScreen(
                         report,
                         onOpenPhoto,
                         compact = true,
+                        onAssign = report.takeIf { it.status == WasteFlow.WAITING }?.let {
+                            { assigningReport = it }
+                        },
+                        assignmentLabel = "Setujui & tugaskan",
                         onArchive = { archivingReport = report }
                     )
                 }
@@ -2812,6 +2821,19 @@ fun AdminVerificationScreen(
                 ) { Text("Batal", color = LoginMuted) }
             },
             containerColor = AppSurface
+        )
+    }
+    assigningReport?.let { report ->
+        AdminReportAssignmentDialog(
+            report = report,
+            workers = workers,
+            vehicles = vehicles,
+            facilities = facilities,
+            onDismiss = { assigningReport = null },
+            onAssign = { workerId, vehicleId, tpaId ->
+                onAssignReport(report, workerId, vehicleId, tpaId)
+                assigningReport = null
+            }
         )
     }
 }
