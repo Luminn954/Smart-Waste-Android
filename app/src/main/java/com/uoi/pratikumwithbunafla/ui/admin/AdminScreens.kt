@@ -3469,8 +3469,9 @@ fun AdminStatsScreen(
                     }
                     val sharePercent = (share * 100).roundToInt()
                     AppCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = if (IsNightAdmin) AppCardSurface else Color(0xFFF2F4F1),
+                        modifier = Modifier.fillMaxWidth()
+                            .shadow(4.dp, RoundedCornerShape(18.dp)),
+                        containerColor = Color.White,
                         borderColor = null,
                         elevation = 0.dp,
                         shape = RoundedCornerShape(18.dp)
