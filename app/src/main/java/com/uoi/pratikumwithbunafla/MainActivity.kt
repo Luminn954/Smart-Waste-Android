@@ -156,10 +156,10 @@ class MainActivity : ComponentActivity() {
                     navController.navigate("login") { popUpTo(0) { inclusive = true } }
                 }
 
-                suspend fun refreshWorkspace() {
+                suspend fun refreshWorkspace(showRefreshingIndicator: Boolean = true) {
                     val account = activeAccount ?: return
                     if (!workspaceRefreshMutex.tryLock()) return
-                    isRefreshingWorkspace = true
+                    if (showRefreshingIndicator) isRefreshingWorkspace = true
                     val loadErrors = mutableListOf<String>()
                     try {
                         val refreshedAccount = try {
@@ -256,7 +256,7 @@ class MainActivity : ComponentActivity() {
                     } catch (expired: SessionExpiredException) {
                         signOut("Sesi login sudah berakhir. Silakan masuk kembali.")
                     } finally {
-                        isRefreshingWorkspace = false
+                        if (showRefreshingIndicator) isRefreshingWorkspace = false
                         workspaceRefreshMutex.unlock()
                     }
                 }
@@ -325,8 +325,8 @@ class MainActivity : ComponentActivity() {
                     if (activeAccount != null) {
                         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                             while (true) {
-                                refreshWorkspace()
-                                delay(15_000)
+                                refreshWorkspace(showRefreshingIndicator = false)
+                                delay(30_000)
                             }
                         }
                     }

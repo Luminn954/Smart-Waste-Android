@@ -2,6 +2,7 @@ package com.uoi.pratikumwithbunafla.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.LruCache
 import java.io.ByteArrayOutputStream
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -115,6 +116,12 @@ import com.uoi.pratikumwithbunafla.ui.theme.InterFont
 private val SplashLogoGreen = Color(0xFF23845A)
 private val SplashForest = Color(0xFF1B714C)
 private val SplashLeaf = Color(0xFF4A9B68)
+private const val AvatarMaxDownloadBytes = 4 * 1024 * 1024
+private const val AvatarMaxDecodeDimension = 192
+private val avatarBitmapCache = object : LruCache<String, Bitmap>(4 * 1024) {
+    override fun sizeOf(key: String, value: Bitmap): Int =
+        (value.byteCount / 1024).coerceAtLeast(1)
+}
 
 @Composable
 fun AppScreen(content: @Composable () -> Unit) {
@@ -636,32 +643,10 @@ fun UserAvatar(
 ) {
     val initial = name.trim().firstOrNull()?.uppercase() ?: "A"
     val photo by produceState<Bitmap?>(initialValue = null, key1 = photoUrl) {
-        value = photoUrl?.let { url ->
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 4_000
-                        readTimeout = 5_000
-                        instanceFollowRedirects = true
-                    }
-                    try {
-                        connection.inputStream.use { input ->
-                            val bytes = input.readBytes()
-                            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-                            var sample = 1
-                            while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 512) sample *= 2
-                            BitmapFactory.decodeByteArray(
-                                bytes,
-                                0,
-                                bytes.size,
-                                BitmapFactory.Options().apply { inSampleSize = sample }
-                            )
-                        }
-                    } finally {
-                        connection.disconnect()
-                    }
-                }.getOrNull()
+        val url = photoUrl?.trim()?.takeIf(String::isNotEmpty)
+        value = url?.let { imageUrl ->
+            avatarBitmapCache.get(imageUrl) ?: loadAvatarBitmap(imageUrl)?.also { bitmap ->
+                avatarBitmapCache.put(imageUrl, bitmap)
             }
         }
     }
@@ -687,6 +672,54 @@ fun UserAvatar(
                 fontWeight = FontWeight.Bold
             )
         }
+    }
+}
+
+private suspend fun loadAvatarBitmap(url: String): Bitmap? = withContext(Dispatchers.IO) {
+    var connection: HttpURLConnection? = null
+    try {
+        val activeConnection = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 4_000
+            readTimeout = 5_000
+            instanceFollowRedirects = true
+            setRequestProperty("Accept", "image/*")
+            setRequestProperty("Connection", "close")
+        }
+        connection = activeConnection
+        if (activeConnection.responseCode !in 200..299) return@withContext null
+        val bytes = activeConnection.inputStream.use { input ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8 * 1024)
+            var totalBytes = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                totalBytes += count
+                if (totalBytes > AvatarMaxDownloadBytes) throw IOException("Foto profil terlalu besar.")
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > AvatarMaxDecodeDimension) {
+            sample *= 2
+        }
+        BitmapFactory.decodeByteArray(
+            bytes,
+            0,
+            bytes.size,
+            BitmapFactory.Options().apply { inSampleSize = sample }
+        )
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    } finally {
+        connection?.disconnect()
     }
 }
 

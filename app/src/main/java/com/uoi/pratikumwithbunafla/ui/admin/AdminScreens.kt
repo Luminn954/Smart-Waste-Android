@@ -149,8 +149,6 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -158,13 +156,11 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
@@ -1055,10 +1051,7 @@ private fun DashboardHeroBanner(
             .background(if (darkMode) Color(0xFF1C3025) else Color(0xFF286B4D))
             .clickable { onClick(focusRoute) }
     ) {
-        val illustrationBitmap = ImageBitmap.imageResource(R.drawable.hero_recycling_crew)
-        val illustrationPainter = remember(illustrationBitmap) {
-            BitmapPainter(illustrationBitmap, filterQuality = FilterQuality.High)
-        }
+        val illustrationPainter = painterResource(R.drawable.hero_recycling_crew)
         Image(
             painter = illustrationPainter,
             contentDescription = null,
