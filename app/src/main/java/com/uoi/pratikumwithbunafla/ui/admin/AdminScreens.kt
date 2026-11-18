@@ -6604,6 +6604,7 @@ private fun PetugasJourneyHero(
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth()
+                    .height(if (isCompact) 196.dp else 208.dp)
                     .clip(RoundedCornerShape(topStart = 23.dp, topEnd = 23.dp))
                     .background(AppSurfaceMuted)
             ) {
@@ -6625,7 +6626,8 @@ private fun PetugasJourneyHero(
                     onValueChange = onSearchQueryChange,
                     placeholder = "Cari tugas, lokasi, atau TPA",
                     suggestionSource = searchSuggestions,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .fillMaxWidth()
                         .padding(horizontal = if (isCompact) 14.dp else 16.dp, vertical = 12.dp),
                     onSearch = onSubmitSearch
                 )
