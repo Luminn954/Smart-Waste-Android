@@ -2593,15 +2593,13 @@ fun AdminVerificationScreen(
                                 archiveActionError = ""
                                 onArchiveViewChange(true)
                             },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(RoleGreen.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Filled.Archive,
                                 contentDescription = "Buka arsip tersimpan, ${archivedReports.size} laporan",
                                 tint = LoginAccent,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
