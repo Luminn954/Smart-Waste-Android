@@ -134,6 +134,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
@@ -442,6 +443,13 @@ private fun AdminPage(
     val isPetugas = account.role == UserRole.PETUGAS
     val isDarkMode = LocalSmartWasteAppearance.current.darkMode
     val entersFromTop = isAdmin && current in setOf("stats", "ops", "reports")
+    var targetPageVisible by remember(current) { mutableStateOf(!entersFromTop) }
+    LaunchedEffect(current, entersFromTop) {
+        if (entersFromTop) {
+            withFrameNanos { }
+            targetPageVisible = true
+        }
+    }
     val workspacePalette = workspacePaletteOverride
         ?: if (isNightAdmin) AdminNightPalette else LocalSmartWastePalette.current
     val workspaceColorScheme = when {
@@ -471,14 +479,11 @@ private fun AdminPage(
                     )
                 ) {
                     AnimatedVisibility(
-                        visible = true,
+                        visible = targetPageVisible,
                         modifier = Modifier.fillMaxSize(),
-                        enter = fadeIn(tween(if (entersFromTop) 320 else 260)) + slideInVertically(
-                            initialOffsetY = { height -> if (entersFromTop) -height / 12 else height / 36 },
-                            animationSpec = tween(
-                                durationMillis = if (entersFromTop) 460 else 260,
-                                easing = FastOutSlowInEasing
-                            )
+                        enter = fadeIn(tween(260)) + slideInVertically(
+                            initialOffsetY = { height -> -height / 3 },
+                            animationSpec = tween(620, easing = FastOutSlowInEasing)
                         )
                     ) {
                         Column(
@@ -5114,9 +5119,9 @@ fun PetugasTasksScreen(
                 val direction = if (sectionOrder.indexOf(targetState) >= sectionOrder.indexOf(initialState)) 1 else -1
                 if (targetState in setOf("tugas", "riwayat", "profil")) {
                     (slideInVertically(
-                        initialOffsetY = { height -> -height / 12 },
-                        animationSpec = tween(460, easing = FastOutSlowInEasing)
-                    ) + fadeIn(tween(320))) togetherWith fadeOut(tween(180))
+                        initialOffsetY = { height -> -height / 3 },
+                        animationSpec = tween(620, easing = FastOutSlowInEasing)
+                    ) + fadeIn(tween(260))) togetherWith fadeOut(tween(200))
                 } else {
                     (slideInHorizontally(
                         animationSpec = tween(260, easing = FastOutSlowInEasing)
