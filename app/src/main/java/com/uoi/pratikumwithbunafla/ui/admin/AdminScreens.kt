@@ -6503,19 +6503,29 @@ private fun PetugasThemeBackdrop(modifier: Modifier = Modifier) {
 private fun PetugasSectionHeading(
     eyebrow: String,
     title: String,
-    subtitle: String,
+    subtitle: String?,
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Filled.LocalShipping
+    icon: ImageVector = Icons.Filled.LocalShipping,
+    photoName: String? = null,
+    photoUrl: String? = null
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             Box(
                 modifier = Modifier.size(34.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(PetugasAccent.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = PetugasAccent, modifier = Modifier.size(17.dp))
+                if (!photoUrl.isNullOrBlank()) {
+                    UserAvatar(photoName.orEmpty(), Modifier.fillMaxSize(), photoUrl)
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize()
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(PetugasAccent.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(icon, contentDescription = null, tint = PetugasAccent, modifier = Modifier.size(17.dp))
+                    }
+                }
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
@@ -6539,14 +6549,16 @@ private fun PetugasSectionHeading(
                 )
             }
         }
-        Text(
-            subtitle,
-            color = AppTextMuted,
-            fontSize = 12.sp,
-            lineHeight = 18.sp,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis
-        )
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                subtitle,
+                color = AppTextMuted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -7268,8 +7280,10 @@ private fun AccountProfileSettings(
             PetugasSectionHeading(
                 eyebrow = "AKUN LAPANGAN",
                 title = "Profil petugas",
-                subtitle = "Identitas dan preferensi akun kerja.",
-                icon = Icons.Rounded.Person
+                subtitle = null,
+                icon = Icons.Rounded.Person,
+                photoName = account.name,
+                photoUrl = account.profilePhotoUrl
             )
         }
 
