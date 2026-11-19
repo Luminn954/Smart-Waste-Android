@@ -550,7 +550,12 @@ private fun AdminPage(
 }
 
 @Composable
-private fun AdminSectionHeading(eyebrow: String, title: String, subtitle: String) {
+private fun AdminSectionHeading(
+    eyebrow: String,
+    title: String,
+    subtitle: String,
+    trailingAction: (@Composable () -> Unit)? = null
+) {
     val compact = LocalConfiguration.current.screenWidthDp < 360
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
@@ -586,14 +591,33 @@ private fun AdminSectionHeading(eyebrow: String, title: String, subtitle: String
             lineHeight = if (compact) 25.sp else 28.sp,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            subtitle,
-            color = LoginMuted,
-            fontSize = 12.sp,
-            lineHeight = 18.sp,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis
-        )
+        if (trailingAction == null) {
+            Text(
+                subtitle,
+                color = LoginMuted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    subtitle,
+                    modifier = Modifier.weight(1f),
+                    color = LoginMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+                trailingAction()
+            }
+        }
     }
 }
 
@@ -2470,7 +2494,27 @@ fun AdminVerificationScreen(
         AdminSectionHeading(
             "INBOX • ADMIN",
             "Laporan warga",
-            "Lihat laporan yang masuk dan pantau perkembangannya."
+            "Lihat laporan yang masuk dan pantau perkembangannya.",
+            trailingAction = if (!showingArchive) {
+                {
+                    IconButton(
+                        onClick = {
+                            archiveActionError = ""
+                            onArchiveViewChange(true)
+                        },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(RoleGreen.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                    ) {
+                        Icon(
+                            Icons.Filled.Archive,
+                            contentDescription = "Buka arsip tersimpan, ${archivedReports.size} laporan",
+                            tint = LoginAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            } else null
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
         if (showingArchive) {
@@ -2586,24 +2630,6 @@ fun AdminVerificationScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    if (filter == "selesai") {
-                        IconButton(
-                            onClick = {
-                                archiveActionError = ""
-                                onArchiveViewChange(true)
-                            },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(RoleGreen.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
-                        ) {
-                            Icon(
-                                Icons.Filled.Archive,
-                                contentDescription = "Buka arsip tersimpan, ${archivedReports.size} laporan",
-                                tint = LoginAccent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
                     }
                 }
             }
