@@ -240,27 +240,27 @@ private val IsNightAdmin: Boolean
 private val RoleAccentSurface: Color
     @Composable get() = if (IsNightAdmin) Color(0xFF33443A) else WasteBlue
 private val RoleRed: Color
-    @Composable get() = if (IsNightAdmin) Color(0xFFD89A93) else WasteRed
+    @Composable get() = if (IsNightAdmin) Color(0xFFC78882) else WasteRed
 private val RoleOrange: Color
-    @Composable get() = if (IsNightAdmin) Color(0xFFD1B878) else WasteOrange
+    @Composable get() = if (IsNightAdmin) Color(0xFFBBA46F) else WasteOrange
 private val RolePurple: Color
-    @Composable get() = if (IsNightAdmin) Color(0xFFB5A8C2) else WastePurple
+    @Composable get() = if (IsNightAdmin) Color(0xFFA89AAF) else WastePurple
 private val RoleTeal: Color
-    @Composable get() = if (IsNightAdmin) Color(0xFF8EB7A9) else WasteTeal
+    @Composable get() = if (IsNightAdmin) Color(0xFF7FA99B) else WasteTeal
 private val RoleGreen: Color
-    @Composable get() = if (IsNightAdmin) Color(0xFF9BC29C) else WasteGreen
+    @Composable get() = if (IsNightAdmin) Color(0xFF88A988) else WasteGreen
 private val RoleGreenDark: Color
-    @Composable get() = if (IsNightAdmin) Color(0xFF9BC29C) else WasteGreenDark
+    @Composable get() = if (IsNightAdmin) Color(0xFF7FA27F) else WasteGreenDark
 private val RoleNavy: Color
-    @Composable get() = if (IsNightAdmin) Color(0xFFAAB8CC) else WasteNavy
+    @Composable get() = if (IsNightAdmin) Color(0xFF91A2B6) else WasteNavy
 
 private val AdminNightPalette = DarkSmartWastePalette.copy(
-    background = Color(0xFF14241C),
-    surface = Color(0xFF1D3025),
-    surfaceMuted = Color(0xFF293D31),
-    border = Color(0xFF3B5645),
-    text = Color(0xFFE7EEE8),
-    textMuted = Color(0xFFB3C1B6)
+    background = Color(0xFF161F1A),
+    surface = Color(0xFF202B24),
+    surfaceMuted = Color(0xFF2A352E),
+    border = Color(0xFF3D4D42),
+    text = Color(0xFFE0E7E1),
+    textMuted = Color(0xFFA5B2A8)
 )
 
 private val PetugasDayPalette = LightSmartWastePalette.copy(
@@ -349,18 +349,18 @@ private val PetugasAccentAlert: Color
     }
 
 private val AdminNightColorScheme = darkColorScheme(
-    primary = Color(0xFF9DBDA4),
+    primary = Color(0xFF87A790),
     onPrimary = Color(0xFF17231A),
-    primaryContainer = Color(0xFF2A4032),
-    onPrimaryContainer = Color(0xFFD7E6DA),
-    secondary = Color(0xFF8FB5A5),
+    primaryContainer = Color(0xFF2A3A30),
+    onPrimaryContainer = Color(0xFFD0DED3),
+    secondary = Color(0xFF7F9E91),
     onSecondary = Color(0xFF17241D),
-    secondaryContainer = Color(0xFF293E34),
-    onSecondaryContainer = Color(0xFFD5E3DA),
-    tertiary = Color(0xFFC2AD79),
+    secondaryContainer = Color(0xFF293832),
+    onSecondaryContainer = Color(0xFFCFDBD4),
+    tertiary = Color(0xFFB5A273),
     onTertiary = Color(0xFF282114),
-    tertiaryContainer = Color(0xFF443921),
-    onTertiaryContainer = Color(0xFFEBDDB8),
+    tertiaryContainer = Color(0xFF3B3425),
+    onTertiaryContainer = Color(0xFFDED2B2),
     background = AdminNightPalette.background,
     onBackground = AdminNightPalette.text,
     surface = AdminNightPalette.surface,
@@ -368,10 +368,10 @@ private val AdminNightColorScheme = darkColorScheme(
     surfaceVariant = AdminNightPalette.surfaceMuted,
     onSurfaceVariant = AdminNightPalette.textMuted,
     outline = AdminNightPalette.border,
-    error = Color(0xFFE0A09A),
+    error = Color(0xFFCA8882),
     onError = Color(0xFF321B19),
-    errorContainer = Color(0xFF4B2A27),
-    onErrorContainer = Color(0xFFFFDAD5)
+    errorContainer = Color(0xFF402A28),
+    onErrorContainer = Color(0xFFE8C2BD)
 )
 
 private val TaskAmber = Color(0xFFB86B1D)
@@ -656,7 +656,7 @@ private fun AdminTopBar(
     val logoBorder = Color(0xFFB7CBB9)
     val roleTextColor = if (isOnHero) Color(0xFFF5F4E8) else AppText
     val modeIconTint by animateColorAsState(
-        targetValue = if (appearance.darkMode) Color(0xFFC2B48E) else Color(0xFF687F83),
+        targetValue = if (appearance.darkMode) Color(0xFFB09F79) else Color(0xFF687F83),
         animationSpec = tween(520, easing = FastOutSlowInEasing),
         label = "admin-theme-icon-tint"
     )
@@ -827,7 +827,7 @@ private fun FloatingRoleNavigationBar(
     }
     val barColor by animateColorAsState(
         targetValue = when {
-            IsNightAdmin -> Color(0xFF202923)
+            IsNightAdmin -> Color(0xFF1D2620)
             darkMode -> Color(0xFF14231B)
             else -> Color(0xFF244638)
         },
@@ -836,7 +836,7 @@ private fun FloatingRoleNavigationBar(
     )
     val activeColor by animateColorAsState(
         targetValue = when {
-            IsNightAdmin -> Color(0xFF9DBDA4)
+            IsNightAdmin -> Color(0xFF829D88)
             darkMode -> Color(0xFF89C965)
             else -> Color(0xFFA5DA73)
         },
@@ -844,7 +844,7 @@ private fun FloatingRoleNavigationBar(
         label = "role-navbar-active"
     )
     val inactiveColor = when {
-        IsNightAdmin -> Color(0xFFAAB6AC)
+        IsNightAdmin -> Color(0xFF9CA99F)
         darkMode -> Color(0xFFB4C1B8)
         else -> Color(0xFFD5E0D8)
     }
@@ -1994,15 +1994,15 @@ private fun AdminTaskTile(
 ) {
     val nightAdmin = IsNightAdmin
     val iconTint = if (nightAdmin) when (accent) {
-        TaskAmber -> Color(0xFFD0B775)
-        TaskPurple -> Color(0xFFB3A2C0)
-        TaskIndigo -> Color(0xFFA6B2CE)
-        TaskTeal -> Color(0xFF89B9AA)
-        TaskGreen -> Color(0xFF9ABF96)
-        TaskBlue -> Color(0xFF91ADC4)
-        TaskCoral -> Color(0xFFD69A91)
-        TaskRose -> Color(0xFFC99AAD)
-        else -> Color(0xFF9DBDA4)
+        TaskAmber -> Color(0xFFB79A62)
+        TaskPurple -> Color(0xFF9D8FAE)
+        TaskIndigo -> Color(0xFF919CB8)
+        TaskTeal -> Color(0xFF789E94)
+        TaskGreen -> Color(0xFF86A585)
+        TaskBlue -> Color(0xFF829DAF)
+        TaskCoral -> Color(0xFFC1877F)
+        TaskRose -> Color(0xFFB88498)
+        else -> Color(0xFF87A790)
     } else accent
     val iconBackground = iconTint.copy(alpha = if (nightAdmin) 0.20f else 0.22f)
 
