@@ -441,6 +441,7 @@ private fun AdminPage(
     val isNightAdmin = isAdmin && LocalSmartWasteAppearance.current.darkMode
     val isPetugas = account.role == UserRole.PETUGAS
     val isDarkMode = LocalSmartWasteAppearance.current.darkMode
+    val entersFromTop = isAdmin && current in setOf("stats", "ops", "reports")
     val workspacePalette = workspacePaletteOverride
         ?: if (isNightAdmin) AdminNightPalette else LocalSmartWastePalette.current
     val workspaceColorScheme = when {
@@ -472,9 +473,12 @@ private fun AdminPage(
                     AnimatedVisibility(
                         visible = true,
                         modifier = Modifier.fillMaxSize(),
-                        enter = fadeIn(tween(260)) + slideInVertically(
-                            initialOffsetY = { it / 36 },
-                            animationSpec = tween(260)
+                        enter = fadeIn(tween(if (entersFromTop) 320 else 260)) + slideInVertically(
+                            initialOffsetY = { height -> if (entersFromTop) -height / 12 else height / 36 },
+                            animationSpec = tween(
+                                durationMillis = if (entersFromTop) 460 else 260,
+                                easing = FastOutSlowInEasing
+                            )
                         )
                     ) {
                         Column(
@@ -5108,14 +5112,21 @@ fun PetugasTasksScreen(
             transitionSpec = {
                 val sectionOrder = listOf("ringkasan", "tugas", "riwayat", "profil")
                 val direction = if (sectionOrder.indexOf(targetState) >= sectionOrder.indexOf(initialState)) 1 else -1
-                (slideInHorizontally(
-                    animationSpec = tween(260, easing = FastOutSlowInEasing)
-                ) { width -> width * direction * 18 / 100 } +
-                    fadeIn(tween(200))) togetherWith
-                    (slideOutHorizontally(
-                        animationSpec = tween(220, easing = FastOutSlowInEasing)
-                    ) { width -> -width * direction * 12 / 100 } +
-                        fadeOut(tween(160)))
+                if (targetState in setOf("tugas", "riwayat", "profil")) {
+                    (slideInVertically(
+                        initialOffsetY = { height -> -height / 12 },
+                        animationSpec = tween(460, easing = FastOutSlowInEasing)
+                    ) + fadeIn(tween(320))) togetherWith fadeOut(tween(180))
+                } else {
+                    (slideInHorizontally(
+                        animationSpec = tween(260, easing = FastOutSlowInEasing)
+                    ) { width -> width * direction * 18 / 100 } +
+                        fadeIn(tween(200))) togetherWith
+                        (slideOutHorizontally(
+                            animationSpec = tween(220, easing = FastOutSlowInEasing)
+                        ) { width -> -width * direction * 12 / 100 } +
+                            fadeOut(tween(160)))
+                }
             },
             label = "petugas-section-slide"
         ) { section ->
