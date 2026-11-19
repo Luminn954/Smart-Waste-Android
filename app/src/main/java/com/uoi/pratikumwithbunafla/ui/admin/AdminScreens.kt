@@ -2472,11 +2472,11 @@ fun AdminVerificationScreen(
             "Lihat laporan yang masuk dan pantau perkembangannya."
         )
         if (errorMessage.isNotBlank()) InlineError(errorMessage)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            if (showingArchive) {
+        if (showingArchive) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
                 TextButton(
                     onClick = {
                         archiveActionError = ""
@@ -2485,19 +2485,6 @@ fun AdminVerificationScreen(
                     colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
                 ) {
                     Text("← Kembali ke laporan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                IconButton(
-                    onClick = {
-                        archiveActionError = ""
-                        onArchiveViewChange(true)
-                    }
-                ) {
-                    Icon(
-                        Icons.Filled.Archive,
-                        contentDescription = "Buka arsip tersimpan, ${archivedReports.size} laporan",
-                        tint = LoginAccent
-                    )
                 }
             }
         }
@@ -2598,6 +2585,24 @@ fun AdminVerificationScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (filter == "selesai") {
+                        IconButton(
+                            onClick = {
+                                archiveActionError = ""
+                                onArchiveViewChange(true)
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(RoleGreen.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                        ) {
+                            Icon(
+                                Icons.Filled.Archive,
+                                contentDescription = "Buka arsip tersimpan, ${archivedReports.size} laporan",
+                                tint = LoginAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
