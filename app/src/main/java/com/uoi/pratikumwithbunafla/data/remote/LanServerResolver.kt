@@ -1,5 +1,13 @@
 package com.uoi.pratikumwithbunafla.data.remote
 
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.net.URL
+import java.nio.ByteBuffer
+import java.util.Collections
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -10,14 +18,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.Inet4Address
-import java.net.NetworkInterface
-import java.net.URL
-import java.nio.ByteBuffer
-import java.util.Collections
-import java.util.concurrent.atomic.AtomicReference
 
 /** Menemukan server PHP Smart Waste saat alamat Wi-Fi laptop berubah. */
 internal object LanServerResolver {
@@ -30,22 +30,33 @@ internal object LanServerResolver {
     @Volatile private var verifiedHost: String? = null
     @Volatile private var verifiedAtMillis = 0L
 
-    suspend fun resolveHost(configuredApiUrl: String): String = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            val now = System.currentTimeMillis()
-            verifiedHost?.takeIf { now - verifiedAtMillis < CACHE_MILLIS }?.let { return@withLock it }
+    suspend fun resolveHost(configuredApiUrl: String): String =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                val now = System.currentTimeMillis()
+                verifiedHost
+                    ?.takeIf { now - verifiedAtMillis < CACHE_MILLIS }
+                    ?.let {
+                        return@withLock it
+                    }
 
-            val configuredHost = runCatching { URL(configuredApiUrl).host }.getOrNull()
-            val knownHosts = listOfNotNull(verifiedHost, configuredHost, "10.0.2.2").distinct()
-            knownHosts.firstOrNull { isSmartWasteServer(it) }?.let { return@withLock remember(it) }
+                val configuredHost = runCatching { URL(configuredApiUrl).host }.getOrNull()
+                val knownHosts = listOfNotNull(verifiedHost, configuredHost, "10.0.2.2").distinct()
+                knownHosts
+                    .firstOrNull { isSmartWasteServer(it) }
+                    ?.let {
+                        return@withLock remember(it)
+                    }
 
-            val discoveredHost = scanLocalSubnet()
-                ?: throw IOException(
-                    "Server Smart Waste tidak ditemukan. Sambungkan HP dan laptop ke Wi-Fi yang sama, lalu pastikan Apache XAMPP aktif di port 8080."
-                )
-            remember(discoveredHost)
+                val discoveredHost =
+                    scanLocalSubnet()
+                        ?: throw IOException(
+                            "Server Smart Waste tidak ditemukan. Sambungkan HP dan laptop " +
+                                "ke Wi-Fi yang sama, lalu pastikan Apache XAMPP aktif di port 8080.",
+                        )
+                remember(discoveredHost)
+            }
         }
-    }
 
     fun apiBaseUrl(host: String): String = "http://$host:$SERVER_PORT/Waste2/backend-php/index.php"
 
@@ -60,26 +71,30 @@ internal object LanServerResolver {
     }
 
     private fun isSmartWasteServer(host: String): Boolean = runCatching {
-        val connection = (URL("http://$host:$SERVER_PORT$HEALTH_PATH").openConnection() as HttpURLConnection).apply {
-            connectTimeout = PROBE_TIMEOUT_MILLIS
-            readTimeout = PROBE_TIMEOUT_MILLIS
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("Cache-Control", "no-cache")
-            setRequestProperty("Connection", "close")
-        }
+        val connection =
+            (URL("http://$host:$SERVER_PORT$HEALTH_PATH").openConnection() as HttpURLConnection)
+                .apply {
+                    connectTimeout = PROBE_TIMEOUT_MILLIS
+                    readTimeout = PROBE_TIMEOUT_MILLIS
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Cache-Control", "no-cache")
+                    setRequestProperty("Connection", "close")
+                }
         try {
             val responseCode = connection.responseCode
-            val responseStream = if (responseCode in 200..299) {
-                connection.inputStream
-            } else {
-                connection.errorStream
-            }
+            val responseStream =
+                if (responseCode in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
             val body = responseStream?.bufferedReader()?.use { it.readText() }.orEmpty()
             JSONObject(body).optString("service") == "Smart Waste REST API"
         } finally {
             connection.disconnect()
         }
-    }.getOrDefault(false)
+    }
+        .getOrDefault(false)
 
     private suspend fun scanLocalSubnet(): String? = coroutineScope {
         val hosts = localIpv4Candidates()
@@ -87,17 +102,19 @@ internal object LanServerResolver {
 
         val semaphore = Semaphore(64)
         val found = AtomicReference<String?>(null)
-        hosts.map { host ->
-            async {
-                if (found.get() == null) {
-                    semaphore.withPermit {
-                        if (found.get() == null && isSmartWasteServer(host)) {
-                            found.compareAndSet(null, host)
+        hosts
+            .map { host ->
+                async {
+                    if (found.get() == null) {
+                        semaphore.withPermit {
+                            if (found.get() == null && isSmartWasteServer(host)) {
+                                found.compareAndSet(null, host)
+                            }
                         }
                     }
                 }
             }
-        }.awaitAll()
+            .awaitAll()
         found.get()
     }
 
@@ -107,7 +124,8 @@ internal object LanServerResolver {
 
         interfaces
             .filter { network ->
-                network.isUp && !network.isLoopback &&
+                network.isUp &&
+                    !network.isLoopback &&
                     network.name.contains(Regex("wlan|wifi|eth", RegexOption.IGNORE_CASE))
             }
             .forEach { network ->
@@ -127,12 +145,15 @@ internal object LanServerResolver {
                 }
             }
         candidates.toList()
-    }.getOrDefault(emptyList())
+    }
+        .getOrDefault(emptyList())
 
-    private fun toIpv4(address: Int): String = listOf(
-        (address ushr 24) and 0xff,
-        (address ushr 16) and 0xff,
-        (address ushr 8) and 0xff,
-        address and 0xff
-    ).joinToString(".")
+    private fun toIpv4(address: Int): String =
+        listOf(
+                (address ushr 24) and 0xff,
+                (address ushr 16) and 0xff,
+                (address ushr 8) and 0xff,
+                address and 0xff,
+            )
+            .joinToString(".")
 }

@@ -2,10 +2,10 @@ package com.uoi.pratikumwithbunafla.data.model
 
 enum class UserRole(
     val label: String,
-    val description: String
+    val description: String,
 ) {
     ADMIN("Admin", "Menerima laporan dan memantau statistik serta kinerja petugas"),
-    PETUGAS("Petugas", "Menangani laporan dan operasional pengangkutan sampah")
+    PETUGAS("Petugas", "Menangani laporan dan operasional pengangkutan sampah"),
 }
 
 data class UserAccount(
@@ -14,7 +14,7 @@ data class UserAccount(
     val password: String,
     val role: UserRole,
     val isSuperAdmin: Boolean = false,
-    val profilePhotoUrl: String? = null
+    val profilePhotoUrl: String? = null,
 )
 
 data class WasteRecord(
@@ -40,13 +40,13 @@ data class WasteRecord(
     val completionReviewNote: String = "",
     val workerDecisionNote: String = "",
     val locationEvidencePhotoUrl: String? = null,
-    val locationEvidenceSubmittedAt: String = ""
+    val locationEvidenceSubmittedAt: String = "",
 )
 
 data class ArchivedWasteRecord(
     val report: WasteRecord,
     val archivedAt: String,
-    val archivedBy: String = "Admin"
+    val archivedBy: String = "Admin",
 )
 
 data class AdminDashboardSummary(
@@ -65,7 +65,7 @@ data class AdminDashboardSummary(
     val tpaCapacityTon: Double = 0.0,
     val tpaUsedTon: Double = 0.0,
     val tpaReservedTon: Double = 0.0,
-    val tpaUtilizationPercent: Double = 0.0
+    val tpaUtilizationPercent: Double = 0.0,
 )
 
 data class AdminWorker(
@@ -81,7 +81,7 @@ data class AdminWorker(
     val pendingConfirmations: Int = 0,
     val completedWeightKg: Double = 0.0,
     val profilePhotoUrl: String? = null,
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
 )
 
 data class TaskCompletionReview(
@@ -90,7 +90,7 @@ data class TaskCompletionReview(
     val workerName: String,
     val proofPhotoUrl: String,
     val workerNote: String,
-    val submittedAt: String
+    val submittedAt: String,
 )
 
 data class VehicleRepairEvent(
@@ -98,7 +98,7 @@ data class VehicleRepairEvent(
     val note: String,
     val actorName: String,
     val actorRole: String,
-    val createdAt: String
+    val createdAt: String,
 )
 
 data class VehicleRepair(
@@ -113,7 +113,7 @@ data class VehicleRepair(
     val adminNote: String,
     val activeTaskCount: Int,
     val reportedAt: String,
-    val timeline: List<VehicleRepairEvent> = emptyList()
+    val timeline: List<VehicleRepairEvent> = emptyList(),
 )
 
 data class WasteVehicle(
@@ -123,9 +123,10 @@ data class WasteVehicle(
     val loadKg: Double,
     val condition: String,
     val route: String,
-    val reservedKg: Double = 0.0
+    val reservedKg: Double = 0.0,
 ) {
-    val availableKg: Double get() = (capacityKg - loadKg - reservedKg).coerceAtLeast(0.0)
+    val availableKg: Double
+        get() = (capacityKg - loadKg - reservedKg).coerceAtLeast(0.0)
 }
 
 data class WasteFacility(
@@ -134,9 +135,10 @@ data class WasteFacility(
     val address: String,
     val capacityTon: Double,
     val filledTon: Double,
-    val reservedTon: Double = 0.0
+    val reservedTon: Double = 0.0,
 ) {
-    val remainingTon: Double get() = (capacityTon - filledTon - reservedTon).coerceAtLeast(0.0)
+    val remainingTon: Double
+        get() = (capacityTon - filledTon - reservedTon).coerceAtLeast(0.0)
 }
 
 data class CapacityClearanceRequest(
@@ -149,31 +151,34 @@ data class CapacityClearanceRequest(
     val evidencePhotoUrl: String,
     val status: String,
     val adminNote: String,
-    val createdAt: String
+    val createdAt: String,
 ) {
-    val isPending: Boolean get() = status.equals("menunggu", ignoreCase = true)
-    val targetLabel: String get() = if (targetType == "tpa") "TPA" else "Armada"
+    val isPending: Boolean
+        get() = status.equals("menunggu", ignoreCase = true)
+
+    val targetLabel: String
+        get() = if (targetType == "tpa") "TPA" else "Armada"
 }
 
 data class DailyReport(
     val date: String,
     val totalWaste: Int,
-    val weightKg: Double
+    val weightKg: Double,
 )
 
 data class MonthlyStat(
     val period: String,
-    val total: Int
+    val total: Int,
 )
 
 data class TypeStat(
     val type: String,
     val total: Int,
-    val weightKg: Double
+    val weightKg: Double,
 )
 
 data class AdminStatistics(
     val monthly: List<MonthlyStat> = emptyList(),
     val byType: List<TypeStat> = emptyList(),
-    val completedReports: Int = 0
+    val completedReports: Int = 0,
 )

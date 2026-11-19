@@ -14,15 +14,16 @@ object WasteFlow {
     fun isInProgress(status: String): Boolean =
         status == PROCESSING || status == ASSIGNED || status == TRANSPORTED
 
-    fun label(status: String): String = when (status) {
-        WAITING -> "Menunggu Verifikasi"
-        PROCESSING -> "Diproses"
-        ASSIGNED -> "Ditugaskan"
-        TRANSPORTED -> "Diangkut"
-        DONE -> "Selesai"
-        REJECTED -> "Ditolak"
-        else -> status.replace('_', ' ').replaceFirstChar { it.uppercase() }
-    }
+    fun label(status: String): String =
+        when (status) {
+            WAITING -> "Menunggu Verifikasi"
+            PROCESSING -> "Diproses"
+            ASSIGNED -> "Ditugaskan"
+            TRANSPORTED -> "Diangkut"
+            DONE -> "Selesai"
+            REJECTED -> "Ditolak"
+            else -> status.replace('_', ' ').replaceFirstChar { it.uppercase() }
+        }
 
     fun next(status: String): String? {
         val index = stages.indexOf(status)
