@@ -6,12 +6,16 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
@@ -25,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -32,6 +37,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.uoi.pratikumwithbunafla.data.local.TaskSystemNotifications
 import com.uoi.pratikumwithbunafla.data.model.*
 import com.uoi.pratikumwithbunafla.data.remote.LanAppUpdate
 import com.uoi.pratikumwithbunafla.data.remote.LanAppUpdater
@@ -59,6 +65,7 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        TaskSystemNotifications.createChannel(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = AndroidColor.TRANSPARENT
         window.navigationBarColor = AndroidColor.TRANSPARENT
@@ -71,6 +78,12 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) {}
+            val notificationPermissionPreferences = remember {
+                getSharedPreferences("smart_waste_notification_permissions", MODE_PRIVATE)
+            }
             val appearancePreferences = remember {
                 getSharedPreferences("smart_waste_appearance", MODE_PRIVATE)
             }
@@ -78,6 +91,22 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(appearancePreferences.getBoolean("dark_mode", false))
             }
             var activeAccount by remember { mutableStateOf<UserAccount?>(null) }
+            LaunchedEffect(activeAccount?.username) {
+                if (activeAccount == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    return@LaunchedEffect
+                }
+                if (ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    return@LaunchedEffect
+                }
+                if (!notificationPermissionPreferences.getBoolean("requested", false)) {
+                    notificationPermissionPreferences.edit().putBoolean("requested", true).apply()
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
             var roleEntryKey by rememberSaveable { mutableIntStateOf(0) }
             var showSplash by rememberSaveable { mutableStateOf(true) }
             var keepSplashSystemBars by remember { mutableStateOf(true) }
@@ -226,7 +255,17 @@ class MainActivity : ComponentActivity() {
                                 "Penugasan",
                                 tasks,
                                 loadErrors
-                            ) { SmartWasteApi.workerTasks() }
+                            ) {
+                                SmartWasteApi.workerTasks().also { fetchedTasks ->
+                                    if (activeAccount?.username == account.username) {
+                                        TaskSystemNotifications.observeTasks(
+                                            this@MainActivity,
+                                            account.username,
+                                            fetchedTasks
+                                        )
+                                    }
+                                }
+                            }
                             archivedPetugasTasks = loadOrKeep(
                                 "Arsip Petugas",
                                 archivedPetugasTasks,
