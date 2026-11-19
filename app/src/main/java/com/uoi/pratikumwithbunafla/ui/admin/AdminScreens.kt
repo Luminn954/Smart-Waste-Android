@@ -481,10 +481,7 @@ private fun AdminPage(
                     AnimatedVisibility(
                         visible = targetPageVisible,
                         modifier = Modifier.fillMaxSize(),
-                        enter = fadeIn(tween(260)) + slideInVertically(
-                            initialOffsetY = { height -> -height / 3 },
-                            animationSpec = tween(620, easing = FastOutSlowInEasing)
-                        )
+                        enter = fadeIn(tween(180, easing = FastOutSlowInEasing))
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize()
@@ -555,6 +552,30 @@ private fun AdminPage(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ColumnScope.StaggeredPageEntry(
+    pageKey: String,
+    index: Int,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    var visible by remember(pageKey, index) { mutableStateOf(false) }
+    val maxOffsetPx = with(LocalDensity.current) { 34.dp.roundToPx() }
+    LaunchedEffect(pageKey, index) {
+        delay((index.coerceAtMost(18) * 52L))
+        visible = true
+    }
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier.fillMaxWidth(),
+        enter = fadeIn(tween(230, easing = FastOutSlowInEasing)) + slideInVertically(
+            initialOffsetY = { height -> -(height / 5).coerceAtMost(maxOffsetPx) },
+            animationSpec = tween(360, easing = FastOutSlowInEasing)
+        )
+    ) {
+        Column(modifier = Modifier.fillMaxWidth(), content = content)
     }
 }
 
@@ -2476,28 +2497,33 @@ fun AdminVerificationScreen(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh
     ) {
-        AdminSectionHeading(
-            "INBOX • ADMIN",
-            "Laporan warga",
-            "Lihat laporan yang masuk dan pantau perkembangannya."
-        )
-        if (errorMessage.isNotBlank()) InlineError(errorMessage)
+        StaggeredPageEntry("admin-inbox", 0) {
+            AdminSectionHeading(
+                "INBOX • ADMIN",
+                "Laporan warga",
+                "Lihat laporan yang masuk dan pantau perkembangannya."
+            )
+        }
+        if (errorMessage.isNotBlank()) StaggeredPageEntry("admin-inbox", 1) { InlineError(errorMessage) }
         if (showingArchive) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(
-                    onClick = {
-                        archiveActionError = ""
-                        onArchiveViewChange(false)
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
+            StaggeredPageEntry("admin-inbox-archive", 2) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    Text("← Kembali ke laporan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    TextButton(
+                        onClick = {
+                            archiveActionError = ""
+                            onArchiveViewChange(false)
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = LoginAccent)
+                    ) {
+                        Text("← Kembali ke laporan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
+        StaggeredPageEntry("admin-inbox-filter-$showingArchive", 3) {
         if (!showingArchive) {
             val reportFilterPositions = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
             val selectedFilterBounds = reportFilterPositions[activeFilter]
@@ -2615,17 +2641,21 @@ fun AdminVerificationScreen(
                 }
             }
         }
+        }
 
-        SmartWasteSearchField(
-            value = reportSearch,
-            onValueChange = { reportSearch = it.take(100) },
-            placeholder = "Cari kode, jenis, lokasi, atau petugas",
-            suggestionSource = reportSearchSuggestions
-        )
+        StaggeredPageEntry("admin-inbox", 4) {
+            SmartWasteSearchField(
+                value = reportSearch,
+                onValueChange = { reportSearch = it.take(100) },
+                placeholder = "Cari kode, jenis, lokasi, atau petugas",
+                suggestionSource = reportSearchSuggestions
+            )
+        }
 
-        SectionTitle(
-            if (showingArchive) "${filteredArchivedReports.size} laporan tersimpan"
-            else "${filteredReports.size} ${when (activeFilter) {
+        StaggeredPageEntry("admin-inbox", 5) {
+            SectionTitle(
+                if (showingArchive) "${filteredArchivedReports.size} laporan tersimpan"
+                else "${filteredReports.size} ${when (activeFilter) {
                     "baru" -> "laporan baru"
                     "proses" -> "laporan diproses"
                     "selesai" -> "laporan selesai"
@@ -2640,62 +2670,77 @@ fun AdminVerificationScreen(
                     "ditolak" -> "Laporan yang ditolak setelah ditinjau."
                     else -> "Pantau seluruh laporan warga."
                 }
-        )
+            )
+        }
         when {
             showingArchive && archivedReports.isEmpty() && isInitialLoading -> {
-                PetugasLoadingState("Memuat arsip", "Mengambil laporan tersimpan dari server.")
+                StaggeredPageEntry("admin-inbox-archive", 6) {
+                    PetugasLoadingState("Memuat arsip", "Mengambil laporan tersimpan dari server.")
+                }
             }
             showingArchive && archivedReports.isEmpty() && archiveLoadFailed -> {
-                PetugasLoadFailure("Arsip laporan belum dapat dimuat.", onRefresh)
+                StaggeredPageEntry("admin-inbox-archive", 6) {
+                    PetugasLoadFailure("Arsip laporan belum dapat dimuat.", onRefresh)
+                }
             }
             showingArchive && filteredArchivedReports.isEmpty() && reportSearch.isBlank() -> {
-                EmptyAdminState("Arsip masih kosong.")
+                StaggeredPageEntry("admin-inbox-archive", 6) { EmptyAdminState("Arsip masih kosong.") }
             }
             showingArchive && filteredArchivedReports.isEmpty() -> {
-                EmptyAdminState("Tidak ada arsip yang cocok dengan pencarian.")
+                StaggeredPageEntry("admin-inbox-archive", 6) {
+                    EmptyAdminState("Tidak ada arsip yang cocok dengan pencarian.")
+                }
             }
             showingArchive -> {
-                filteredArchivedReports.forEach { archived ->
-                    AdminReportCard(
-                        archived.report,
-                        onOpenPhoto,
-                        compact = true,
-                        onRestore = { restoringReport = archived.report },
-                        onPermanentDelete = { deletingArchivedReport = archived.report }
-                    )
-                    Text(
-                        "Disimpan ${archived.archivedAt} · ${archived.archivedBy}",
-                        color = AppTextMuted,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(start = 12.dp, bottom = 5.dp)
-                    )
+                filteredArchivedReports.forEachIndexed { index, archived ->
+                    StaggeredPageEntry("admin-inbox-archive", 7 + index) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            AdminReportCard(
+                                archived.report,
+                                onOpenPhoto,
+                                compact = true,
+                                onRestore = { restoringReport = archived.report },
+                                onPermanentDelete = { deletingArchivedReport = archived.report }
+                            )
+                            Text(
+                                "Disimpan ${archived.archivedAt} · ${archived.archivedBy}",
+                                color = AppTextMuted,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(start = 12.dp, bottom = 5.dp)
+                            )
+                        }
+                    }
                 }
             }
             filteredReports.isEmpty() -> {
-                if (reportLoadFailed) {
-                    PetugasLoadFailure("Daftar laporan belum dapat dimuat.", onRefresh)
-                } else {
-                    EmptyAdminState(
-                        when {
-                            reportSearch.isNotBlank() -> "Tidak ada laporan yang cocok dengan pencarian."
-                            showAllReports -> "Belum ada laporan pada status ini."
-                            else -> "Semua laporan baru sudah ditinjau."
-                        }
-                    )
+                StaggeredPageEntry("admin-inbox", 6) {
+                    if (reportLoadFailed) {
+                        PetugasLoadFailure("Daftar laporan belum dapat dimuat.", onRefresh)
+                    } else {
+                        EmptyAdminState(
+                            when {
+                                reportSearch.isNotBlank() -> "Tidak ada laporan yang cocok dengan pencarian."
+                                showAllReports -> "Belum ada laporan pada status ini."
+                                else -> "Semua laporan baru sudah ditinjau."
+                            }
+                        )
+                    }
                 }
             }
             else -> {
-                filteredReports.forEach { report ->
-                    AdminReportCard(
-                        report,
-                        onOpenPhoto,
-                        compact = true,
-                        onAssign = report.takeIf { it.status == WasteFlow.WAITING }?.let {
-                            { assigningReport = it }
-                        },
-                        assignmentLabel = "Setujui & tugaskan",
-                        onArchive = { archivingReport = report }
-                    )
+                filteredReports.forEachIndexed { index, report ->
+                    StaggeredPageEntry("admin-inbox", 7 + index) {
+                        AdminReportCard(
+                            report,
+                            onOpenPhoto,
+                            compact = true,
+                            onAssign = report.takeIf { it.status == WasteFlow.WAITING }?.let {
+                                { assigningReport = it }
+                            },
+                            assignmentLabel = "Setujui & tugaskan",
+                            onArchive = { archivingReport = report }
+                        )
+                    }
                 }
             }
         }
@@ -3385,26 +3430,27 @@ fun AdminStatsScreen(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh
     ) {
-        AdminSectionHeading(
-            "STATISTIK",
-            "Ringkasan laporan",
-            "Jumlah, jenis, dan status laporan."
-        )
-        if (errorMessage.isNotBlank()) InlineError(errorMessage)
+        StaggeredPageEntry("admin-stats", 0) {
+            AdminSectionHeading("STATISTIK", "Ringkasan laporan", "Jumlah, jenis, dan status laporan.")
+        }
+        if (errorMessage.isNotBlank()) StaggeredPageEntry("admin-stats", 1) { InlineError(errorMessage) }
         Spacer(modifier = Modifier.height(18.dp))
-        SectionTitle("Laporan selesai", "Pilih rentang waktu")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(7, 30, 90).forEach { days ->
-                TextButton(
-                    onClick = { onDailyRange(days) },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = if (days == dailyRangeDays) LoginAccent else LoginMuted,
-                        containerColor = if (days == dailyRangeDays) RoleAccentSurface else AppSurface
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("$days hari", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
+        StaggeredPageEntry("admin-stats", 2) { SectionTitle("Laporan selesai", "Pilih rentang waktu") }
+        StaggeredPageEntry("admin-stats", 3) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(7, 30, 90).forEach { days ->
+                    TextButton(
+                        onClick = { onDailyRange(days) },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (days == dailyRangeDays) LoginAccent else LoginMuted,
+                            containerColor = if (days == dailyRangeDays) RoleAccentSurface else AppSurface
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("$days hari", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
+                }
             }
         }
+        StaggeredPageEntry("admin-stats", 4) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -3426,6 +3472,8 @@ fun AdminStatsScreen(
                 iconBackgroundColor = if (IsNightAdmin) Color(0xFF334843) else Color(0xFFDDEBE4)
             )
         }
+        }
+        StaggeredPageEntry("admin-stats", 5) {
         AppCard(
             modifier = Modifier.fillMaxWidth(),
             containerColor = AppSurface,
@@ -3457,18 +3505,25 @@ fun AdminStatsScreen(
                 }
             }
         }
+        }
 
         val monthlyRange = monthlyBars.firstOrNull()?.let { first ->
             val latest = monthlyBars.last()
             "Enam bulan penuh · ${monthTitle(first.period)}–${monthTitle(latest.period)}"
         } ?: "Enam bulan penuh terakhir"
-        SectionTitle("Laporan per bulan", monthlyRange)
-        if (monthlyBars.isEmpty()) EmptyAdminState("Belum ada data bulanan.") else {
-            MonthlyReportsChart(monthlyBars)
+        StaggeredPageEntry("admin-stats", 6) { SectionTitle("Laporan per bulan", monthlyRange) }
+        StaggeredPageEntry("admin-stats", 7) {
+            if (monthlyBars.isEmpty()) EmptyAdminState("Belum ada data bulanan.") else {
+                MonthlyReportsChart(monthlyBars)
+            }
         }
 
-        SectionTitle("Komposisi jenis sampah", "Porsi berat dari total tercatat")
-        if (stats.byType.isEmpty()) EmptyAdminState("Belum ada data jenis sampah.") else {
+        StaggeredPageEntry("admin-stats", 8) {
+            SectionTitle("Komposisi jenis sampah", "Porsi berat dari total tercatat")
+        }
+        if (stats.byType.isEmpty()) {
+            StaggeredPageEntry("admin-stats", 9) { EmptyAdminState("Belum ada data jenis sampah.") }
+        } else {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -3481,6 +3536,7 @@ fun AdminStatsScreen(
                         0f
                     }
                     val sharePercent = (share * 100).roundToInt()
+                    StaggeredPageEntry("admin-stats", 9 + index) {
                     AppCard(
                         modifier = Modifier.fillMaxWidth()
                             .shadow(4.dp, RoundedCornerShape(18.dp)),
@@ -3546,11 +3602,15 @@ fun AdminStatsScreen(
                             }
                         }
                     }
+                    }
                 }
             }
         }
 
-        SectionTitle("Aktivitas harian", "Laporan selesai per tanggal")
+        StaggeredPageEntry("admin-stats", 16) {
+            SectionTitle("Aktivitas harian", "Laporan selesai per tanggal")
+        }
+        StaggeredPageEntry("admin-stats", 17) {
         if (dailyReports.isEmpty()) {
             EmptyAdminState("Belum ada laporan selesai dalam rentang ini.")
         } else {
@@ -3586,6 +3646,7 @@ fun AdminStatsScreen(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -3711,6 +3772,7 @@ fun AdminOperationsScreen(
             "pengosongan" to "Pengosongan · ${capacityClearanceRequests.count { it.isPending }}",
             "bukti" to "Bukti kerja · ${completionReviews.size + reports.count { !it.locationEvidencePhotoUrl.isNullOrBlank() }}"
         )
+        StaggeredPageEntry("admin-ops-$tab", 0) {
         AdminSectionHeading(
             when (tab) {
                 "bukti" -> "ADMIN • KINERJA"
@@ -3731,8 +3793,9 @@ fun AdminOperationsScreen(
                 else -> "Atur akun petugas dan pantau pembagian tugas."
             }
         )
-        if (errorMessage.isNotBlank()) InlineError(errorMessage)
-        if (actionError.isNotBlank()) InlineError(actionError)
+        }
+        if (errorMessage.isNotBlank()) StaggeredPageEntry("admin-ops-$tab", 1) { InlineError(errorMessage) }
+        if (actionError.isNotBlank()) StaggeredPageEntry("admin-ops-$tab", 2) { InlineError(actionError) }
         val operationsListState = rememberLazyListState()
         val operationsTabPositions = remember { mutableStateMapOf<String, Pair<Float, Float>>() }
         var operationsRowRootX by remember { mutableStateOf(0f) }
@@ -3771,6 +3834,7 @@ fun AdminOperationsScreen(
             animationSpec = tween(360, easing = FastOutSlowInEasing),
             label = "operations-tab-indicator-width"
         )
+        StaggeredPageEntry("admin-ops-$tab", 3) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -3834,9 +3898,11 @@ fun AdminOperationsScreen(
                 }
             }
         }
+        }
         when (tab) {
             "pengosongan" -> {
                 val visibleRequests = capacityClearanceRequests.filter { it.isPending != showingClearanceHistory }
+                StaggeredPageEntry("admin-clearance-$showingClearanceHistory", 4) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -3855,13 +3921,17 @@ fun AdminOperationsScreen(
                         ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
                     }
                 }
-                if (visibleRequests.isEmpty()) {
-                    EmptyAdminState(
-                        if (showingClearanceHistory) "Belum ada keputusan pengosongan."
-                        else "Belum ada permintaan pengosongan yang menunggu persetujuan."
-                    )
                 }
-                visibleRequests.forEach { request ->
+                if (visibleRequests.isEmpty()) {
+                    StaggeredPageEntry("admin-clearance-$showingClearanceHistory", 5) {
+                        EmptyAdminState(
+                            if (showingClearanceHistory) "Belum ada keputusan pengosongan."
+                            else "Belum ada permintaan pengosongan yang menunggu persetujuan."
+                        )
+                    }
+                }
+                visibleRequests.forEachIndexed { index, request ->
+                    StaggeredPageEntry("admin-clearance-$showingClearanceHistory", 6 + index) {
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = AppSurface,
@@ -3905,6 +3975,7 @@ fun AdminOperationsScreen(
                             }
                         }
                     }
+                    }
                 }
             }
             "petugas" -> {
@@ -3912,19 +3983,24 @@ fun AdminOperationsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    SectionTitle("Data petugas")
-                    AppButton(
-                        "＋ Tambah akun petugas",
-                        { adding = true },
-                        containerColor = LoginAccent
-                    )
-                    SmartWasteSearchField(
-                        value = workerSearch,
-                        onValueChange = { workerSearch = it.take(80) },
-                        placeholder = "Cari nama, username, atau zona",
-                        suggestionSource = workerSearchSuggestions,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
+                    StaggeredPageEntry("admin-ops-$tab", 4) { SectionTitle("Data petugas") }
+                    StaggeredPageEntry("admin-ops-$tab", 5) {
+                        AppButton(
+                            "＋ Tambah akun petugas",
+                            { adding = true },
+                            containerColor = LoginAccent
+                        )
+                    }
+                    StaggeredPageEntry("admin-ops-$tab", 6) {
+                        SmartWasteSearchField(
+                            value = workerSearch,
+                            onValueChange = { workerSearch = it.take(80) },
+                            placeholder = "Cari nama, username, atau zona",
+                            suggestionSource = workerSearchSuggestions,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
+                    StaggeredPageEntry("admin-ops-$tab", 7) {
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -3945,17 +4021,20 @@ fun AdminOperationsScreen(
                             ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
                         }
                     }
-                    if (workers.isEmpty()) EmptyAdminState("Belum ada data petugas.")
-                    else if (visibleWorkers.isEmpty()) {
-                        EmptyAdminState(
-                            when {
-                                workerSearchQuery.isNotBlank() -> "Petugas tidak ditemukan."
-                                activeWorkerFilter == "arsip" -> "Belum ada petugas di arsip."
-                                else -> "Tidak ada petugas pada filter ini."
-                            }
-                        )
                     }
-                    visibleWorkers.forEach { item ->
+                    if (workers.isEmpty() || visibleWorkers.isEmpty()) {
+                        StaggeredPageEntry("admin-ops-$tab", 8) {
+                            EmptyAdminState(
+                                when {
+                                    workers.isEmpty() -> "Belum ada data petugas."
+                                    workerSearchQuery.isNotBlank() -> "Petugas tidak ditemukan."
+                                    activeWorkerFilter == "arsip" -> "Belum ada petugas di arsip."
+                                    else -> "Tidak ada petugas pada filter ini."
+                                }
+                            )
+                        }
+                    }
+                    visibleWorkers.forEachIndexed { index, item ->
                         val isDarkMode = LocalSmartWasteAppearance.current.darkMode
                         val workerCardColor = AppCardSurface
                         val workerTextColor = if (isDarkMode) AppText else Color(0xFF202820)
@@ -3974,6 +4053,7 @@ fun AdminOperationsScreen(
                             item.active -> if (isDarkMode) RoleGreen else Color(0xFF236B49)
                             else -> workerWarningColor
                         }
+                        StaggeredPageEntry("admin-ops-$tab", 9 + index) {
                         AppCard(
                             modifier = Modifier.fillMaxWidth(),
                             containerColor = workerCardColor,
@@ -4191,6 +4271,7 @@ fun AdminOperationsScreen(
                                 }
                             }
                         }
+                        }
                     }
                 }
             }
@@ -4201,10 +4282,13 @@ fun AdminOperationsScreen(
                 val activeRepairs = vehicleRepairs.filter { it.status !in setOf("selesai", "ditolak") }
                 val repairHistory = vehicleRepairs.filter { it.status in setOf("selesai", "ditolak") }
                 val visibleRepairs = if (showingRepairHistory) repairHistory else activeRepairs
-                SectionTitle(
-                    "Perlu perhatian",
-                    "$waitingApproval menunggu keputusan · $waitingInspection menunggu pemeriksaan hasil"
-                )
+                StaggeredPageEntry("admin-ops-$tab", 4) {
+                    SectionTitle(
+                        "Perlu perhatian",
+                        "$waitingApproval menunggu keputusan · $waitingInspection menunggu pemeriksaan hasil"
+                    )
+                }
+                StaggeredPageEntry("admin-ops-$tab", 5) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(
                         false to "Berjalan · ${activeRepairs.size}",
@@ -4220,16 +4304,22 @@ fun AdminOperationsScreen(
                         ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
                     }
                 }
+                }
                 if (vehicleRepairs.isEmpty() && isInitialLoading) {
-                    PetugasLoadingState("Memuat perbaikan", "Mengambil laporan kerusakan armada.")
+                    StaggeredPageEntry("admin-ops-$tab", 6) {
+                        PetugasLoadingState("Memuat perbaikan", "Mengambil laporan kerusakan armada.")
+                    }
                 } else if (vehicleRepairs.isEmpty() && errorMessage.contains("Perbaikan armada:")) {
-                    PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh)
+                    StaggeredPageEntry("admin-ops-$tab", 6) { PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh) }
                 } else if (vehicleRepairs.isEmpty()) {
-                    EmptyAdminState("Belum ada laporan kerusakan armada.")
+                    StaggeredPageEntry("admin-ops-$tab", 6) { EmptyAdminState("Belum ada laporan kerusakan armada.") }
                 } else if (visibleRepairs.isEmpty()) {
-                    EmptyAdminState(if (showingRepairHistory) "Belum ada riwayat perbaikan." else "Tidak ada proses yang perlu ditinjau.")
+                    StaggeredPageEntry("admin-ops-$tab", 6) {
+                        EmptyAdminState(if (showingRepairHistory) "Belum ada riwayat perbaikan." else "Tidak ada proses yang perlu ditinjau.")
+                    }
                 } else {
-                    visibleRepairs.forEach { repair ->
+                    visibleRepairs.forEachIndexed { index, repair ->
+                        StaggeredPageEntry("admin-ops-$tab", 6 + index) {
                         VehicleRepairCard(repair = repair) {
                             when (repair.status) {
                                 "menunggu_persetujuan" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -4250,19 +4340,22 @@ fun AdminOperationsScreen(
                                 }
                             }
                         }
+                        }
                     }
                 }
             }
 
             "bukti" -> {
-                SmartWasteSearchField(
-                    value = proofSearch,
-                    onValueChange = { proofSearch = it.take(120) },
-                    placeholder = "Kode laporan, petugas, atau lokasi",
-                    suggestionSource = reports
-                        .filter { !it.locationEvidencePhotoUrl.isNullOrBlank() }
-                        .flatMap { listOf(it.code, it.workerName, it.location) }
-                )
+                StaggeredPageEntry("admin-ops-$tab", 4) {
+                    SmartWasteSearchField(
+                        value = proofSearch,
+                        onValueChange = { proofSearch = it.take(120) },
+                        placeholder = "Kode laporan, petugas, atau lokasi",
+                        suggestionSource = reports
+                            .filter { !it.locationEvidencePhotoUrl.isNullOrBlank() }
+                            .flatMap { listOf(it.code, it.workerName, it.location) }
+                    )
+                }
                 val query = proofSearch.trim().lowercase()
                 val visibleLocationEvidence = reports
                     .filter { !it.locationEvidencePhotoUrl.isNullOrBlank() }
@@ -4271,20 +4364,22 @@ fun AdminOperationsScreen(
                             .any { it.lowercase().contains(query) }
                     }
                     .sortedByDescending { it.locationEvidenceSubmittedAt }
-                SectionTitle(
-                    "Foto di lokasi",
-                    "Foto bukti dari petugas di lokasi laporan."
-                )
+                StaggeredPageEntry("admin-ops-$tab", 5) {
+                    SectionTitle("Foto di lokasi", "Foto bukti dari petugas di lokasi laporan.")
+                }
                 if (visibleLocationEvidence.isEmpty()) {
                     if (query.isNotBlank()) {
-                        Text(
-                            "Foto lokasi yang cocok tidak ditemukan.",
-                            color = AppTextMuted,
-                            fontSize = 12.sp,
-                            fontFamily = InterFont
-                        )
+                        StaggeredPageEntry("admin-ops-$tab", 6) {
+                            Text(
+                                "Foto lokasi yang cocok tidak ditemukan.",
+                                color = AppTextMuted,
+                                fontSize = 12.sp,
+                                fontFamily = InterFont
+                            )
+                        }
                     }
                 } else {
+                    StaggeredPageEntry("admin-ops-$tab", 6) {
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = AppSurface
@@ -4294,6 +4389,7 @@ fun AdminOperationsScreen(
                             verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             visibleLocationEvidence.forEachIndexed { index, report ->
+                                StaggeredPageEntry("admin-location-evidence", index) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -4334,9 +4430,11 @@ fun AdminOperationsScreen(
                                         Text("Lihat foto", color = LoginAccent, fontSize = 12.sp, fontFamily = InterFont)
                                     }
                                 }
+                                }
                                 if (index < visibleLocationEvidence.lastIndex) Spacer(Modifier.height(3.dp))
                             }
                         }
+                    }
                     }
                 }
 
@@ -4350,8 +4448,9 @@ fun AdminOperationsScreen(
                         review.workerNote
                     ).any { it.lowercase().contains(query) }
                 }
-                visibleReviews.forEach { review ->
+                visibleReviews.forEachIndexed { index, review ->
                     val report = review.report
+                    StaggeredPageEntry("admin-ops-$tab", 7 + index) {
                     AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = AppSurface,
@@ -4462,6 +4561,7 @@ fun AdminOperationsScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -5102,14 +5202,18 @@ fun PetugasTasksScreen(
     ) {
         if (currentSection != "profil") {
             if (sectionDataHasLoadError && !sectionDataIsEmpty) {
-                PetugasLoadFailure(
-                    "Sebagian data belum diperbarui. Data tersimpan tetap ditampilkan.",
-                    onRefresh
-                )
+                StaggeredPageEntry("petugas-$currentSection", 0) {
+                    PetugasLoadFailure(
+                        "Sebagian data belum diperbarui. Data tersimpan tetap ditampilkan.",
+                        onRefresh
+                    )
+                }
             }
         }
         if (currentSection != "profil") {
-            if (reportActionError.isNotBlank()) InlineError(reportActionError)
+            if (reportActionError.isNotBlank()) {
+                StaggeredPageEntry("petugas-$currentSection", 1) { InlineError(reportActionError) }
+            }
         }
         AnimatedContent(
             targetState = currentSection,
@@ -5118,10 +5222,7 @@ fun PetugasTasksScreen(
                 val sectionOrder = listOf("ringkasan", "tugas", "riwayat", "profil")
                 val direction = if (sectionOrder.indexOf(targetState) >= sectionOrder.indexOf(initialState)) 1 else -1
                 if (targetState in setOf("tugas", "riwayat", "profil")) {
-                    (slideInVertically(
-                        initialOffsetY = { height -> -height / 3 },
-                        animationSpec = tween(620, easing = FastOutSlowInEasing)
-                    ) + fadeIn(tween(260))) togetherWith fadeOut(tween(200))
+                    fadeIn(tween(150, easing = FastOutSlowInEasing)) togetherWith fadeOut(tween(130))
                 } else {
                     (slideInHorizontally(
                         animationSpec = tween(260, easing = FastOutSlowInEasing)
@@ -5310,6 +5411,7 @@ fun PetugasTasksScreen(
                     "perbaikan" -> "Proses perbaikan" to "Lanjutkan perbaikan dan kirim hasilnya."
                     else -> "TPA" to "Cek kapasitas sebelum mengatur angkutan."
                 }
+                StaggeredPageEntry("petugas-tugas-$selectedWorkArea", 2) {
                 PetugasSectionHeading(
                     eyebrow = "POS OPERASIONAL",
                     title = workAreaHeading.first,
@@ -5322,6 +5424,8 @@ fun PetugasTasksScreen(
                         else -> Icons.Filled.Place
                     }
                 )
+                }
+                StaggeredPageEntry("petugas-tugas-$selectedWorkArea", 3) {
                 PetugasFilterGrid(
                     title = "Area kerja",
                     choices = listOf(
@@ -5338,27 +5442,39 @@ fun PetugasTasksScreen(
                     selectedKey = selectedWorkArea,
                     onSelect = { selectedWorkArea = it }
                 )
+                }
                 when (selectedWorkArea) {
                     "laporan" -> {
+                        StaggeredPageEntry("petugas-tugas-laporan", 4) {
                         PetugasQueueSearch(
                             query = incomingSearch,
                             onQueryChange = { incomingSearch = it.take(100) },
                             placeholder = "Cari kode, jenis, atau lokasi",
                             suggestionSource = newReports.flatMap { listOf(it.code, it.type, it.location) }
                         )
+                        }
                         if (isInitialLoading && newReports.isEmpty()) {
-                            PetugasLoadingState("Memuat laporan", "Mengambil antrean terbaru dari server.")
+                            StaggeredPageEntry("petugas-tugas-laporan", 5) {
+                                PetugasLoadingState("Memuat laporan", "Mengambil antrean terbaru dari server.")
+                            }
                         } else if (newReports.isEmpty() && hasLoadError("Laporan masuk")) {
-                            PetugasLoadFailure("Laporan belum dapat dimuat.", onRefresh)
+                            StaggeredPageEntry("petugas-tugas-laporan", 5) {
+                                PetugasLoadFailure("Laporan belum dapat dimuat.", onRefresh)
+                            }
                         } else if (newReports.isEmpty()) {
-                            PetugasEmptyState("Tidak ada laporan baru", "Laporan warga yang menunggu penanganan akan tampil di sini.")
+                            StaggeredPageEntry("petugas-tugas-laporan", 5) {
+                                PetugasEmptyState("Tidak ada laporan baru", "Laporan warga yang menunggu penanganan akan tampil di sini.")
+                            }
                         } else if (filteredIncomingReports.isEmpty()) {
-                            PetugasEmptyState("Laporan tidak ditemukan", "Coba kata kunci lain atau hapus pencarian.")
+                            StaggeredPageEntry("petugas-tugas-laporan", 5) {
+                                PetugasEmptyState("Laporan tidak ditemukan", "Coba kata kunci lain atau hapus pencarian.")
+                            }
                             TextButton(onClick = { incomingSearch = "" }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                                 Text("Hapus pencarian", color = LoginAccent, fontWeight = FontWeight.SemiBold)
                             }
                         } else {
-                            filteredIncomingReports.forEach { report ->
+                            filteredIncomingReports.forEachIndexed { index, report ->
+                                StaggeredPageEntry("petugas-tugas-laporan", 5 + index) {
                                 AdminReportCard(
                                     report = report,
                                     onOpenPhoto = onOpenPhoto,
@@ -5371,11 +5487,13 @@ fun PetugasTasksScreen(
                                     assignmentLabel = "Terima & tugaskan",
                                     petugasStyle = true
                                 )
+                                }
                             }
                         }
                     }
 
                     "aktif" -> {
+                        StaggeredPageEntry("petugas-tugas-aktif", 4) {
                         PetugasQueueSearch(
                             query = activeTaskSearch,
                             onQueryChange = { activeTaskSearch = it.take(100) },
@@ -5384,6 +5502,8 @@ fun PetugasTasksScreen(
                                 listOf(it.code, it.location, it.vehiclePlate, it.tpaName)
                             }
                         )
+                        }
+                        StaggeredPageEntry("petugas-tugas-aktif", 5) {
                         PetugasFilterGrid(
                             title = "Status tugas",
                             choices = listOf(
@@ -5396,17 +5516,22 @@ fun PetugasTasksScreen(
                             selectedKey = activeTaskFilter,
                             onSelect = { activeTaskFilter = it }
                         )
+                        }
                         if (isInitialLoading && activeTasks.isEmpty()) {
-                            PetugasLoadingState("Memuat tugas", "Mengambil penugasan akun ini dari server.")
+                            StaggeredPageEntry("petugas-tugas-aktif", 6) {
+                                PetugasLoadingState("Memuat tugas", "Mengambil penugasan akun ini dari server.")
+                            }
                         } else if (activeTasks.isEmpty() && hasLoadError("Penugasan")) {
-                            PetugasLoadFailure("Tugas belum dapat dimuat.", onRefresh)
+                            StaggeredPageEntry("petugas-tugas-aktif", 6) { PetugasLoadFailure("Tugas belum dapat dimuat.", onRefresh) }
                         } else if (activeTasks.isEmpty()) {
-                            PetugasEmptyState("Belum ada tugas aktif", "Tugas yang sudah diterima akan muncul di sini.")
+                            StaggeredPageEntry("petugas-tugas-aktif", 6) { PetugasEmptyState("Belum ada tugas aktif", "Tugas yang sudah diterima akan muncul di sini.") }
                         } else if (filteredActiveTasks.isEmpty()) {
-                            PetugasEmptyState(
-                                if (activeTaskSearch.isNotBlank()) "Tugas tidak ditemukan" else "Tidak ada tugas pada filter ini",
-                                "Ubah filter atau kata kunci untuk melihat penugasan lain."
-                            )
+                            StaggeredPageEntry("petugas-tugas-aktif", 6) {
+                                PetugasEmptyState(
+                                    if (activeTaskSearch.isNotBlank()) "Tugas tidak ditemukan" else "Tidak ada tugas pada filter ini",
+                                    "Ubah filter atau kata kunci untuk melihat penugasan lain."
+                                )
+                            }
                             TextButton(
                                 onClick = { activeTaskFilter = "semua"; activeTaskSearch = "" },
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -5414,7 +5539,8 @@ fun PetugasTasksScreen(
                                 Text("Tampilkan semua tugas", color = LoginAccent, fontWeight = FontWeight.SemiBold)
                             }
                         } else {
-                            filteredActiveTasks.forEach { task ->
+                            filteredActiveTasks.forEachIndexed { index, task ->
+                                StaggeredPageEntry("petugas-tugas-aktif", 6 + index) {
                                 PetugasTaskCard(
                                     report = task,
                                     onOpenPhoto = onOpenPhoto,
@@ -5425,6 +5551,7 @@ fun PetugasTasksScreen(
                                     onSendLocationEvidence = ::requestLocationPhoto,
                                     isSendingLocationEvidence = sendingLocationTaskId == task.id
                                 )
+                                }
                             }
                         }
                     }
@@ -5433,6 +5560,7 @@ fun PetugasTasksScreen(
                         val activeRepairs = vehicleRepairs.filter { it.status !in setOf("selesai", "ditolak") }
                         val repairHistory = vehicleRepairs.filter { it.status in setOf("selesai", "ditolak") }
                         val visibleRepairs = if (showingRepairHistory) repairHistory else activeRepairs
+                        StaggeredPageEntry("petugas-tugas-perbaikan", 4) {
                         PetugasFilterGrid(
                             title = "Tahap perbaikan",
                             choices = listOf(
@@ -5442,16 +5570,24 @@ fun PetugasTasksScreen(
                             selectedKey = if (showingRepairHistory) "riwayat" else "berjalan",
                             onSelect = { showingRepairHistory = it == "riwayat" }
                         )
+                        }
                         if (isInitialLoading && vehicleRepairs.isEmpty()) {
-                            PetugasLoadingState("Memuat perbaikan", "Mengambil status laporan kerusakan.")
+                            StaggeredPageEntry("petugas-tugas-perbaikan", 5) {
+                                PetugasLoadingState("Memuat perbaikan", "Mengambil status laporan kerusakan.")
+                            }
                         } else if (vehicleRepairs.isEmpty() && hasLoadError("Perbaikan armada")) {
-                            PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh)
+                            StaggeredPageEntry("petugas-tugas-perbaikan", 5) { PetugasLoadFailure("Data perbaikan belum dapat dimuat.", onRefresh) }
                         } else if (vehicleRepairs.isEmpty()) {
-                            PetugasEmptyState("Belum ada proses perbaikan", "Laporkan kerusakan dari tab Armada untuk memulai alur persetujuan.")
+                            StaggeredPageEntry("petugas-tugas-perbaikan", 5) {
+                                PetugasEmptyState("Belum ada proses perbaikan", "Laporkan kerusakan dari tab Armada untuk memulai alur persetujuan.")
+                            }
                         } else if (visibleRepairs.isEmpty()) {
-                            PetugasEmptyState(if (showingRepairHistory) "Belum ada riwayat perbaikan" else "Semua proses perbaikan sudah selesai.", "Pilih Riwayat untuk melihat pekerjaan yang sudah ditutup.")
+                            StaggeredPageEntry("petugas-tugas-perbaikan", 5) {
+                                PetugasEmptyState(if (showingRepairHistory) "Belum ada riwayat perbaikan" else "Semua proses perbaikan sudah selesai.", "Pilih Riwayat untuk melihat pekerjaan yang sudah ditutup.")
+                            }
                         } else {
-                            visibleRepairs.forEach { repair ->
+                            visibleRepairs.forEachIndexed { index, repair ->
+                                StaggeredPageEntry("petugas-tugas-perbaikan", 5 + index) {
                                 VehicleRepairCard(repair = repair) {
                                     when (repair.status) {
                                         "disetujui", "perlu_perbaikan" -> TextButton(
@@ -5469,18 +5605,23 @@ fun PetugasTasksScreen(
                                         "menunggu_pemeriksaan" -> Text("Hasil dikirim · menunggu pemeriksaan Admin", color = AppTextMuted, fontSize = 13.sp)
                                     }
                                 }
+                                }
                             }
                         }
                     }
 
                     "armada" -> {
-                        AppButton("＋ Tambah kendaraan", { showVehicleForm = true }, containerColor = LoginAccent)
+                        StaggeredPageEntry("petugas-tugas-armada", 4) {
+                            AppButton("＋ Tambah kendaraan", { showVehicleForm = true }, containerColor = LoginAccent)
+                        }
                         if (isInitialLoading && vehicles.isEmpty()) {
-                            PetugasLoadingState("Memuat armada", "Mengambil data kendaraan dari server.")
+                            StaggeredPageEntry("petugas-tugas-armada", 5) { PetugasLoadingState("Memuat armada", "Mengambil data kendaraan dari server.") }
                         } else if (vehicles.isEmpty() && hasLoadError("Armada")) {
-                            PetugasLoadFailure("Data armada belum dapat dimuat.", onRefresh)
-                        } else if (vehicles.isEmpty()) PetugasEmptyState("Belum ada armada", "Tambahkan kendaraan agar laporan bisa ditugaskan.")
-                        vehicles.forEach { vehicle ->
+                            StaggeredPageEntry("petugas-tugas-armada", 5) { PetugasLoadFailure("Data armada belum dapat dimuat.", onRefresh) }
+                        } else if (vehicles.isEmpty()) {
+                            StaggeredPageEntry("petugas-tugas-armada", 5) { PetugasEmptyState("Belum ada armada", "Tambahkan kendaraan agar laporan bisa ditugaskan.") }
+                        }
+                        vehicles.forEachIndexed { index, vehicle ->
                             val openRepair = vehicleRepairs.firstOrNull {
                                 it.vehicleId == vehicle.id && it.status !in setOf("selesai", "ditolak")
                             }
@@ -5488,6 +5629,7 @@ fun PetugasTasksScreen(
                             val emptyingRequest = capacityClearanceRequests.firstOrNull {
                                 it.targetType == "kendaraan" && it.targetId == vehicle.id
                             }
+                            StaggeredPageEntry("petugas-tugas-armada", 6 + index) {
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
@@ -5533,21 +5675,27 @@ fun PetugasTasksScreen(
                                     }
                                 }
                             }
+                            }
                         }
                     }
 
                     "tpa" -> {
-                        AppButton("＋ Tambah TPA", { showFacilityForm = true }, containerColor = LoginAccent)
+                        StaggeredPageEntry("petugas-tugas-tpa", 4) {
+                            AppButton("＋ Tambah TPA", { showFacilityForm = true }, containerColor = LoginAccent)
+                        }
                         if (isInitialLoading && facilities.isEmpty()) {
-                            PetugasLoadingState("Memuat data TPA", "Mengambil kapasitas tujuan dari server.")
+                            StaggeredPageEntry("petugas-tugas-tpa", 5) { PetugasLoadingState("Memuat data TPA", "Mengambil kapasitas tujuan dari server.") }
                         } else if (facilities.isEmpty() && hasLoadError("TPA")) {
-                            PetugasLoadFailure("Data TPA belum dapat dimuat.", onRefresh)
-                        } else if (facilities.isEmpty()) PetugasEmptyState("Belum ada TPA", "Tambahkan TPA agar laporan bisa ditugaskan.")
-                        facilities.forEach { facility ->
+                            StaggeredPageEntry("petugas-tugas-tpa", 5) { PetugasLoadFailure("Data TPA belum dapat dimuat.", onRefresh) }
+                        } else if (facilities.isEmpty()) {
+                            StaggeredPageEntry("petugas-tugas-tpa", 5) { PetugasEmptyState("Belum ada TPA", "Tambahkan TPA agar laporan bisa ditugaskan.") }
+                        }
+                        facilities.forEachIndexed { index, facility ->
                             val isFull = facility.capacityTon > 0 && facility.remainingTon <= 0.001
                             val emptyingRequest = capacityClearanceRequests.firstOrNull {
                                 it.targetType == "tpa" && it.targetId == facility.id
                             }
+                            StaggeredPageEntry("petugas-tugas-tpa", 6 + index) {
                             AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
@@ -5589,12 +5737,15 @@ fun PetugasTasksScreen(
                                     }
                                 }
                             }
+                            }
                         }
                     }
                 }
             }
 
             "riwayat" -> {
+                val historyAnimationKey = "petugas-history-$showingTaskArchive-$historyFilter"
+                StaggeredPageEntry(historyAnimationKey, 2) {
                 PetugasSectionHeading(
                     eyebrow = "CATATAN SHIFT",
                     title = if (showingTaskArchive) "Arsip pekerjaan" else "Riwayat pekerjaan",
@@ -5602,6 +5753,8 @@ fun PetugasTasksScreen(
                     else "${completedTasks.size} selesai · ${rejectedTasks.size} ditolak",
                     icon = Icons.Rounded.History
                 )
+                }
+                StaggeredPageEntry(historyAnimationKey, 3) {
                 PetugasHistoryFilterBar(
                     showingArchive = showingTaskArchive,
                     historyCount = historyTasks.size,
@@ -5619,6 +5772,8 @@ fun PetugasTasksScreen(
                     },
                     onSelectStatus = { historyFilter = it }
                 )
+                }
+                StaggeredPageEntry(historyAnimationKey, 4) {
                 PetugasQueueSearch(
                     query = historySearch,
                     onQueryChange = { historySearch = it.take(100) },
@@ -5627,19 +5782,22 @@ fun PetugasTasksScreen(
                         listOf(it.code, it.location, it.vehiclePlate, it.tpaName)
                     }
                 )
-                if (archiveActionError.isNotBlank()) InlineError(archiveActionError)
+                }
+                if (archiveActionError.isNotBlank()) StaggeredPageEntry(historyAnimationKey, 5) { InlineError(archiveActionError) }
                 if (showingTaskArchive) {
                     when {
                         isInitialLoading && archivedTasks.isEmpty() ->
-                            PetugasLoadingState("Memuat arsip", "Mengambil catatan yang tersimpan.")
+                            StaggeredPageEntry(historyAnimationKey, 6) { PetugasLoadingState("Memuat arsip", "Mengambil catatan yang tersimpan.") }
                         archivedTasks.isEmpty() && hasLoadError("Arsip Petugas") ->
-                            PetugasLoadFailure("Arsip belum dapat dimuat.", onRefresh)
+                            StaggeredPageEntry(historyAnimationKey, 6) { PetugasLoadFailure("Arsip belum dapat dimuat.", onRefresh) }
                         filteredArchivedHistory.isEmpty() && archivedTasks.isEmpty() ->
-                            PetugasEmptyState("Arsip masih kosong", "Arsipkan tugas selesai atau laporan ditolak dari riwayat.")
+                            StaggeredPageEntry(historyAnimationKey, 6) { PetugasEmptyState("Arsip masih kosong", "Arsipkan tugas selesai atau laporan ditolak dari riwayat.") }
                         filteredArchivedHistory.isEmpty() ->
-                            PetugasEmptyState("Arsip tidak ditemukan", "Coba kata kunci atau filter status yang lain.")
+                            StaggeredPageEntry(historyAnimationKey, 6) { PetugasEmptyState("Arsip tidak ditemukan", "Coba kata kunci atau filter status yang lain.") }
                     }
-                    filteredArchivedHistory.forEach { archived ->
+                    filteredArchivedHistory.forEachIndexed { index, archived ->
+                        StaggeredPageEntry(historyAnimationKey, 7 + index) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         PetugasTaskCard(archived.report, onOpenPhoto, compactHistory = true)
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
@@ -5669,28 +5827,34 @@ fun PetugasTasksScreen(
                                 ) { Text("Hapus permanen", color = RoleRed, fontSize = 11.sp) }
                             }
                         }
+                        }
+                        }
                     }
                 } else {
                     when {
                         isInitialLoading && historyTasks.isEmpty() ->
-                            PetugasLoadingState("Memuat riwayat", "Mengambil pekerjaan yang sudah selesai.")
+                            StaggeredPageEntry(historyAnimationKey, 6) { PetugasLoadingState("Memuat riwayat", "Mengambil pekerjaan yang sudah selesai.") }
                         historyTasks.isEmpty() && hasLoadError("Penugasan") ->
-                            PetugasLoadFailure("Riwayat belum dapat dimuat.", onRefresh)
+                            StaggeredPageEntry(historyAnimationKey, 6) { PetugasLoadFailure("Riwayat belum dapat dimuat.", onRefresh) }
                         historyTasks.isEmpty() ->
-                            PetugasEmptyState("Belum ada riwayat", "Tugas selesai dan laporan yang ditolak akan tersimpan di sini.")
+                            StaggeredPageEntry(historyAnimationKey, 6) { PetugasEmptyState("Belum ada riwayat", "Tugas selesai dan laporan yang ditolak akan tersimpan di sini.") }
                         filteredHistoryTasks.isEmpty() ->
-                            PetugasEmptyState(
-                                if (historySearch.isNotBlank()) "Riwayat tidak ditemukan" else "Belum ada hasil pada filter ini",
-                                "Ubah filter atau kata kunci untuk melihat catatan lain."
-                            )
+                            StaggeredPageEntry(historyAnimationKey, 6) {
+                                PetugasEmptyState(
+                                    if (historySearch.isNotBlank()) "Riwayat tidak ditemukan" else "Belum ada hasil pada filter ini",
+                                    "Ubah filter atau kata kunci untuk melihat catatan lain."
+                                )
+                            }
                     }
-                    filteredHistoryTasks.forEach { task ->
+                    filteredHistoryTasks.forEachIndexed { index, task ->
+                        StaggeredPageEntry(historyAnimationKey, 7 + index) {
                         PetugasTaskCard(
                             task,
                             onOpenPhoto,
                             compactHistory = true,
                             onArchive = { archivingHistoryTask = task }
                         )
+                        }
                     }
                 }
             }
@@ -7252,6 +7416,8 @@ private fun AccountProfileSettings(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        val profileAnimationKey = "profile-${account.username}"
+        StaggeredPageEntry(profileAnimationKey, 0) {
         if (account.role == UserRole.ADMIN) {
             AdminSectionHeading(
                 eyebrow = "AKUN DAN PREFERENSI",
@@ -7268,7 +7434,9 @@ private fun AccountProfileSettings(
                 photoUrl = account.profilePhotoUrl
             )
         }
+        }
 
+        StaggeredPageEntry(profileAnimationKey, 1) {
         AppCard(modifier = Modifier.fillMaxWidth(), containerColor = AppSurface) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -7351,7 +7519,9 @@ private fun AccountProfileSettings(
                 }
             }
         }
+        }
 
+        StaggeredPageEntry(profileAnimationKey, 2) {
         AppCard(
             modifier = Modifier.fillMaxWidth().clickable(onClick = appearance.onToggleTheme),
             containerColor = AppSurface
@@ -7382,7 +7552,9 @@ private fun AccountProfileSettings(
                 }
             }
         }
+        }
 
+        StaggeredPageEntry(profileAnimationKey, 3) {
         TextButton(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth()
@@ -7393,6 +7565,7 @@ private fun AccountProfileSettings(
             Icon(Icons.Filled.SwitchAccount, contentDescription = null, tint = RoleRed)
             Spacer(Modifier.width(8.dp))
             Text("Keluar dari akun", color = RoleRed, fontWeight = FontWeight.Bold)
+        }
         }
     }
 
