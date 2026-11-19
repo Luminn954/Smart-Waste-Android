@@ -151,7 +151,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -6830,13 +6829,6 @@ private fun PetugasJourneyHero(
     }
     val isCompact = LocalConfiguration.current.screenWidthDp < 360
     val isDarkMode = LocalSmartWasteAppearance.current.darkMode
-    val welcomeTextShadow = with(LocalDensity.current) {
-        Shadow(
-            color = Color(0xB31B342A),
-            offset = Offset(0f, 1.5.dp.toPx()),
-            blurRadius = 4.dp.toPx()
-        )
-    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
@@ -6880,32 +6872,6 @@ private fun PetugasJourneyHero(
                         else Color(0xFFEAF1EA).copy(alpha = 0.24f)
                     )
                 )
-                Column(
-                    modifier = Modifier.align(Alignment.TopStart)
-                        .padding(start = 20.dp, top = 22.dp, end = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        "Selamat datang kembali,",
-                        color = Color(0xFFF8FAF6),
-                        fontSize = if (isCompact) 15.sp else 16.sp,
-                        lineHeight = 20.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(shadow = welcomeTextShadow)
-                    )
-                    Text(
-                        "Petugas",
-                        color = Color(0xFFF8FAF6),
-                        fontSize = if (isCompact) 21.sp else 23.sp,
-                        lineHeight = 28.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(shadow = welcomeTextShadow)
-                    )
-                }
                 SmartWasteSearchField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
