@@ -293,7 +293,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(Unit) {
-                    delay(4200)
+                    delay(3200)
                     showSplash = false
                 }
 
