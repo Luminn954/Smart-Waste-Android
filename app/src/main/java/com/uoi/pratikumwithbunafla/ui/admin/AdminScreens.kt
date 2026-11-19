@@ -652,10 +652,10 @@ private fun AdminTopBar(
     var profileMenuExpanded by remember(account.username) { mutableStateOf(false) }
     val appearance = LocalSmartWasteAppearance.current
     val compact = LocalConfiguration.current.screenWidthDp < 350
-    val roleIconTint = when {
-        isOnHero -> Color(0xFFE2E9D9)
-        appearance.darkMode -> Color(0xFFA9B9AC)
-        else -> Color(0xFF5D776C)
+    val logoSurface = when {
+        isOnHero -> Color.White.copy(alpha = 0.16f)
+        appearance.darkMode -> Color(0xFF304338)
+        else -> Color(0xFFE4EBE1)
     }
     val roleTextColor = if (isOnHero) Color(0xFFF5F4E8) else AppText
     val modeIconTint by animateColorAsState(
@@ -673,31 +673,33 @@ private fun AdminTopBar(
         animationSpec = tween(520, easing = FastOutSlowInEasing),
         label = "admin-theme-icon-border"
     )
-    val roleIcon = if (account.role == UserRole.ADMIN) {
-        Icons.Filled.AdminPanelSettings
-    } else {
-        Icons.Rounded.Person
-    }
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Row(
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = roleIcon,
-                contentDescription = null,
-                tint = roleIconTint,
-                modifier = Modifier.size(if (compact) 19.dp else 21.dp)
-            )
+            Box(
+                modifier = Modifier.size(if (compact) 34.dp else 38.dp)
+                    .clip(CircleShape)
+                    .background(logoSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.launcher_recycling_mark),
+                    contentDescription = "Logo Smart Waste",
+                    modifier = Modifier.size(if (compact) 22.dp else 25.dp)
+                )
+            }
             Text(
-                text = account.role.label,
+                text = account.name.displayPersonName().takeIf { it != "—" } ?: "Admin",
                 color = roleTextColor,
                 fontSize = if (compact) 15.sp else 16.sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        Spacer(modifier = Modifier.weight(1f))
         if (showNotificationsButton) {
             IconButton(onClick = onOpenNotifications, modifier = Modifier.size(40.dp)) {
                 Icon(
