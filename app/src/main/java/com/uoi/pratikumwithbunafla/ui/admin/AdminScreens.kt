@@ -652,11 +652,8 @@ private fun AdminTopBar(
     var profileMenuExpanded by remember(account.username) { mutableStateOf(false) }
     val appearance = LocalSmartWasteAppearance.current
     val compact = LocalConfiguration.current.screenWidthDp < 350
-    val logoSurface = when {
-        isOnHero -> Color.White.copy(alpha = 0.16f)
-        appearance.darkMode -> Color(0xFF304338)
-        else -> Color(0xFFE4EBE1)
-    }
+    val logoSurface = Color(0xFFF8F8F0)
+    val logoBorder = Color(0xFFB7CBB9)
     val roleTextColor = if (isOnHero) Color(0xFFF5F4E8) else AppText
     val modeIconTint by animateColorAsState(
         targetValue = if (appearance.darkMode) Color(0xFFC2B48E) else Color(0xFF687F83),
@@ -681,8 +678,10 @@ private fun AdminTopBar(
         ) {
             Box(
                 modifier = Modifier.size(if (compact) 34.dp else 38.dp)
+                    .shadow(2.dp, CircleShape)
                     .clip(CircleShape)
-                    .background(logoSurface),
+                    .background(logoSurface)
+                    .border(1.dp, logoBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
