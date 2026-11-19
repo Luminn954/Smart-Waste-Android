@@ -267,10 +267,10 @@ private fun SplashLogoAssembly(compactScreen: Boolean) {
     val textProgress = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        assemblyProgress.animateTo(1f, tween(4_300, easing = FastOutSlowInEasing))
-        logoProgress.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
-        delay(120)
-        textProgress.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
+        assemblyProgress.animateTo(1f, tween(3_000, easing = FastOutSlowInEasing))
+        logoProgress.animateTo(1f, tween(480, easing = FastOutSlowInEasing))
+        delay(80)
+        textProgress.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
